@@ -1,31 +1,373 @@
 openapi: 3.1.0
 info:
   title: Skenion Runtime HTTP API
-  version: 0.0.0
+  version: 0.1.0
 paths:
   /health:
     get:
-      summary: Return runtime health.
+      summary: Return local runtime health.
       responses:
         "200":
           description: Runtime is reachable.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - status
-                properties:
-                  status:
-                    type: string
-  /snapshots/latest:
+                $ref: "#/components/schemas/HealthResponse"
+  /v0/runtime/info:
     get:
-      summary: Return the latest preview snapshot.
+      summary: Return runtime identity and capability metadata.
       responses:
         "200":
-          description: Latest preview snapshot.
+          description: Runtime metadata.
           content:
-            image/png:
+            application/json:
               schema:
-                type: string
-                contentEncoding: base64
+                $ref: "#/components/schemas/RuntimeInfoResponse"
+  /v0/validate:
+    post:
+      summary: Validate a complete project payload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectRequest"
+      responses:
+        "200":
+          description: Project validation result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeApiResponse"
+  /v0/plan:
+    post:
+      summary: Validate and build an execution plan for a project payload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectRequest"
+      responses:
+        "200":
+          description: Project planning result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeApiResponse"
+  /v0/run:
+    post:
+      summary: Validate, plan, and run a dummy execution for a project payload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunProjectRequest"
+      responses:
+        "200":
+          description: Dummy execution result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeApiResponse"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - ok
+        - service
+        - version
+      properties:
+        ok:
+          type: boolean
+        service:
+          type: string
+          const: skenion-runtime
+        version:
+          type: string
+    RuntimeInfoResponse:
+      type: object
+      required:
+        - name
+        - version
+        - apiVersion
+        - capabilities
+      properties:
+        name:
+          type: string
+          const: skenion-runtime
+        version:
+          type: string
+        apiVersion:
+          type: string
+          const: 0.1.0
+        capabilities:
+          type: array
+          items:
+            type: string
+          examples:
+            - ["project.validate", "project.plan", "dummy.run"]
+    ProjectRequest:
+      type: object
+      required:
+        - graph
+        - nodes
+      properties:
+        graph:
+          $ref: "#/components/schemas/GraphDocumentV01"
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/NodeDefinitionManifestV01"
+    RunProjectRequest:
+      allOf:
+        - $ref: "#/components/schemas/ProjectRequest"
+        - type: object
+          properties:
+            frames:
+              type: integer
+              minimum: 0
+    RuntimeApiResponse:
+      type: object
+      required:
+        - ok
+        - diagnostics
+        - plan
+        - report
+      properties:
+        ok:
+          type: boolean
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeDiagnostic"
+        plan:
+          anyOf:
+            - $ref: "#/components/schemas/ExecutionPlan"
+            - type: "null"
+        report:
+          anyOf:
+            - $ref: "#/components/schemas/DummyExecutionReport"
+            - type: "null"
+    RuntimeDiagnostic:
+      type: object
+      required:
+        - severity
+        - message
+      properties:
+        severity:
+          type: string
+          enum:
+            - error
+        message:
+          type: string
+    ExecutionPlan:
+      type: object
+      required:
+        - graphId
+        - graphRevision
+        - nodes
+        - edges
+        - groups
+      properties:
+        graphId:
+          type: string
+        graphRevision:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanEdge"
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExecutionGroup"
+    PlanNode:
+      type: object
+      required:
+        - nodeId
+        - kind
+        - kindVersion
+        - executionModel
+        - order
+      properties:
+        nodeId:
+          type: string
+        kind:
+          type: string
+        kindVersion:
+          type: string
+        executionModel:
+          type: string
+        order:
+          type: integer
+          minimum: 0
+    PlanEdge:
+      type: object
+      required:
+        - fromNode
+        - fromPort
+        - toNode
+        - toPort
+      properties:
+        fromNode:
+          type: string
+        fromPort:
+          type: string
+        toNode:
+          type: string
+        toPort:
+          type: string
+    ExecutionGroup:
+      type: object
+      required:
+        - executionModel
+        - nodeIds
+      properties:
+        executionModel:
+          type: string
+        nodeIds:
+          type: array
+          items:
+            type: string
+    DummyExecutionReport:
+      type: object
+      required:
+        - graphId
+        - graphRevision
+        - frameCount
+        - frames
+      properties:
+        graphId:
+          type: string
+        graphRevision:
+          type: string
+        frameCount:
+          type: integer
+          minimum: 1
+        frames:
+          type: array
+          items:
+            $ref: "#/components/schemas/DummyFrameReport"
+    DummyFrameReport:
+      type: object
+      required:
+        - index
+        - executedNodes
+      properties:
+        index:
+          type: integer
+          minimum: 0
+        executedNodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DummyNodeExecution"
+    DummyNodeExecution:
+      type: object
+      required:
+        - nodeId
+        - kind
+        - kindVersion
+        - executionModel
+        - order
+        - status
+      properties:
+        nodeId:
+          type: string
+        kind:
+          type: string
+        kindVersion:
+          type: string
+        executionModel:
+          type: string
+        order:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+    GraphDocumentV01:
+      type: object
+      required:
+        - schema
+        - schemaVersion
+        - id
+        - revision
+        - nodes
+        - edges
+      properties:
+        schema:
+          type: string
+          const: skenion.graph
+        schemaVersion:
+          type: string
+          const: 0.1.0
+        id:
+          type: string
+        revision:
+          type: string
+        nodes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        edges:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      additionalProperties: true
+    NodeDefinitionManifestV01:
+      type: object
+      required:
+        - schema
+        - schemaVersion
+        - id
+        - version
+        - displayName
+        - category
+        - ports
+        - execution
+        - state
+        - permissions
+        - capabilities
+      properties:
+        schema:
+          type: string
+          const: skenion.node.definition
+        schemaVersion:
+          type: string
+          const: 0.1.0
+        id:
+          type: string
+        version:
+          type: string
+        displayName:
+          type: string
+        category:
+          type: string
+        ports:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        execution:
+          type: object
+          additionalProperties: true
+        state:
+          type: object
+          additionalProperties: true
+        permissions:
+          type: array
+          items:
+            type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
