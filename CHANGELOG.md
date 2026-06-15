@@ -1,0 +1,11 @@
+# Changelog
+
+## [0.2.0](https://github.com/echovisionlab/skenion-contracts/compare/skenion-contracts-v0.1.0...skenion-contracts-v0.2.0) (2026-06-15)
+
+
+### Features
+
+* **contracts:** add TypeScript validation package ([6c40ff3](https://github.com/echovisionlab/skenion-contracts/commit/6c40ff3900c810e936e8a69da5ea2a165ffec7b6))
+* **contracts:** scaffold initial contract surfaces ([2fa0d5d](https://github.com/echovisionlab/skenion-contracts/commit/2fa0d5de7486799518555f6c5bd73bf3528f9baf))
+* **graph-schema:** add node contract v0.1 ([a0e3dc5](https://github.com/echovisionlab/skenion-contracts/commit/a0e3dc5f04e49db373a1d7cd385a3d2cf164af0b))
+* **graph-schema:** define typed node ports ([34a0476](https://github.com/echovisionlab/skenion-contracts/commit/34a0476ce7452cc4b5c26624be795af1a631b902))
