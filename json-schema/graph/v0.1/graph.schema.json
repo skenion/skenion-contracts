@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skenion.dev/schemas/graph/v0.1/graph.schema.json",
+  "title": "Skenion Graph Document v0.1",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "id", "revision", "nodes", "edges"],
+  "properties": {
+    "schema": {
+      "const": "skenion.graph"
+    },
+    "schemaVersion": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["id", "kind", "kindVersion", "params", "ports"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kindVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "port": {
+      "type": "object",
+      "required": ["id", "direction", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direction": {
+          "enum": ["input", "output"]
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/dataType"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "default": true,
+        "activation": {
+          "enum": ["trigger", "latched"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataType": {
+      "type": "object",
+      "required": ["flow", "dataKind"],
+      "properties": {
+        "flow": {
+          "enum": ["value", "event", "signal", "stream", "resource"]
+        },
+        "dataKind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string"
+        },
+        "range": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "step": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "shape": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "channels": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sampleRate": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "format": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "colorSpace": {
+          "type": "string"
+        },
+        "frameRate": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "alphaPolicy": {
+          "enum": ["error", "white", "black", "luminance"]
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/portRef"
+        },
+        "to": {
+          "$ref": "#/$defs/portRef"
+        }
+      },
+      "additionalProperties": false
+    },
+    "portRef": {
+      "type": "object",
+      "required": ["node", "port"],
+      "properties": {
+        "node": {
+          "type": "string",
+          "minLength": 1
+        },
+        "port": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

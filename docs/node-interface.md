@@ -1,136 +1,180 @@
-# Node Interface
+# Node Interface v0.1
 
-Skenion nodes are declared through typed input and output ports.
+Skenion nodes are typed, time-aware runtime actors. The persisted graph document
+stores patch wiring. Runtime scheduling details live in node definition
+manifests and runtime registries.
 
-A node interface must describe both:
+## Documents
 
-- what kind of data moves through the port
-- how that data moves over time
+There are two related contracts:
 
-This keeps a boolean value distinct from a bang event, and keeps a video stream
-distinct from a single image or texture resource.
+- `skenion.graph` describes node instances, ports, and edges in a saved patch.
+- `skenion.node.definition` describes a node kind that a runtime, plugin, or
+  script module can provide.
 
-## Node Shape
+Graph documents reference node definitions by `kind` and `kindVersion`. They do
+not persist a scheduler plan, GPU pass order, script lifecycle, or permissions.
 
-A graph node instance has:
+## Port Type Model
 
-- `id`: stable graph-local node id
-- `kind`: stable node kind id such as `core.value` or `render.pass`
-- `params`: persistent node parameters
-- `inputs`: input port declarations
-- `outputs`: output port declarations
-
-Node kinds may also be defined in a registry later, but graph documents should
-be able to carry a resolved interface snapshot for validation, migration, and
-offline tooling.
-
-## Port Shape
-
-Each port has:
-
-- `id`: stable port id within the node
-- `type`: payload and flow type
-- optional `label`
-- optional `required`
-- optional `default`
-
-Example:
+v0.1 uses one canonical type model:
 
 ```json
 {
-  "id": "out",
-  "label": "Output",
-  "type": {
-    "flow": "sampled",
-    "kind": "number.float64",
-    "unit": "seconds"
-  }
+  "flow": "value",
+  "dataKind": "number.f32",
+  "unit": "px",
+  "range": { "min": 0, "max": 100 }
 }
 ```
 
-## Flow Types
+Do not add a separate `domain` field to graph schema. In the design notes,
+domain names such as audio, video, gpu, clock, and message are explanatory
+categories. In the contract, those concepts are expressed through `flow`,
+`dataKind`, and constraints.
 
-`flow` describes delivery semantics.
+## Flow
+
+`flow` describes temporal delivery semantics.
 
 | Flow | Meaning |
 | --- | --- |
-| `constant` | Value is stable until changed by graph state or parameters. |
-| `sampled` | One value is produced or consumed per runtime evaluation tick/frame. |
-| `stream` | Continuous media or block data such as video frames or audio buffers. |
-| `event` | Discrete event delivery; may have no durable value. |
-| `resource` | Handle or reference to a runtime resource such as texture, mesh, or asset. |
+| `value` | Retained current value. |
+| `event` | Discrete occurrence; may have no durable value. |
+| `signal` | Time-varying control signal sampled by a clock. |
+| `stream` | Ordered media/block data with backpressure or drop policy. |
+| `resource` | Asset or runtime resource handle. |
 
-## Data Kinds
+v0.0.0 used `constant` and `sampled`. Those remain part of the legacy baseline
+only. v0.1 uses `value` and `signal` instead.
 
-`kind` describes payload semantics. Initial recommended kind ids:
+## Data Kind
 
-| Kind | Typical Flow | Meaning |
+`dataKind` describes payload semantics.
+
+Initial core data kinds:
+
+| Data kind | Typical flow | Meaning |
 | --- | --- | --- |
-| `number.float64` | `constant`, `sampled` | Scalar number. |
-| `number.int64` | `constant`, `sampled` | Integer number. |
-| `boolean` | `constant`, `sampled` | Boolean value. |
-| `string` | `constant`, `sampled` | UTF-8 string value. |
-| `bang` | `event` | Momentary trigger event, not a boolean. |
-| `matrix.float32` | `constant`, `sampled`, `stream` | Numeric matrix. |
-| `video.frame` | `stream` | Video frame stream. |
-| `audio.buffer` | `stream` | Audio sample buffer stream. |
-| `texture.2d` | `resource` | GPU texture resource handle. |
-| `mesh` | `resource` | Geometry resource handle. |
-| `color.rgba` | `constant`, `sampled` | RGBA color value. |
-| `time` | `sampled` | Runtime time value. |
-| `asset.ref` | `resource` | Content-addressed asset reference. |
+| `bang` | `event` | Momentary trigger event. |
+| `boolean` | `value`, `signal`, `event` | Boolean payload. |
+| `number.i32` | `value`, `signal` | Signed 32-bit number. |
+| `number.u32` | `value`, `signal` | Unsigned 32-bit number. |
+| `number.f32` | `value`, `signal` | 32-bit float. |
+| `number.f64` | `value`, `signal` | 64-bit float. |
+| `vec2`, `vec3`, `vec4` | `value`, `signal` | Numeric vectors. |
+| `color.rgba` | `value`, `signal` | RGBA color. |
+| `string` | `value`, `event` | UTF-8 string. |
+| `enum` | `value`, `event` | One of a declared `values` set. |
+| `matrix.float32` | `value`, `signal`, `stream` | Numeric matrix. |
+| `audio.buffer` | `stream` | Audio block data. |
+| `video.frame` | `stream` | Decoded video frame data. |
+| `gpu.texture2d` | `resource` | GPU texture resource. |
+| `asset.video` | `resource` | Content-addressed video asset. |
+| `asset.image` | `resource` | Content-addressed image asset. |
+| `asset.audio` | `resource` | Content-addressed audio asset. |
+| `clock.beat` | `event`, `signal` | Musical clock payload. |
+| `clock.timecode` | `event`, `signal` | Absolute timecode payload. |
+| `message.midi` | `event`, `stream` | MIDI message payload. |
+| `message.osc` | `event`, `stream` | OSC message payload. |
 
-The kind namespace is intentionally extensible. Built-in kinds should use
-documented names. Plugin kinds should use reverse-DNS or package-qualified names
-once plugin contracts are defined.
+GPU is not a flow. A GPU texture is `flow: "resource"` with
+`dataKind: "gpu.texture2d"`.
+
+## Constraints
+
+Type constraints are validation and compatibility data, not opaque metadata.
+
+Allowed v0.1 constraints:
+
+- `unit`
+- `range`
+- `shape`
+- `channels`
+- `sampleRate`
+- `format`
+- `colorSpace`
+- `frameRate`
+- `alphaPolicy`
+- `values`
+
+Display-only UI hints should be added later in a separate field. Do not put
+validation semantics into an untyped `metadata` bag.
+
+## Ports
+
+Graph v0.1 uses explicit directioned ports:
+
+```json
+{
+  "id": "radius",
+  "direction": "input",
+  "label": "Radius",
+  "type": {
+    "flow": "value",
+    "dataKind": "number.f32",
+    "unit": "px",
+    "range": { "min": 0, "max": 100 }
+  },
+  "required": false,
+  "default": 10,
+  "activation": "latched"
+}
+```
+
+`activation` is valid only for input ports:
+
+- `trigger`: a hot inlet that schedules node evaluation when updated.
+- `latched`: a cold inlet whose latest value is read when the node evaluates.
+
+Outputs do not declare activation.
 
 ## Bang Is Not Boolean
 
-A boolean has a current value:
+`bang` is an event payload, not a boolean value.
 
-```text
-true / false
-```
+Examples:
 
-A bang has occurrence:
+- button press: `event<bang>`
+- toggle state: `value<boolean>`
+- edge detection: explicit `logic.rising_edge`
+- bang to boolean state: explicit `logic.toggle`
 
-```text
-trigger happened at this evaluation point
-```
+Implicit conversion between `boolean` and `bang` is not allowed.
 
-They can be converted explicitly by nodes such as:
+## Conversion Policy
 
-- `logic.rising_edge`: boolean sampled input to bang event output
-- `logic.toggle`: bang event input to boolean sampled output
+Direct edges are valid only when:
 
-Implicit conversion between boolean and bang should be avoided because it hides
-time semantics.
+- the source port is an output
+- the target port is an input
+- `flow` matches
+- `dataKind` matches
+- declared constraints are compatible
 
-## Compatibility Rules
+All domain crossing is represented by explicit converter nodes. Examples:
 
-Two ports are directly connectable only when:
+- `asset.video` to `video.frame`: `media.video_decode`
+- `video.frame` to `gpu.texture2d`: `gpu.texture_upload`
+- `boolean` to `bang`: `logic.rising_edge`
+- `audio.buffer` to `number.f32`: `audio.rms`
+- `gpu.texture2d` format changes: `gpu.extract_channel` or another GPU node
 
-- output `flow` is compatible with input `flow`
-- output `kind` is compatible with input `kind`
-- shape, channel count, sample rate, or unit constraints match when declared
+The editor may offer to insert converter nodes, but the saved graph must contain
+those nodes explicitly.
 
-Automatic coercion should be explicit in the graph as an adapter node. Examples:
+## Runtime Scheduling
 
-- number to string
-- matrix element type conversion
-- sampled value to held constant
-- boolean edge detection to bang
-- video frame to texture resource
+The runtime resolves `node.kind` and `kindVersion` through a node registry or
+manifest. That resolved node definition supplies execution model, clock
+affinity, state behavior, permissions, and failure policy.
 
-## Scheduling Implications
+The graph document itself remains a typed wiring document. It should not store:
 
-The scheduler should use port flow to choose evaluation behavior:
-
-- `constant`: recompute only when dependencies or params change
-- `sampled`: evaluate on graph tick/frame
-- `stream`: use bounded queues and drop/flow-control policies
-- `event`: preserve ordering within the event lane
-- `resource`: track lifetime, ownership, and device locality
-
-Preview and media stream backpressure must not block control messages or graph
-state updates.
+- runtime execution plan
+- GPU pass ordering
+- JS isolate lifecycle details
+- native plugin ABI details
+- transient resource handles
+- implicit conversion records
+- transport/session fields

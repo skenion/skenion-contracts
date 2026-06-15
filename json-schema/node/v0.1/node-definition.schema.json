@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skenion.dev/schemas/node/v0.1/node-definition.schema.json",
+  "title": "Skenion Node Definition Manifest v0.1",
+  "type": "object",
+  "required": [
+    "schema",
+    "schemaVersion",
+    "id",
+    "version",
+    "displayName",
+    "category",
+    "ports",
+    "execution",
+    "state",
+    "permissions",
+    "capabilities"
+  ],
+  "properties": {
+    "schema": {
+      "const": "skenion.node.definition"
+    },
+    "schemaVersion": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scriptApiVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bundleHash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/port"
+      }
+    },
+    "execution": {
+      "$ref": "#/$defs/execution"
+    },
+    "state": {
+      "$ref": "#/$defs/state"
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "port": {
+      "type": "object",
+      "required": ["id", "direction", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direction": {
+          "enum": ["input", "output"]
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/dataType"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "default": true,
+        "activation": {
+          "enum": ["trigger", "latched"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataType": {
+      "type": "object",
+      "required": ["flow", "dataKind"],
+      "properties": {
+        "flow": {
+          "enum": ["value", "event", "signal", "stream", "resource"]
+        },
+        "dataKind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string"
+        },
+        "range": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "step": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "shape": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "channels": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sampleRate": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "format": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "colorSpace": {
+          "type": "string"
+        },
+        "frameRate": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "alphaPolicy": {
+          "enum": ["error", "white", "black", "luminance"]
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "required": ["model"],
+      "properties": {
+        "model": {
+          "enum": [
+            "event",
+            "value",
+            "frame",
+            "audio_block",
+            "video_frame",
+            "gpu_pass",
+            "async_resource",
+            "script_control",
+            "native_plugin"
+          ]
+        },
+        "clock": {
+          "enum": ["frame", "audio", "beat", "timecode", "external"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "required": ["persistent"],
+      "properties": {
+        "persistent": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

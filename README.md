@@ -8,6 +8,7 @@ This repository is the source of truth for TypeScript/Rust communication contrac
 
 - Protobuf + Buf for live runtime control messages.
 - JSON Schema for persisted graph and project documents.
+- JSON Schema for node definition manifests.
 - OpenAPI for HTTP runtime surfaces such as health, snapshots, assets, and diagnostics.
 - Golden fixtures and conformance tests for TypeScript/Rust compatibility.
 - Typed node interfaces for value, event, stream, and resource ports.
@@ -16,9 +17,9 @@ This repository is the source of truth for TypeScript/Rust communication contrac
 
 ```text
 proto/          Protobuf packages for live runtime contracts
-json-schema/    JSON Schemas for persisted graph/project data
+json-schema/    JSON Schemas for graph and node definition data
 openapi/        HTTP API contracts
-fixtures/       Valid example documents and patches
+fixtures/       Valid and invalid example documents and patches
 golden/         Binary and JSON golden vectors
 conformance/    Cross-language compatibility tests
 packages/ts/    Generated TypeScript package placeholder
@@ -27,7 +28,8 @@ docs/           Contract evolution and compatibility rules
 ```
 
 See [Node Interface](docs/node-interface.md) for the initial node and port type
-model.
+model, and [Script Nodes](docs/script-nodes.md) for the script node manifest
+boundary.
 
 ## Initial Validation
 

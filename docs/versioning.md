@@ -34,3 +34,14 @@ Initial contract families:
 - plugin ABI breaks
 
 Never reuse Protobuf field numbers or enum numbers.
+
+## Graph Schema Baseline
+
+`graph-document@0.0.0` is frozen as the bootstrap baseline. Its schema remains
+available for fixtures and migration tests.
+
+`graph-document@0.1.0` introduces directioned ports, `flow + dataKind`, and
+node-definition references through `kind` and `kindVersion`.
+
+Do not mutate old schema files in place when a persisted document shape changes.
+Add a new schema version and migration fixture instead.
