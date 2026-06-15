@@ -2,7 +2,14 @@
   "release-type": "simple",
   "packages": {
     ".": {
-      "package-name": "skenion-contracts"
+      "package-name": "skenion-contracts",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "packages/ts/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }
