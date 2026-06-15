@@ -11,5 +11,7 @@
     "lint:buf": "buf format --diff --exit-code && buf lint",
     "lint:json": "node scripts/validate-json.mjs"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "ajv": "^8.20.0"
+  }
 }

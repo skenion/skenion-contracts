@@ -7,14 +7,45 @@
     {
       "id": "time_1",
       "kind": "time",
-      "params": {}
+      "params": {},
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "seconds",
+          "label": "Seconds",
+          "type": {
+            "flow": "sampled",
+            "kind": "time",
+            "unit": "seconds"
+          }
+        },
+        {
+          "id": "bang",
+          "label": "Frame Bang",
+          "type": {
+            "flow": "event",
+            "kind": "bang"
+          }
+        }
+      ]
     },
     {
       "id": "value_1",
       "kind": "value",
       "params": {
         "value": 1
-      }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "out",
+          "label": "Value",
+          "type": {
+            "flow": "constant",
+            "kind": "number.float64"
+          }
+        }
+      ]
     }
   ],
   "edges": []

@@ -10,7 +10,18 @@
         "kind": "value",
         "params": {
           "value": 2
-        }
+        },
+        "inputs": [],
+        "outputs": [
+          {
+            "id": "out",
+            "label": "Value",
+            "type": {
+              "flow": "constant",
+              "kind": "number.float64"
+            }
+          }
+        ]
       }
     }
   ]

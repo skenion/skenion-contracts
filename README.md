@@ -10,6 +10,7 @@ This repository is the source of truth for TypeScript/Rust communication contrac
 - JSON Schema for persisted graph and project documents.
 - OpenAPI for HTTP runtime surfaces such as health, snapshots, assets, and diagnostics.
 - Golden fixtures and conformance tests for TypeScript/Rust compatibility.
+- Typed node interfaces for value, event, stream, and resource ports.
 
 ## Repository Layout
 
@@ -24,6 +25,9 @@ packages/ts/    Generated TypeScript package placeholder
 crates/rust/    Generated Rust crate placeholder
 docs/           Contract evolution and compatibility rules
 ```
+
+See [Node Interface](docs/node-interface.md) for the initial node and port type
+model.
 
 ## Initial Validation
 
