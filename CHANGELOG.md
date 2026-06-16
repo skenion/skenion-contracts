@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/echovisionlab/skenion-contracts/compare/skenion-contracts-v0.5.0...skenion-contracts-v0.5.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* **contracts:** omit null optional contract fields ([0b12eab](https://github.com/echovisionlab/skenion-contracts/commit/0b12eabb936c3cd2d0f45af4c4c5af7f62de6518))
+
 ## [0.5.0](https://github.com/echovisionlab/skenion-contracts/compare/skenion-contracts-v0.4.0...skenion-contracts-v0.5.0) (2026-06-16)
 
 
