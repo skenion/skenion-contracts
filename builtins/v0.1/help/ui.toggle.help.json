@@ -1,0 +1,41 @@
+{
+  "schema": "skenion.node.help",
+  "schemaVersion": "0.1.0",
+  "id": "ui.toggle",
+  "summary": "Emits boolean values from a runtime toggle control.",
+  "description": "UI Toggle is a panel control node. Clicking it toggles runtime state and emits a typed boolean value without patching the graph.",
+  "helpGraph": "help/v0.1/nodes/ui.toggle.help.graph.json",
+  "tags": [
+    "ui",
+    "panel",
+    "value",
+    "boolean"
+  ],
+  "runtimeBehavior": "Runtime clicks flip the current boolean control state and emit the new boolean from value.",
+  "relatedNodes": [
+    "core.send-bool",
+    "core.receive-bool",
+    "core.value-bool"
+  ],
+  "ports": [
+    {
+      "id": "value",
+      "description": "Emits the current toggle value as boolean."
+    }
+  ],
+  "params": [
+    {
+      "id": "label",
+      "description": "Text shown on the runtime control."
+    },
+    {
+      "id": "value",
+      "description": "Initial boolean value saved in the graph."
+    }
+  ],
+  "example": {
+    "title": "Drive a boolean channel",
+    "description": "Connect UI Toggle to Send Bool and read it elsewhere with Receive Bool.",
+    "graph": "help/v0.1/nodes/ui.toggle.help.graph.json"
+  }
+}

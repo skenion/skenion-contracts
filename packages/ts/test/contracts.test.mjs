@@ -182,26 +182,7 @@ test("validates a script node manifest fixture", async () => {
 test("exports canonical v0.1 builtin node definitions", () => {
   const ids = builtinNodeDefinitionsV01.map((definition) => definition.id);
 
-  assert.deepEqual(ids, [
-    "core.bang-button",
-    "core.color-rgba",
-    "core.comment",
-    "core.event-log",
-    "core.gpu-upload",
-    "core.message",
-    "core.preview",
-    "core.string",
-    "core.target",
-    "core.toggle",
-    "core.value-bool",
-    "core.value-f32",
-    "core.value-i32",
-    "core.video-asset",
-    "core.video-decode",
-    "render.clear-color",
-    "render.fullscreen-shader",
-    "render.output"
-  ]);
+  assert.deepEqual([...ids].sort(), [...builtinManifestV01.nodes].sort());
 
   const valueDefinition = getBuiltinNodeDefinition("core.value-f32");
   assert.deepEqual(valueDefinition?.ports.map((port) => port.id), ["in", "set", "bang", "value"]);
@@ -238,6 +219,19 @@ test("exports canonical v0.1 builtin node definitions", () => {
   const messageDefinition = getBuiltinNodeDefinition("core.message");
   assert.deepEqual(messageDefinition?.ports.map((port) => port.id), ["bang", "value"]);
   assert.equal(messageDefinition?.ports.find((port) => port.id === "value")?.type.dataKind, "string");
+
+  const sendDefinition = getBuiltinNodeDefinition("core.send-f32");
+  assert.deepEqual(sendDefinition?.ports.map((port) => port.id), ["in"]);
+  assert.equal(sendDefinition?.ports[0]?.type.dataKind, "number.f32");
+  assert.equal(sendDefinition?.ports[0]?.activation, "trigger");
+
+  const receiveDefinition = getBuiltinNodeDefinition("core.receive-bool");
+  assert.deepEqual(receiveDefinition?.ports.map((port) => port.id), ["bang", "value"]);
+  assert.equal(receiveDefinition?.ports.find((port) => port.id === "value")?.type.dataKind, "boolean");
+
+  const sliderDefinition = getBuiltinNodeDefinition("ui.slider-f32");
+  assert.deepEqual(sliderDefinition?.ports.map((port) => port.id), ["value"]);
+  assert.equal(sliderDefinition?.ports[0]?.type.dataKind, "number.f32");
 
   const shaderDefinition = getBuiltinNodeDefinition("render.fullscreen-shader");
   assert.deepEqual(shaderDefinition?.ports.map((port) => port.id), ["out"]);
@@ -392,6 +386,9 @@ test("exports builtin node help", () => {
   assert.match(shaderHelp?.runtimeBehavior ?? "", /dynamic uniform layout/);
   assert.equal(shaderHelp?.relatedNodes?.includes("render.output"), true);
 
+  const sendHelp = getBuiltinNodeHelp("core.send-f32");
+  assert.match(sendHelp?.runtimeBehavior ?? "", /number\.f32:<name>/);
+
   const valueHelpGraph = getBuiltinNodeHelpGraph("core.value-f32");
   assert.equal(valueHelpGraph?.id, "help-core-value-f32");
   assert.equal(validateGraphDocument(valueHelpGraph).ok, true);
@@ -403,6 +400,10 @@ test("exports builtin node help", () => {
   const shaderHelpGraph = getBuiltinNodeHelpGraph("render.fullscreen-shader");
   assert.equal(shaderHelpGraph?.nodes.find((node) => node.id === "shader_1")?.ports.map((port) => port.id).join(","), "speed,tint,out");
   assert.equal(validateGraphDocument(shaderHelpGraph).ok, true);
+
+  const sendHelpGraph = getBuiltinNodeHelpGraph("core.send-f32");
+  assert.equal(sendHelpGraph?.id, "help-core-send-f32");
+  assert.equal(validateGraphDocument(sendHelpGraph).ok, true);
 
   assert.equal(getBuiltinNodeHelp("missing.node"), undefined);
   assert.equal(getBuiltinNodeHelpGraph("missing.node"), undefined);

@@ -1,0 +1,44 @@
+{
+  "schema": "skenion.node.help",
+  "schemaVersion": "0.1.0",
+  "id": "core.receive-bool",
+  "summary": "Reads boolean values from a named control channel.",
+  "description": "Receive Bool is the matching explicit non-local routing node for Send Bool. It exposes the current channel value or its default value as a typed output.",
+  "helpGraph": "help/v0.1/nodes/core.receive-bool.help.graph.json",
+  "tags": [
+    "routing",
+    "receive",
+    "control",
+    "boolean"
+  ],
+  "runtimeBehavior": "Runtime resolves value from channel boolean:<name>. If the channel has no value, it uses the node default. bang emits the current resolved value.",
+  "relatedNodes": [
+    "core.send-bool",
+    "core.bang-button"
+  ],
+  "ports": [
+    {
+      "id": "bang",
+      "description": "Triggers emission of the current channel value or default value."
+    },
+    {
+      "id": "value",
+      "description": "Outputs the resolved boolean value."
+    }
+  ],
+  "params": [
+    {
+      "id": "name",
+      "description": "Channel name. Runtime reads boolean:<name>."
+    },
+    {
+      "id": "default",
+      "description": "Fallback value used before anything has been sent to the channel."
+    }
+  ],
+  "example": {
+    "title": "Read a Bool control value",
+    "description": "Receive Bool makes non-local routing explicit in the graph while preserving typed cables.",
+    "graph": "help/v0.1/nodes/core.receive-bool.help.graph.json"
+  }
+}

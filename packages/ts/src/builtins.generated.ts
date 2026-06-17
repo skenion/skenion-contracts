@@ -54,6 +54,17 @@ export const builtinManifestV01 = {
     "core.value-i32",
     "core.value-bool",
     "core.color-rgba",
+    "core.send-f32",
+    "core.receive-f32",
+    "core.send-i32",
+    "core.receive-i32",
+    "core.send-bool",
+    "core.receive-bool",
+    "core.send-rgba",
+    "core.receive-rgba",
+    "ui.button",
+    "ui.slider-f32",
+    "ui.toggle",
     "core.target",
     "core.bang-button",
     "core.event-log",
@@ -317,6 +328,274 @@ export const builtinNodeDefinitionsV01 = [
     ],
     "execution": {
       "model": "frame"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-bool",
+    "version": "0.1.0",
+    "displayName": "Receive Bool",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "Bool",
+        "type": {
+          "flow": "value",
+          "dataKind": "boolean"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-f32",
+    "version": "0.1.0",
+    "displayName": "Receive F32",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "F32",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.f32"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-i32",
+    "version": "0.1.0",
+    "displayName": "Receive I32",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "I32",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.i32"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-rgba",
+    "version": "0.1.0",
+    "displayName": "Receive RGBA",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "Color",
+        "type": {
+          "flow": "value",
+          "dataKind": "color.rgba"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-bool",
+    "version": "0.1.0",
+    "displayName": "Send Bool",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "boolean"
+        },
+        "required": true,
+        "activation": "trigger"
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-f32",
+    "version": "0.1.0",
+    "displayName": "Send F32",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.f32"
+        },
+        "required": true,
+        "activation": "trigger"
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-i32",
+    "version": "0.1.0",
+    "displayName": "Send I32",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.i32"
+        },
+        "required": true,
+        "activation": "trigger"
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-rgba",
+    "version": "0.1.0",
+    "displayName": "Send RGBA",
+    "category": "Routing",
+    "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "color.rgba"
+        },
+        "required": true,
+        "activation": "trigger"
+      }
+    ],
+    "execution": {
+      "model": "value"
     },
     "state": {
       "persistent": false
@@ -823,6 +1102,87 @@ export const builtinNodeDefinitionsV01 = [
     "capabilities": [
       "render.output.surface"
     ]
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "ui.button",
+    "version": "0.1.0",
+    "displayName": "Button",
+    "category": "UI Controls",
+    "ports": [
+      {
+        "id": "bang",
+        "direction": "output",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        }
+      }
+    ],
+    "execution": {
+      "model": "event"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "ui.slider-f32",
+    "version": "0.1.0",
+    "displayName": "Slider F32",
+    "category": "UI Controls",
+    "ports": [
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "Value",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.f32"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "ui.toggle",
+    "version": "0.1.0",
+    "displayName": "Toggle Control",
+    "category": "UI Controls",
+    "ports": [
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "Value",
+        "type": {
+          "flow": "value",
+          "dataKind": "boolean"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
   }
 ] satisfies NodeDefinitionManifestV01[];
 
@@ -1063,6 +1423,332 @@ export const builtinNodeHelpV01 = [
       "title": "Preview a texture",
       "description": "Connect an explicit GPU texture producer to Preview.",
       "graph": "help/v0.1/nodes/core.preview.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-bool",
+    "summary": "Reads boolean values from a named control channel.",
+    "description": "Receive Bool is the matching explicit non-local routing node for Send Bool. It exposes the current channel value or its default value as a typed output.",
+    "helpGraph": "help/v0.1/nodes/core.receive-bool.help.graph.json",
+    "tags": [
+      "routing",
+      "receive",
+      "control",
+      "boolean"
+    ],
+    "runtimeBehavior": "Runtime resolves value from channel boolean:<name>. If the channel has no value, it uses the node default. bang emits the current resolved value.",
+    "relatedNodes": [
+      "core.send-bool",
+      "core.bang-button"
+    ],
+    "ports": [
+      {
+        "id": "bang",
+        "description": "Triggers emission of the current channel value or default value."
+      },
+      {
+        "id": "value",
+        "description": "Outputs the resolved boolean value."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime reads boolean:<name>."
+      },
+      {
+        "id": "default",
+        "description": "Fallback value used before anything has been sent to the channel."
+      }
+    ],
+    "example": {
+      "title": "Read a Bool control value",
+      "description": "Receive Bool makes non-local routing explicit in the graph while preserving typed cables.",
+      "graph": "help/v0.1/nodes/core.receive-bool.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-f32",
+    "summary": "Reads number.f32 values from a named control channel.",
+    "description": "Receive F32 is the matching explicit non-local routing node for Send F32. It exposes the current channel value or its default value as a typed output.",
+    "helpGraph": "help/v0.1/nodes/core.receive-f32.help.graph.json",
+    "tags": [
+      "routing",
+      "receive",
+      "control",
+      "number",
+      "f32"
+    ],
+    "runtimeBehavior": "Runtime resolves value from channel number.f32:<name>. If the channel has no value, it uses the node default. bang emits the current resolved value.",
+    "relatedNodes": [
+      "core.send-f32",
+      "core.bang-button"
+    ],
+    "ports": [
+      {
+        "id": "bang",
+        "description": "Triggers emission of the current channel value or default value."
+      },
+      {
+        "id": "value",
+        "description": "Outputs the resolved number.f32 value."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime reads number.f32:<name>."
+      },
+      {
+        "id": "default",
+        "description": "Fallback value used before anything has been sent to the channel."
+      }
+    ],
+    "example": {
+      "title": "Read a F32 control value",
+      "description": "Receive F32 makes non-local routing explicit in the graph while preserving typed cables.",
+      "graph": "help/v0.1/nodes/core.receive-f32.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-i32",
+    "summary": "Reads number.i32 values from a named control channel.",
+    "description": "Receive I32 is the matching explicit non-local routing node for Send I32. It exposes the current channel value or its default value as a typed output.",
+    "helpGraph": "help/v0.1/nodes/core.receive-i32.help.graph.json",
+    "tags": [
+      "routing",
+      "receive",
+      "control",
+      "number",
+      "i32"
+    ],
+    "runtimeBehavior": "Runtime resolves value from channel number.i32:<name>. If the channel has no value, it uses the node default. bang emits the current resolved value.",
+    "relatedNodes": [
+      "core.send-i32",
+      "core.bang-button"
+    ],
+    "ports": [
+      {
+        "id": "bang",
+        "description": "Triggers emission of the current channel value or default value."
+      },
+      {
+        "id": "value",
+        "description": "Outputs the resolved number.i32 value."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime reads number.i32:<name>."
+      },
+      {
+        "id": "default",
+        "description": "Fallback value used before anything has been sent to the channel."
+      }
+    ],
+    "example": {
+      "title": "Read a I32 control value",
+      "description": "Receive I32 makes non-local routing explicit in the graph while preserving typed cables.",
+      "graph": "help/v0.1/nodes/core.receive-i32.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.receive-rgba",
+    "summary": "Reads color.rgba values from a named control channel.",
+    "description": "Receive RGBA is the matching explicit non-local routing node for Send RGBA. It exposes the current channel value or its default value as a typed output.",
+    "helpGraph": "help/v0.1/nodes/core.receive-rgba.help.graph.json",
+    "tags": [
+      "routing",
+      "receive",
+      "control",
+      "color",
+      "rgba"
+    ],
+    "runtimeBehavior": "Runtime resolves value from channel color.rgba:<name>. If the channel has no value, it uses the node default. bang emits the current resolved value.",
+    "relatedNodes": [
+      "core.send-rgba",
+      "core.bang-button"
+    ],
+    "ports": [
+      {
+        "id": "bang",
+        "description": "Triggers emission of the current channel value or default value."
+      },
+      {
+        "id": "value",
+        "description": "Outputs the resolved color.rgba value."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime reads color.rgba:<name>."
+      },
+      {
+        "id": "default",
+        "description": "Fallback value used before anything has been sent to the channel."
+      }
+    ],
+    "example": {
+      "title": "Read a RGBA control value",
+      "description": "Receive RGBA makes non-local routing explicit in the graph while preserving typed cables.",
+      "graph": "help/v0.1/nodes/core.receive-rgba.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-bool",
+    "summary": "Writes boolean values into a named control channel.",
+    "description": "Send Bool is an explicit non-local routing node. It accepts boolean values and stores the latest value in the typed channel identified by its name parameter.",
+    "helpGraph": "help/v0.1/nodes/core.send-bool.help.graph.json",
+    "tags": [
+      "routing",
+      "send",
+      "control",
+      "boolean"
+    ],
+    "runtimeBehavior": "When in receives a boolean value, Runtime writes it to channel boolean:<name> and emits the sent value in control diagnostics/state.",
+    "relatedNodes": [
+      "core.receive-bool",
+      "ui.toggle"
+    ],
+    "ports": [
+      {
+        "id": "in",
+        "description": "Receives the boolean value to publish to the named typed channel."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime stores this as boolean:<name>."
+      }
+    ],
+    "example": {
+      "title": "Publish a Bool control value",
+      "description": "Connect a typed value or panel control to Send Bool to update a named channel.",
+      "graph": "help/v0.1/nodes/core.send-bool.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-f32",
+    "summary": "Writes number.f32 values into a named control channel.",
+    "description": "Send F32 is an explicit non-local routing node. It accepts number.f32 values and stores the latest value in the typed channel identified by its name parameter.",
+    "helpGraph": "help/v0.1/nodes/core.send-f32.help.graph.json",
+    "tags": [
+      "routing",
+      "send",
+      "control",
+      "number",
+      "f32"
+    ],
+    "runtimeBehavior": "When in receives a number.f32 value, Runtime writes it to channel number.f32:<name> and emits the sent value in control diagnostics/state.",
+    "relatedNodes": [
+      "core.receive-f32",
+      "ui.slider-f32"
+    ],
+    "ports": [
+      {
+        "id": "in",
+        "description": "Receives the number.f32 value to publish to the named typed channel."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime stores this as number.f32:<name>."
+      }
+    ],
+    "example": {
+      "title": "Publish a F32 control value",
+      "description": "Connect a typed value or panel control to Send F32 to update a named channel.",
+      "graph": "help/v0.1/nodes/core.send-f32.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-i32",
+    "summary": "Writes number.i32 values into a named control channel.",
+    "description": "Send I32 is an explicit non-local routing node. It accepts number.i32 values and stores the latest value in the typed channel identified by its name parameter.",
+    "helpGraph": "help/v0.1/nodes/core.send-i32.help.graph.json",
+    "tags": [
+      "routing",
+      "send",
+      "control",
+      "number",
+      "i32"
+    ],
+    "runtimeBehavior": "When in receives a number.i32 value, Runtime writes it to channel number.i32:<name> and emits the sent value in control diagnostics/state.",
+    "relatedNodes": [
+      "core.receive-i32",
+      "core.value-i32"
+    ],
+    "ports": [
+      {
+        "id": "in",
+        "description": "Receives the number.i32 value to publish to the named typed channel."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime stores this as number.i32:<name>."
+      }
+    ],
+    "example": {
+      "title": "Publish a I32 control value",
+      "description": "Connect a typed value or panel control to Send I32 to update a named channel.",
+      "graph": "help/v0.1/nodes/core.send-i32.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "core.send-rgba",
+    "summary": "Writes color.rgba values into a named control channel.",
+    "description": "Send RGBA is an explicit non-local routing node. It accepts color.rgba values and stores the latest value in the typed channel identified by its name parameter.",
+    "helpGraph": "help/v0.1/nodes/core.send-rgba.help.graph.json",
+    "tags": [
+      "routing",
+      "send",
+      "control",
+      "color",
+      "rgba"
+    ],
+    "runtimeBehavior": "When in receives a color.rgba value, Runtime writes it to channel color.rgba:<name> and emits the sent value in control diagnostics/state.",
+    "relatedNodes": [
+      "core.receive-rgba",
+      "core.color-rgba"
+    ],
+    "ports": [
+      {
+        "id": "in",
+        "description": "Receives the color.rgba value to publish to the named typed channel."
+      }
+    ],
+    "params": [
+      {
+        "id": "name",
+        "description": "Channel name. Runtime stores this as color.rgba:<name>."
+      }
+    ],
+    "example": {
+      "title": "Publish a RGBA control value",
+      "description": "Connect a typed value or panel control to Send RGBA to update a named channel.",
+      "graph": "help/v0.1/nodes/core.send-rgba.help.graph.json"
     }
   },
   {
@@ -1506,6 +2192,137 @@ export const builtinNodeHelpV01 = [
       "title": "Make output explicit",
       "description": "Connect a render producer into Render Output so Runtime knows which scene to preview.",
       "graph": "help/v0.1/nodes/render.output.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "ui.button",
+    "summary": "Emits a bang event when clicked in a runtime control panel.",
+    "description": "Button is a panel control node. Its runtime click is a control event and does not mutate the graph.",
+    "helpGraph": "help/v0.1/nodes/ui.button.help.graph.json",
+    "tags": [
+      "ui",
+      "panel",
+      "event",
+      "bang"
+    ],
+    "runtimeBehavior": "A runtime click emits event.bang from bang. Parameter edits such as label remain graph edits.",
+    "relatedNodes": [
+      "core.message",
+      "core.event-log",
+      "core.send-bool"
+    ],
+    "ports": [
+      {
+        "id": "bang",
+        "description": "Emits an event.bang when the control is clicked."
+      }
+    ],
+    "params": [
+      {
+        "id": "label",
+        "description": "Text shown on the runtime control."
+      }
+    ],
+    "example": {
+      "title": "Trigger a message",
+      "description": "Use Button to trigger event-oriented nodes without changing the graph.",
+      "graph": "help/v0.1/nodes/ui.button.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "ui.slider-f32",
+    "summary": "Emits number.f32 values from a runtime slider control.",
+    "description": "Slider F32 is a panel control node for performer-facing numeric input. Moving the runtime slider emits a typed value event without creating a graph patch.",
+    "helpGraph": "help/v0.1/nodes/ui.slider-f32.help.graph.json",
+    "tags": [
+      "ui",
+      "panel",
+      "value",
+      "f32"
+    ],
+    "runtimeBehavior": "Runtime slider changes update the control state for this node and emit number.f32 from value.",
+    "relatedNodes": [
+      "core.send-f32",
+      "core.receive-f32",
+      "core.value-f32"
+    ],
+    "ports": [
+      {
+        "id": "value",
+        "description": "Emits the current slider value as number.f32."
+      }
+    ],
+    "params": [
+      {
+        "id": "label",
+        "description": "Text shown on the runtime control."
+      },
+      {
+        "id": "value",
+        "description": "Initial slider value saved in the graph."
+      },
+      {
+        "id": "min",
+        "description": "Minimum slider value."
+      },
+      {
+        "id": "max",
+        "description": "Maximum slider value."
+      },
+      {
+        "id": "step",
+        "description": "Slider increment."
+      }
+    ],
+    "example": {
+      "title": "Drive a send channel",
+      "description": "Connect Slider F32 to Send F32 to control a named channel from a panel.",
+      "graph": "help/v0.1/nodes/ui.slider-f32.help.graph.json"
+    }
+  },
+  {
+    "schema": "skenion.node.help",
+    "schemaVersion": "0.1.0",
+    "id": "ui.toggle",
+    "summary": "Emits boolean values from a runtime toggle control.",
+    "description": "UI Toggle is a panel control node. Clicking it toggles runtime state and emits a typed boolean value without patching the graph.",
+    "helpGraph": "help/v0.1/nodes/ui.toggle.help.graph.json",
+    "tags": [
+      "ui",
+      "panel",
+      "value",
+      "boolean"
+    ],
+    "runtimeBehavior": "Runtime clicks flip the current boolean control state and emit the new boolean from value.",
+    "relatedNodes": [
+      "core.send-bool",
+      "core.receive-bool",
+      "core.value-bool"
+    ],
+    "ports": [
+      {
+        "id": "value",
+        "description": "Emits the current toggle value as boolean."
+      }
+    ],
+    "params": [
+      {
+        "id": "label",
+        "description": "Text shown on the runtime control."
+      },
+      {
+        "id": "value",
+        "description": "Initial boolean value saved in the graph."
+      }
+    ],
+    "example": {
+      "title": "Drive a boolean channel",
+      "description": "Connect UI Toggle to Send Bool and read it elsewhere with Receive Bool.",
+      "graph": "help/v0.1/nodes/ui.toggle.help.graph.json"
     }
   }
 ] satisfies BuiltinNodeHelpV01[];
@@ -2100,6 +2917,629 @@ export const builtinNodeHelpGraphsV01 = [
           "to": {
             "node": "preview_1",
             "port": "texture"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.receive-bool",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-receive-bool",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Receive Bool resolves the latest typed channel value or the node default."
+          },
+          "ports": []
+        },
+        {
+          "id": "bang_1",
+          "kind": "core.bang-button",
+          "kindVersion": "0.1.0",
+          "params": {},
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "output",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              }
+            }
+          ]
+        },
+        {
+          "id": "receive_1",
+          "kind": "core.receive-bool",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "enabled",
+            "default": false
+          },
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "input",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              },
+              "required": false,
+              "activation": "trigger"
+            },
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Bool",
+              "type": {
+                "flow": "value",
+                "dataKind": "boolean"
+              }
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "bang_1",
+            "port": "bang"
+          },
+          "to": {
+            "node": "receive_1",
+            "port": "bang"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.receive-f32",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-receive-f32",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Receive F32 resolves the latest typed channel value or the node default."
+          },
+          "ports": []
+        },
+        {
+          "id": "bang_1",
+          "kind": "core.bang-button",
+          "kindVersion": "0.1.0",
+          "params": {},
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "output",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              }
+            }
+          ]
+        },
+        {
+          "id": "receive_1",
+          "kind": "core.receive-f32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "speed",
+            "default": 0
+          },
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "input",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              },
+              "required": false,
+              "activation": "trigger"
+            },
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "F32",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.f32"
+              }
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "bang_1",
+            "port": "bang"
+          },
+          "to": {
+            "node": "receive_1",
+            "port": "bang"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.receive-i32",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-receive-i32",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Receive I32 resolves the latest typed channel value or the node default."
+          },
+          "ports": []
+        },
+        {
+          "id": "bang_1",
+          "kind": "core.bang-button",
+          "kindVersion": "0.1.0",
+          "params": {},
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "output",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              }
+            }
+          ]
+        },
+        {
+          "id": "receive_1",
+          "kind": "core.receive-i32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "speed",
+            "default": 0
+          },
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "input",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              },
+              "required": false,
+              "activation": "trigger"
+            },
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "I32",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.i32"
+              }
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "bang_1",
+            "port": "bang"
+          },
+          "to": {
+            "node": "receive_1",
+            "port": "bang"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.receive-rgba",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-receive-rgba",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Receive RGBA resolves the latest typed channel value or the node default."
+          },
+          "ports": []
+        },
+        {
+          "id": "bang_1",
+          "kind": "core.bang-button",
+          "kindVersion": "0.1.0",
+          "params": {},
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "output",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              }
+            }
+          ]
+        },
+        {
+          "id": "receive_1",
+          "kind": "core.receive-rgba",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "tint",
+            "default": [
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "input",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              },
+              "required": false,
+              "activation": "trigger"
+            },
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Color",
+              "type": {
+                "flow": "value",
+                "dataKind": "color.rgba"
+              }
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "bang_1",
+            "port": "bang"
+          },
+          "to": {
+            "node": "receive_1",
+            "port": "bang"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.send-bool",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-send-bool",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Send Bool writes to a typed channel by name. It is explicit graph routing, not a hidden read."
+          },
+          "ports": []
+        },
+        {
+          "id": "source_1",
+          "kind": "ui.toggle",
+          "kindVersion": "0.1.0",
+          "params": {
+            "label": "Enabled",
+            "value": true
+          },
+          "ports": [
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Value",
+              "type": {
+                "flow": "value",
+                "dataKind": "boolean"
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_1",
+          "kind": "core.send-bool",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "enabled"
+          },
+          "ports": [
+            {
+              "id": "in",
+              "direction": "input",
+              "label": "In",
+              "type": {
+                "flow": "value",
+                "dataKind": "boolean"
+              },
+              "required": true,
+              "activation": "trigger"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "source_1",
+            "port": "value"
+          },
+          "to": {
+            "node": "send_1",
+            "port": "in"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.send-f32",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-send-f32",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Send F32 writes to a typed channel by name. It is explicit graph routing, not a hidden read."
+          },
+          "ports": []
+        },
+        {
+          "id": "source_1",
+          "kind": "ui.slider-f32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "label": "Speed",
+            "value": 0.5,
+            "min": 0,
+            "max": 2,
+            "step": 0.01
+          },
+          "ports": [
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Value",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.f32"
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_1",
+          "kind": "core.send-f32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "speed"
+          },
+          "ports": [
+            {
+              "id": "in",
+              "direction": "input",
+              "label": "In",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.f32"
+              },
+              "required": true,
+              "activation": "trigger"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "source_1",
+            "port": "value"
+          },
+          "to": {
+            "node": "send_1",
+            "port": "in"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.send-i32",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-send-i32",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Send I32 writes to a typed channel by name. It is explicit graph routing, not a hidden read."
+          },
+          "ports": []
+        },
+        {
+          "id": "source_1",
+          "kind": "core.value-i32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "value": 8
+          },
+          "ports": [
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Value",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.i32"
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_1",
+          "kind": "core.send-i32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "speed"
+          },
+          "ports": [
+            {
+              "id": "in",
+              "direction": "input",
+              "label": "In",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.i32"
+              },
+              "required": true,
+              "activation": "trigger"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "source_1",
+            "port": "value"
+          },
+          "to": {
+            "node": "send_1",
+            "port": "in"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core.send-rgba",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-core-send-rgba",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Send RGBA writes to a typed channel by name. It is explicit graph routing, not a hidden read."
+          },
+          "ports": []
+        },
+        {
+          "id": "source_1",
+          "kind": "core.color-rgba",
+          "kindVersion": "0.1.0",
+          "params": {
+            "value": [
+              0.2,
+              0.6,
+              1,
+              1
+            ]
+          },
+          "ports": [
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Color",
+              "type": {
+                "flow": "value",
+                "dataKind": "color.rgba"
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_1",
+          "kind": "core.send-rgba",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "tint"
+          },
+          "ports": [
+            {
+              "id": "in",
+              "direction": "input",
+              "label": "In",
+              "type": {
+                "flow": "value",
+                "dataKind": "color.rgba"
+              },
+              "required": true,
+              "activation": "trigger"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "source_1",
+            "port": "value"
+          },
+          "to": {
+            "node": "send_1",
+            "port": "in"
           }
         }
       ]
@@ -3194,6 +4634,225 @@ export const builtinNodeHelpGraphsV01 = [
           },
           "to": {
             "node": "output_1",
+            "port": "in"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ui.button",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-ui-button",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Button emits a bang as a runtime control event. It is for panel interaction, not graph mutation."
+          },
+          "ports": []
+        },
+        {
+          "id": "button_1",
+          "kind": "ui.button",
+          "kindVersion": "0.1.0",
+          "params": {
+            "label": "Bang"
+          },
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "output",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              }
+            }
+          ]
+        },
+        {
+          "id": "log_1",
+          "kind": "core.event-log",
+          "kindVersion": "0.1.0",
+          "params": {},
+          "ports": [
+            {
+              "id": "bang",
+              "direction": "input",
+              "label": "Bang",
+              "type": {
+                "flow": "event",
+                "dataKind": "event.bang"
+              },
+              "required": true,
+              "activation": "trigger"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "button_1",
+            "port": "bang"
+          },
+          "to": {
+            "node": "log_1",
+            "port": "bang"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ui.slider-f32",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-ui-slider-f32",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "Slider F32 emits typed runtime control values. Connect it to Send F32 for named routing."
+          },
+          "ports": []
+        },
+        {
+          "id": "slider_1",
+          "kind": "ui.slider-f32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "label": "Speed",
+            "value": 0.5,
+            "min": 0,
+            "max": 2,
+            "step": 0.01
+          },
+          "ports": [
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Value",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.f32"
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_1",
+          "kind": "core.send-f32",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "speed"
+          },
+          "ports": [
+            {
+              "id": "in",
+              "direction": "input",
+              "label": "In",
+              "type": {
+                "flow": "value",
+                "dataKind": "number.f32"
+              },
+              "required": true,
+              "activation": "trigger"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "slider_1",
+            "port": "value"
+          },
+          "to": {
+            "node": "send_1",
+            "port": "in"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ui.toggle",
+    "graph": {
+      "schema": "skenion.graph",
+      "schemaVersion": "0.1.0",
+      "id": "help-ui-toggle",
+      "revision": "1",
+      "nodes": [
+        {
+          "id": "note_1",
+          "kind": "core.comment",
+          "kindVersion": "0.1.0",
+          "params": {
+            "text": "UI Toggle emits boolean runtime control values. Connect it to Send Bool for named routing."
+          },
+          "ports": []
+        },
+        {
+          "id": "toggle_1",
+          "kind": "ui.toggle",
+          "kindVersion": "0.1.0",
+          "params": {
+            "label": "Enabled",
+            "value": true
+          },
+          "ports": [
+            {
+              "id": "value",
+              "direction": "output",
+              "label": "Value",
+              "type": {
+                "flow": "value",
+                "dataKind": "boolean"
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_1",
+          "kind": "core.send-bool",
+          "kindVersion": "0.1.0",
+          "params": {
+            "name": "enabled"
+          },
+          "ports": [
+            {
+              "id": "in",
+              "direction": "input",
+              "label": "In",
+              "type": {
+                "flow": "value",
+                "dataKind": "boolean"
+              },
+              "required": true,
+              "activation": "trigger"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": {
+            "node": "toggle_1",
+            "port": "value"
+          },
+          "to": {
+            "node": "send_1",
             "port": "in"
           }
         }

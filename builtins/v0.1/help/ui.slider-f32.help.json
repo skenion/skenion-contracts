@@ -1,0 +1,53 @@
+{
+  "schema": "skenion.node.help",
+  "schemaVersion": "0.1.0",
+  "id": "ui.slider-f32",
+  "summary": "Emits number.f32 values from a runtime slider control.",
+  "description": "Slider F32 is a panel control node for performer-facing numeric input. Moving the runtime slider emits a typed value event without creating a graph patch.",
+  "helpGraph": "help/v0.1/nodes/ui.slider-f32.help.graph.json",
+  "tags": [
+    "ui",
+    "panel",
+    "value",
+    "f32"
+  ],
+  "runtimeBehavior": "Runtime slider changes update the control state for this node and emit number.f32 from value.",
+  "relatedNodes": [
+    "core.send-f32",
+    "core.receive-f32",
+    "core.value-f32"
+  ],
+  "ports": [
+    {
+      "id": "value",
+      "description": "Emits the current slider value as number.f32."
+    }
+  ],
+  "params": [
+    {
+      "id": "label",
+      "description": "Text shown on the runtime control."
+    },
+    {
+      "id": "value",
+      "description": "Initial slider value saved in the graph."
+    },
+    {
+      "id": "min",
+      "description": "Minimum slider value."
+    },
+    {
+      "id": "max",
+      "description": "Maximum slider value."
+    },
+    {
+      "id": "step",
+      "description": "Slider increment."
+    }
+  ],
+  "example": {
+    "title": "Drive a send channel",
+    "description": "Connect Slider F32 to Send F32 to control a named channel from a panel.",
+    "graph": "help/v0.1/nodes/ui.slider-f32.help.graph.json"
+  }
+}
