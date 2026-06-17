@@ -62,9 +62,11 @@ builtin itself stays unconstrained.
 participate in runtime execution.
 
 `core.message` is the first simple message-box form. In v0.1 it stores a string
-payload and emits that payload when banged. Typed multi-message payloads,
-`pack`/`unpack`, `send`/`receive`, and panel/dashboard nodes are deferred until
-the typed control graph is stable.
+payload and emits that payload when banged. Typed multi-message payloads and
+`pack`/`unpack` are deferred until the typed control graph is stable.
+
+Typed `send`/`receive` nodes and basic panel controls are part of v0.1. They are
+documented in `docs/control-routing.md`.
 
 ## Pre-v1 Compatibility
 

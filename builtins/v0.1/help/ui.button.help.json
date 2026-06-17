@@ -1,0 +1,37 @@
+{
+  "schema": "skenion.node.help",
+  "schemaVersion": "0.1.0",
+  "id": "ui.button",
+  "summary": "Emits a bang event when clicked in a runtime control panel.",
+  "description": "Button is a panel control node. Its runtime click is a control event and does not mutate the graph.",
+  "helpGraph": "help/v0.1/nodes/ui.button.help.graph.json",
+  "tags": [
+    "ui",
+    "panel",
+    "event",
+    "bang"
+  ],
+  "runtimeBehavior": "A runtime click emits event.bang from bang. Parameter edits such as label remain graph edits.",
+  "relatedNodes": [
+    "core.message",
+    "core.event-log",
+    "core.send-bool"
+  ],
+  "ports": [
+    {
+      "id": "bang",
+      "description": "Emits an event.bang when the control is clicked."
+    }
+  ],
+  "params": [
+    {
+      "id": "label",
+      "description": "Text shown on the runtime control."
+    }
+  ],
+  "example": {
+    "title": "Trigger a message",
+    "description": "Use Button to trigger event-oriented nodes without changing the graph.",
+    "graph": "help/v0.1/nodes/ui.button.help.graph.json"
+  }
+}

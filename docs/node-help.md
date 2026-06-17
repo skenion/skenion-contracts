@@ -25,3 +25,8 @@ help-core-value-f32
 Help graphs are read-only learning patches by default. Studio may offer "Open as New Graph" to copy a help graph into the user's editable patch, but the canonical help graph itself is not mutated.
 
 New builtin node PRs must add or update the node definition, help JSON, help graph, and any relevant docs in the same change.
+
+Help graphs may demonstrate panel controls and typed send/receive routing, but
+they remain ordinary graph documents. Runtime-only interactions such as moving a
+slider or clicking a toggle are shown through the relevant node contract; they
+are not serialized into the canonical help graph.

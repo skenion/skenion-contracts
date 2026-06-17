@@ -557,6 +557,7 @@ components:
             - in
             - set
             - bang
+            - value
         value:
           $ref: "#/components/schemas/RuntimeControlValue"
       additionalProperties: false
@@ -597,12 +598,18 @@ components:
       required:
         - ok
         - values
+        - channels
         - diagnostics
       properties:
         ok:
           type: boolean
         values:
           type: object
+          additionalProperties:
+            $ref: "#/components/schemas/RuntimeControlValue"
+        channels:
+          type: object
+          description: Latest values for typed send/receive channels keyed as dataKind:name.
           additionalProperties:
             $ref: "#/components/schemas/RuntimeControlValue"
         diagnostics:

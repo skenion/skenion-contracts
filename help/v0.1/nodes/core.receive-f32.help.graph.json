@@ -1,0 +1,77 @@
+{
+  "schema": "skenion.graph",
+  "schemaVersion": "0.1.0",
+  "id": "help-core-receive-f32",
+  "revision": "1",
+  "nodes": [
+    {
+      "id": "note_1",
+      "kind": "core.comment",
+      "kindVersion": "0.1.0",
+      "params": {
+        "text": "Receive F32 resolves the latest typed channel value or the node default."
+      },
+      "ports": []
+    },
+    {
+      "id": "bang_1",
+      "kind": "core.bang-button",
+      "kindVersion": "0.1.0",
+      "params": {},
+      "ports": [
+        {
+          "id": "bang",
+          "direction": "output",
+          "label": "Bang",
+          "type": {
+            "flow": "event",
+            "dataKind": "event.bang"
+          }
+        }
+      ]
+    },
+    {
+      "id": "receive_1",
+      "kind": "core.receive-f32",
+      "kindVersion": "0.1.0",
+      "params": {
+        "name": "speed",
+        "default": 0
+      },
+      "ports": [
+        {
+          "id": "bang",
+          "direction": "input",
+          "label": "Bang",
+          "type": {
+            "flow": "event",
+            "dataKind": "event.bang"
+          },
+          "required": false,
+          "activation": "trigger"
+        },
+        {
+          "id": "value",
+          "direction": "output",
+          "label": "F32",
+          "type": {
+            "flow": "value",
+            "dataKind": "number.f32"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "node": "bang_1",
+        "port": "bang"
+      },
+      "to": {
+        "node": "receive_1",
+        "port": "bang"
+      }
+    }
+  ]
+}

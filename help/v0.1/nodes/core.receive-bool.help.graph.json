@@ -1,0 +1,77 @@
+{
+  "schema": "skenion.graph",
+  "schemaVersion": "0.1.0",
+  "id": "help-core-receive-bool",
+  "revision": "1",
+  "nodes": [
+    {
+      "id": "note_1",
+      "kind": "core.comment",
+      "kindVersion": "0.1.0",
+      "params": {
+        "text": "Receive Bool resolves the latest typed channel value or the node default."
+      },
+      "ports": []
+    },
+    {
+      "id": "bang_1",
+      "kind": "core.bang-button",
+      "kindVersion": "0.1.0",
+      "params": {},
+      "ports": [
+        {
+          "id": "bang",
+          "direction": "output",
+          "label": "Bang",
+          "type": {
+            "flow": "event",
+            "dataKind": "event.bang"
+          }
+        }
+      ]
+    },
+    {
+      "id": "receive_1",
+      "kind": "core.receive-bool",
+      "kindVersion": "0.1.0",
+      "params": {
+        "name": "enabled",
+        "default": false
+      },
+      "ports": [
+        {
+          "id": "bang",
+          "direction": "input",
+          "label": "Bang",
+          "type": {
+            "flow": "event",
+            "dataKind": "event.bang"
+          },
+          "required": false,
+          "activation": "trigger"
+        },
+        {
+          "id": "value",
+          "direction": "output",
+          "label": "Bool",
+          "type": {
+            "flow": "value",
+            "dataKind": "boolean"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "node": "bang_1",
+        "port": "bang"
+      },
+      "to": {
+        "node": "receive_1",
+        "port": "bang"
+      }
+    }
+  ]
+}

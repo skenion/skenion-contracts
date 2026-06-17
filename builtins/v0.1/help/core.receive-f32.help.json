@@ -1,0 +1,45 @@
+{
+  "schema": "skenion.node.help",
+  "schemaVersion": "0.1.0",
+  "id": "core.receive-f32",
+  "summary": "Reads number.f32 values from a named control channel.",
+  "description": "Receive F32 is the matching explicit non-local routing node for Send F32. It exposes the current channel value or its default value as a typed output.",
+  "helpGraph": "help/v0.1/nodes/core.receive-f32.help.graph.json",
+  "tags": [
+    "routing",
+    "receive",
+    "control",
+    "number",
+    "f32"
+  ],
+  "runtimeBehavior": "Runtime resolves value from channel number.f32:<name>. If the channel has no value, it uses the node default. bang emits the current resolved value.",
+  "relatedNodes": [
+    "core.send-f32",
+    "core.bang-button"
+  ],
+  "ports": [
+    {
+      "id": "bang",
+      "description": "Triggers emission of the current channel value or default value."
+    },
+    {
+      "id": "value",
+      "description": "Outputs the resolved number.f32 value."
+    }
+  ],
+  "params": [
+    {
+      "id": "name",
+      "description": "Channel name. Runtime reads number.f32:<name>."
+    },
+    {
+      "id": "default",
+      "description": "Fallback value used before anything has been sent to the channel."
+    }
+  ],
+  "example": {
+    "title": "Read a F32 control value",
+    "description": "Receive F32 makes non-local routing explicit in the graph while preserving typed cables.",
+    "graph": "help/v0.1/nodes/core.receive-f32.help.graph.json"
+  }
+}

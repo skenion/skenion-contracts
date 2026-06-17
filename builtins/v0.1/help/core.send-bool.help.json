@@ -1,0 +1,36 @@
+{
+  "schema": "skenion.node.help",
+  "schemaVersion": "0.1.0",
+  "id": "core.send-bool",
+  "summary": "Writes boolean values into a named control channel.",
+  "description": "Send Bool is an explicit non-local routing node. It accepts boolean values and stores the latest value in the typed channel identified by its name parameter.",
+  "helpGraph": "help/v0.1/nodes/core.send-bool.help.graph.json",
+  "tags": [
+    "routing",
+    "send",
+    "control",
+    "boolean"
+  ],
+  "runtimeBehavior": "When in receives a boolean value, Runtime writes it to channel boolean:<name> and emits the sent value in control diagnostics/state.",
+  "relatedNodes": [
+    "core.receive-bool",
+    "ui.toggle"
+  ],
+  "ports": [
+    {
+      "id": "in",
+      "description": "Receives the boolean value to publish to the named typed channel."
+    }
+  ],
+  "params": [
+    {
+      "id": "name",
+      "description": "Channel name. Runtime stores this as boolean:<name>."
+    }
+  ],
+  "example": {
+    "title": "Publish a Bool control value",
+    "description": "Connect a typed value or panel control to Send Bool to update a named channel.",
+    "graph": "help/v0.1/nodes/core.send-bool.help.graph.json"
+  }
+}

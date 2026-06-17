@@ -1,0 +1,67 @@
+{
+  "schema": "skenion.graph",
+  "schemaVersion": "0.1.0",
+  "id": "help-ui-button",
+  "revision": "1",
+  "nodes": [
+    {
+      "id": "note_1",
+      "kind": "core.comment",
+      "kindVersion": "0.1.0",
+      "params": {
+        "text": "Button emits a bang as a runtime control event. It is for panel interaction, not graph mutation."
+      },
+      "ports": []
+    },
+    {
+      "id": "button_1",
+      "kind": "ui.button",
+      "kindVersion": "0.1.0",
+      "params": {
+        "label": "Bang"
+      },
+      "ports": [
+        {
+          "id": "bang",
+          "direction": "output",
+          "label": "Bang",
+          "type": {
+            "flow": "event",
+            "dataKind": "event.bang"
+          }
+        }
+      ]
+    },
+    {
+      "id": "log_1",
+      "kind": "core.event-log",
+      "kindVersion": "0.1.0",
+      "params": {},
+      "ports": [
+        {
+          "id": "bang",
+          "direction": "input",
+          "label": "Bang",
+          "type": {
+            "flow": "event",
+            "dataKind": "event.bang"
+          },
+          "required": true,
+          "activation": "trigger"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "node": "button_1",
+        "port": "bang"
+      },
+      "to": {
+        "node": "log_1",
+        "port": "bang"
+      }
+    }
+  ]
+}

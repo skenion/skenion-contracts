@@ -1,0 +1,37 @@
+{
+  "schema": "skenion.node.help",
+  "schemaVersion": "0.1.0",
+  "id": "core.send-f32",
+  "summary": "Writes number.f32 values into a named control channel.",
+  "description": "Send F32 is an explicit non-local routing node. It accepts number.f32 values and stores the latest value in the typed channel identified by its name parameter.",
+  "helpGraph": "help/v0.1/nodes/core.send-f32.help.graph.json",
+  "tags": [
+    "routing",
+    "send",
+    "control",
+    "number",
+    "f32"
+  ],
+  "runtimeBehavior": "When in receives a number.f32 value, Runtime writes it to channel number.f32:<name> and emits the sent value in control diagnostics/state.",
+  "relatedNodes": [
+    "core.receive-f32",
+    "ui.slider-f32"
+  ],
+  "ports": [
+    {
+      "id": "in",
+      "description": "Receives the number.f32 value to publish to the named typed channel."
+    }
+  ],
+  "params": [
+    {
+      "id": "name",
+      "description": "Channel name. Runtime stores this as number.f32:<name>."
+    }
+  ],
+  "example": {
+    "title": "Publish a F32 control value",
+    "description": "Connect a typed value or panel control to Send F32 to update a named channel.",
+    "graph": "help/v0.1/nodes/core.send-f32.help.graph.json"
+  }
+}
