@@ -106,16 +106,16 @@ pub fn analyze_shader_interface_v01(source: &str) -> ShaderInterfaceAnalysisV01 
 
     for (line_index, line) in source.lines().enumerate() {
         let Some(rest) = annotation_payload(line) else {
-            if line.trim_start().starts_with("//") {
-                if let Some(column) = line.find("@skenion.uniform").map(|index| index + 1) {
-                    diagnostics.push(diagnostic(
-                        "malformed-annotation",
-                        "malformed @skenion.uniform annotation",
-                        Some(line_index + 1),
-                        Some(column),
-                        None,
-                    ));
-                }
+            if line.trim_start().starts_with("//")
+                && let Some(column) = line.find("@skenion.uniform").map(|index| index + 1)
+            {
+                diagnostics.push(diagnostic(
+                    "malformed-annotation",
+                    "malformed @skenion.uniform annotation",
+                    Some(line_index + 1),
+                    Some(column),
+                    None,
+                ));
             }
             continue;
         };
@@ -380,37 +380,35 @@ fn range_diagnostics(
 ) -> Vec<ShaderInterfaceDiagnosticV01> {
     let mut diagnostics = Vec::new();
     for key in ["min", "max"] {
-        if let Some(raw_value) = attributes.get(key) {
-            if raw_value
+        if let Some(raw_value) = attributes.get(key)
+            && raw_value
                 .parse::<f64>()
                 .ok()
                 .is_none_or(|value| !value.is_finite())
-            {
-                diagnostics.push(diagnostic(
-                    "invalid-number-range",
-                    format!("invalid {key} range value: {raw_value}"),
-                    Some(line_number),
-                    attribute_column(line, key),
-                    Some(uniform_id),
-                ));
-            }
-        }
-    }
-
-    if let Some(raw_value) = attributes.get("step") {
-        if raw_value
-            .parse::<f64>()
-            .ok()
-            .is_none_or(|value| !value.is_finite() || value <= 0.0)
         {
             diagnostics.push(diagnostic(
                 "invalid-number-range",
-                format!("invalid step range value: {raw_value}"),
+                format!("invalid {key} range value: {raw_value}"),
                 Some(line_number),
-                attribute_column(line, "step"),
+                attribute_column(line, key),
                 Some(uniform_id),
             ));
         }
+    }
+
+    if let Some(raw_value) = attributes.get("step")
+        && raw_value
+            .parse::<f64>()
+            .ok()
+            .is_none_or(|value| !value.is_finite() || value <= 0.0)
+    {
+        diagnostics.push(diagnostic(
+            "invalid-number-range",
+            format!("invalid step range value: {raw_value}"),
+            Some(line_number),
+            attribute_column(line, "step"),
+            Some(uniform_id),
+        ));
     }
     diagnostics
 }
