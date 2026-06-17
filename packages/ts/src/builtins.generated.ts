@@ -15,6 +15,8 @@ export const builtinManifestV01 = {
   "version": "0.1",
   "nodes": [
     "core.value-f32",
+    "core.value-i32",
+    "core.value-bool",
     "core.color-rgba",
     "core.target",
     "core.bang-button",
@@ -29,6 +31,8 @@ export const builtinManifestV01 = {
   ],
   "canonicalDataKinds": [
     "number.f32",
+    "number.i32",
+    "boolean",
     "event.bang",
     "asset.video",
     "video.frame",
@@ -70,9 +74,42 @@ export const builtinNodeDefinitionsV01 = [
     "schemaVersion": "0.1.0",
     "id": "core.color-rgba",
     "version": "0.1.0",
-    "displayName": "RGBA Color",
+    "displayName": "RGBA",
     "category": "Values",
     "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "color.rgba"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "set",
+        "direction": "input",
+        "label": "Set",
+        "type": {
+          "flow": "value",
+          "dataKind": "color.rgba"
+        },
+        "required": false,
+        "activation": "latched"
+      },
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
       {
         "id": "value",
         "direction": "output",
@@ -232,23 +269,171 @@ export const builtinNodeDefinitionsV01 = [
   {
     "schema": "skenion.node.definition",
     "schemaVersion": "0.1.0",
-    "id": "core.value-f32",
+    "id": "core.value-bool",
     "version": "0.1.0",
-    "displayName": "Float Value",
+    "displayName": "Bool",
     "category": "Values",
     "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "boolean"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "set",
+        "direction": "input",
+        "label": "Set",
+        "type": {
+          "flow": "value",
+          "dataKind": "boolean"
+        },
+        "required": false,
+        "activation": "latched"
+      },
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
       {
         "id": "value",
         "direction": "output",
         "label": "Value",
         "type": {
           "flow": "value",
-          "dataKind": "number.f32",
-          "range": {
-            "min": 0,
-            "max": 1,
-            "step": 0.01
-          }
+          "dataKind": "boolean"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.value-f32",
+    "version": "0.1.0",
+    "displayName": "F32",
+    "category": "Values",
+    "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.f32"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "set",
+        "direction": "input",
+        "label": "Set",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.f32"
+        },
+        "required": false,
+        "activation": "latched"
+      },
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "Value",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.f32"
+        }
+      }
+    ],
+    "execution": {
+      "model": "value"
+    },
+    "state": {
+      "persistent": false
+    },
+    "permissions": [],
+    "capabilities": []
+  },
+  {
+    "schema": "skenion.node.definition",
+    "schemaVersion": "0.1.0",
+    "id": "core.value-i32",
+    "version": "0.1.0",
+    "displayName": "I32",
+    "category": "Values",
+    "ports": [
+      {
+        "id": "in",
+        "direction": "input",
+        "label": "In",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.i32"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "set",
+        "direction": "input",
+        "label": "Set",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.i32"
+        },
+        "required": false,
+        "activation": "latched"
+      },
+      {
+        "id": "bang",
+        "direction": "input",
+        "label": "Bang",
+        "type": {
+          "flow": "event",
+          "dataKind": "event.bang"
+        },
+        "required": false,
+        "activation": "trigger"
+      },
+      {
+        "id": "value",
+        "direction": "output",
+        "label": "Value",
+        "type": {
+          "flow": "value",
+          "dataKind": "number.i32"
         }
       }
     ],
@@ -375,12 +560,7 @@ export const builtinNodeDefinitionsV01 = [
         "label": "u_value",
         "type": {
           "flow": "value",
-          "dataKind": "number.f32",
-          "range": {
-            "min": 0,
-            "max": 1,
-            "step": 0.01
-          }
+          "dataKind": "number.f32"
         },
         "required": false,
         "activation": "latched"
@@ -391,12 +571,7 @@ export const builtinNodeDefinitionsV01 = [
         "label": "u_value2",
         "type": {
           "flow": "value",
-          "dataKind": "number.f32",
-          "range": {
-            "min": 0,
-            "max": 1,
-            "step": 0.01
-          }
+          "dataKind": "number.f32"
         },
         "required": false,
         "activation": "latched"

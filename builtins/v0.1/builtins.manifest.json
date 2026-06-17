@@ -4,6 +4,8 @@
   "version": "0.1",
   "nodes": [
     "core.value-f32",
+    "core.value-i32",
+    "core.value-bool",
     "core.color-rgba",
     "core.target",
     "core.bang-button",
@@ -18,6 +20,8 @@
   ],
   "canonicalDataKinds": [
     "number.f32",
+    "number.i32",
+    "boolean",
     "event.bang",
     "asset.video",
     "video.frame",

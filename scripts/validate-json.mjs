@@ -181,20 +181,10 @@ function validateBuiltins(manifestFile, builtinNodeFiles, validators) {
     }
   }
 
-  const valueDefinition = definitions.find((definition) => definition.id === "core.value-f32");
-  const valuePort = valueDefinition?.ports.find((port) => port.id === "value");
-  if (valuePort?.type.dataKind !== "number.f32") {
-    fail("builtins/v0.1/nodes/core.value-f32.node.json", "core.value-f32.value must use dataKind number.f32");
-  }
-  if (valuePort?.type.range?.step !== 0.01) {
-    fail("builtins/v0.1/nodes/core.value-f32.node.json", "core.value-f32.value must declare range step 0.01");
-  }
-
-  const colorDefinition = definitions.find((definition) => definition.id === "core.color-rgba");
-  const colorPort = colorDefinition?.ports.find((port) => port.id === "value");
-  if (colorPort?.type.dataKind !== "color.rgba") {
-    fail("builtins/v0.1/nodes/core.color-rgba.node.json", "core.color-rgba.value must use dataKind color.rgba");
-  }
+  validateTypedValueBuiltin(definitions, "core.value-f32", "number.f32", "Value");
+  validateTypedValueBuiltin(definitions, "core.value-i32", "number.i32", "Value");
+  validateTypedValueBuiltin(definitions, "core.value-bool", "boolean", "Value");
+  validateTypedValueBuiltin(definitions, "core.color-rgba", "color.rgba", "Color");
 
   const shaderDefinition = definitions.find((definition) => definition.id === "render.fullscreen-shader");
   const shaderPorts = new Map(shaderDefinition?.ports.map((port) => [port.id, port]));
@@ -211,6 +201,43 @@ function validateBuiltins(manifestFile, builtinNodeFiles, validators) {
   const shaderOutPort = shaderPorts.get("out");
   if (shaderOutPort?.type.dataKind !== "gpu.texture2d") {
     fail("builtins/v0.1/nodes/render.fullscreen-shader.node.json", "render.fullscreen-shader.out must use dataKind gpu.texture2d");
+  }
+}
+
+function validateTypedValueBuiltin(definitions, id, dataKind, outputLabel) {
+  const definition = definitions.find((candidate) => candidate.id === id);
+  const file = `builtins/v0.1/nodes/${id}.node.json`;
+  if (!definition) {
+    fail(file, `${id} must exist`);
+  }
+
+  const ports = new Map(definition.ports.map((port) => [port.id, port]));
+  const expected = [
+    ["in", "input", "trigger", dataKind],
+    ["set", "input", "latched", dataKind],
+    ["bang", "input", "trigger", "event.bang"],
+    ["value", "output", undefined, dataKind]
+  ];
+  for (const [portId, direction, activation, expectedDataKind] of expected) {
+    const port = ports.get(portId);
+    if (!port) {
+      fail(file, `${id}.${portId} port is required`);
+    }
+    if (port.direction !== direction) {
+      fail(file, `${id}.${portId} must be ${direction}`);
+    }
+    if (port.type.dataKind !== expectedDataKind) {
+      fail(file, `${id}.${portId} must use dataKind ${expectedDataKind}`);
+    }
+    if (activation && port.activation !== activation) {
+      fail(file, `${id}.${portId} activation must be ${activation}`);
+    }
+    if (port.type.range) {
+      fail(file, `${id}.${portId} must not declare a global range constraint`);
+    }
+  }
+  if (ports.get("value")?.label !== outputLabel) {
+    fail(file, `${id}.value label must be ${outputLabel}`);
   }
 }
 

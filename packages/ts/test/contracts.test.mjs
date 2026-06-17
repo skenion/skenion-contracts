@@ -171,7 +171,9 @@ test("exports canonical v0.1 builtin node definitions", () => {
     "core.gpu-upload",
     "core.preview",
     "core.target",
+    "core.value-bool",
     "core.value-f32",
+    "core.value-i32",
     "core.video-asset",
     "core.video-decode",
     "render.clear-color",
@@ -180,13 +182,25 @@ test("exports canonical v0.1 builtin node definitions", () => {
   ]);
 
   const valueDefinition = getBuiltinNodeDefinition("core.value-f32");
-  assert.equal(valueDefinition?.ports[0].id, "value");
-  assert.equal(valueDefinition?.ports[0].type.dataKind, "number.f32");
-  assert.equal(valueDefinition?.ports[0].type.range.step, 0.01);
+  assert.deepEqual(valueDefinition?.ports.map((port) => port.id), ["in", "set", "bang", "value"]);
+  assert.equal(valueDefinition?.ports.find((port) => port.id === "in")?.activation, "trigger");
+  assert.equal(valueDefinition?.ports.find((port) => port.id === "set")?.activation, "latched");
+  assert.equal(valueDefinition?.ports.find((port) => port.id === "bang")?.type.dataKind, "event.bang");
+  const valueOutputType = valueDefinition?.ports.find((port) => port.id === "value")?.type;
+  assert.equal(valueOutputType?.dataKind, "number.f32");
+  assert.equal(Boolean(valueOutputType && "range" in valueOutputType), false);
+
+  const i32Definition = getBuiltinNodeDefinition("core.value-i32");
+  assert.deepEqual(i32Definition?.ports.map((port) => port.id), ["in", "set", "bang", "value"]);
+  assert.equal(i32Definition?.ports.find((port) => port.id === "value")?.type.dataKind, "number.i32");
+
+  const boolDefinition = getBuiltinNodeDefinition("core.value-bool");
+  assert.deepEqual(boolDefinition?.ports.map((port) => port.id), ["in", "set", "bang", "value"]);
+  assert.equal(boolDefinition?.ports.find((port) => port.id === "value")?.type.dataKind, "boolean");
 
   const colorDefinition = getBuiltinNodeDefinition("core.color-rgba");
-  assert.equal(colorDefinition?.ports[0].id, "value");
-  assert.equal(colorDefinition?.ports[0].type.dataKind, "color.rgba");
+  assert.deepEqual(colorDefinition?.ports.map((port) => port.id), ["in", "set", "bang", "value"]);
+  assert.equal(colorDefinition?.ports.find((port) => port.id === "value")?.type.dataKind, "color.rgba");
 
   const shaderDefinition = getBuiltinNodeDefinition("render.fullscreen-shader");
   assert.equal(shaderDefinition?.ports.find((port) => port.id === "u_value")?.type.dataKind, "number.f32");
@@ -209,6 +223,8 @@ test("exports the canonical v0.1 builtin manifest", () => {
     builtinNodeDefinitionsV01.map((definition) => definition.id).sort()
   );
   assert.equal(builtinManifestV01.canonicalDataKinds.includes("number.f32"), true);
+  assert.equal(builtinManifestV01.canonicalDataKinds.includes("number.i32"), true);
+  assert.equal(builtinManifestV01.canonicalDataKinds.includes("boolean"), true);
   assert.equal(builtinManifestV01.canonicalDataKinds.includes("event.bang"), true);
   assert.equal(builtinManifestV01.canonicalDataKinds.includes("f32"), false);
   assert.equal(builtinManifestV01.canonicalDataKinds.includes("bang"), false);
