@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/echovisionlab/skenion-contracts/compare/skenion-contracts-v0.15.0...skenion-contracts-v0.16.0) (2026-06-17)
+
+
+### Features
+
+* **contracts:** publish builtin help graphs ([08e1516](https://github.com/echovisionlab/skenion-contracts/commit/08e1516e253eca0fea8b4a38cc936a2f56b3b3b2))
+
 ## [0.15.0](https://github.com/echovisionlab/skenion-contracts/compare/skenion-contracts-v0.14.0...skenion-contracts-v0.15.0) (2026-06-17)
 
 
