@@ -70,4 +70,23 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn constructs_set_messages() {
+        assert_eq!(
+            ControlMessageV01::set(vec![
+                ControlAtomV01::F32(0.5),
+                ControlAtomV01::Bool(true),
+                ControlAtomV01::String("armed".to_owned())
+            ]),
+            ControlMessageV01 {
+                selector: "set".to_owned(),
+                atoms: vec![
+                    ControlAtomV01::F32(0.5),
+                    ControlAtomV01::Bool(true),
+                    ControlAtomV01::String("armed".to_owned())
+                ]
+            }
+        );
+    }
 }
