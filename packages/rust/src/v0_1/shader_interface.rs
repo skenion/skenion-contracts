@@ -524,12 +524,13 @@ mod tests {
 // @skenion.uniform speed number.float default=0.5 min=0 max=2 step=0.01 label="Speed Amount"
 // @skenion.uniform enabled boolean default=false
 // @skenion.uniform iterations number.int default=8
+// @skenion.uniform seed number.uint default=12
 // @skenion.uniform tint color default=[1,0.2,0.1,1]
 "#;
         let analysis = analyze_shader_interface_v01(source);
 
         assert!(analysis.ok);
-        assert_eq!(analysis.shader_interface.uniforms.len(), 4);
+        assert_eq!(analysis.shader_interface.uniforms.len(), 5);
         assert_eq!(analysis.shader_interface.uniforms[0].id, "speed");
         assert_eq!(analysis.shader_interface.uniforms[0].label, "Speed Amount");
         assert_eq!(
@@ -544,6 +545,10 @@ mod tests {
             analysis.shader_interface.uniforms[1].default,
             Some(Value::from(false))
         );
+        assert_eq!(
+            analysis.shader_interface.uniforms[3].default,
+            Some(Value::from(12_u64))
+        );
 
         let ports = shader_interface_to_ports_v01(&analysis.shader_interface);
         assert_eq!(
@@ -551,11 +556,11 @@ mod tests {
                 .iter()
                 .map(|port| port.id.as_str())
                 .collect::<Vec<_>>(),
-            vec!["speed", "enabled", "iterations", "tint", "out"]
+            vec!["speed", "enabled", "iterations", "seed", "tint", "out"]
         );
         assert_eq!(ports[0].activation, Some(PortActivationV01::Latched));
-        assert_eq!(ports[4].direction, PortDirectionV01::Output);
-        assert_eq!(ports[4].data_type.data_kind, "gpu.texture2d");
+        assert_eq!(ports[5].direction, PortDirectionV01::Output);
+        assert_eq!(ports[5].data_type.data_kind, "gpu.texture2d");
     }
 
     #[test]
@@ -627,6 +632,7 @@ mod tests {
 // @skenion.uniform broken number.float default=nope
 // @skenion.uniform flag boolean default=maybe
 // @skenion.uniform count number.int default=1.2
+// @skenion.uniform seed number.uint default=-1
 // @skenion.uniform tint color default=nope
 // @skenion.uniform bad_tint color default=[1,2,3,"x"]
 // @skenion.uniform ranged number.float min=nope max=Infinity step=-1
@@ -648,6 +654,7 @@ mod tests {
                 "reserved-uniform-id",
                 "unsupported-uniform-type",
                 "duplicate-uniform-id",
+                "invalid-default",
                 "invalid-default",
                 "invalid-default",
                 "invalid-default",

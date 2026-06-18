@@ -266,9 +266,11 @@ mod tests {
     #[test]
     fn exposes_report_errors_and_string_list_values() {
         let report = ValidationReportV01::new(vec![ValidationErrorV01::new("one")]);
+        let format = StringOrStringsV01::One("rgba8".to_owned());
         let formats = StringOrStringsV01::Many(vec!["rgba8".to_owned(), "bgra8".to_owned()]);
 
         assert_eq!(report.errors()[0].message, "one");
+        assert_eq!(format.values(), vec!["rgba8"]);
         assert_eq!(formats.values(), vec!["rgba8", "bgra8"]);
     }
 
@@ -293,6 +295,16 @@ mod tests {
 
         source.format = Some(StringOrStringsV01::Many(vec!["rgba8".to_owned()]));
         assert!(compatible_data_types_v01(&source, &target));
+
+        let any_target = value_type("message.any");
+        assert!(compatible_data_types_v01(&source, &any_target));
+
+        let int_source = value_type("number.int");
+        let uint_target = value_type("number.uint");
+        assert!(compatible_data_types_v01(&int_source, &uint_target));
+
+        let bool_source = value_type("boolean");
+        assert!(!compatible_data_types_v01(&bool_source, &uint_target));
 
         source.range = Some(NumberRangeV01 {
             min: Some(0.0),
