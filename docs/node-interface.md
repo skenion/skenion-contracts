@@ -22,7 +22,7 @@ v0.1 uses one canonical type model:
 ```json
 {
   "flow": "value",
-  "dataKind": "number.f32",
+  "dataKind": "number.float",
   "unit": "px",
   "range": { "min": 0, "max": 100 }
 }
@@ -56,17 +56,16 @@ Initial core data kinds:
 
 | Data kind | Typical flow | Meaning |
 | --- | --- | --- |
-| `bang` | `event` | Momentary trigger event. |
+| `event.bang` | `event` | Momentary trigger event. |
 | `boolean` | `value`, `signal`, `event` | Boolean payload. |
-| `number.i32` | `value`, `signal` | Signed 32-bit number. |
-| `number.u32` | `value`, `signal` | Unsigned 32-bit number. |
-| `number.f32` | `value`, `signal` | 32-bit float. |
-| `number.f64` | `value`, `signal` | 64-bit float. |
+| `number.float` | `value`, `signal` | Floating-point number; storage/transport precision is a representation. |
+| `number.int` | `value`, `signal` | Signed integer; width is a representation. |
+| `number.uint` | `value`, `signal` | Unsigned integer; width is a representation. |
 | `vec2`, `vec3`, `vec4` | `value`, `signal` | Numeric vectors. |
-| `color.rgba` | `value`, `signal` | RGBA color. |
+| `color` | `value`, `signal` | Color value; channel count and encoding are representations. |
 | `string` | `value`, `event` | UTF-8 string. |
 | `enum` | `value`, `event` | One of a declared `values` set. |
-| `matrix.float32` | `value`, `signal`, `stream` | Numeric matrix. |
+| `matrix.f32` | `value`, `signal`, `stream` | Numeric matrix. |
 | `audio.buffer` | `stream` | Audio block data. |
 | `video.frame` | `stream` | Decoded video frame data. |
 | `gpu.texture2d` | `resource` | GPU texture resource. |
@@ -112,7 +111,7 @@ Graph v0.1 uses explicit directioned ports:
   "label": "Radius",
   "type": {
     "flow": "value",
-    "dataKind": "number.f32",
+    "dataKind": "number.float",
     "unit": "px",
     "range": { "min": 0, "max": 100 }
   },
@@ -157,7 +156,7 @@ All domain crossing is represented by explicit converter nodes. Examples:
 - `asset.video` to `video.frame`: `media.video_decode`
 - `video.frame` to `gpu.texture2d`: `gpu.texture_upload`
 - `boolean` to `bang`: `logic.rising_edge`
-- `audio.buffer` to `number.f32`: `audio.rms`
+- `audio.buffer` to `number.float`: `audio.rms`
 - `gpu.texture2d` format changes: `gpu.extract_channel` or another GPU node
 
 The editor may offer to insert converter nodes, but the saved graph must contain

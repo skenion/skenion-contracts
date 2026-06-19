@@ -31,8 +31,12 @@ export type {
   CableStyleV02,
   CanvasNodeViewV01,
   CanvasViewportV01,
+  ColorRepresentationV01,
   ControlAtomV01,
   ControlMessageV01,
+  ConversionDiagnosticV01,
+  ConversionPlanV01,
+  ConversionStepV01,
   CycleValidationV02,
   DataFlow,
   DataTypeV01,
@@ -44,6 +48,7 @@ export type {
   FeedbackBoundaryV02,
   FeedbackBufferModeV02,
   FeedbackPolicyV02,
+  FloatRepresentationV01,
   GraphDocumentV01,
   GraphDocumentV02,
   GraphCycleValidationV02,
@@ -57,11 +62,13 @@ export type {
   GraphValidationDiagnosticV02,
   GraphValidationResultV02,
   InvertGraphPatchResult,
+  IntRepresentationV01,
   MergePolicyV02,
   NodeDefinitionManifestV01,
   NodeDefinitionManifestV02,
   NodeExecutionV01,
   NodeStateV01,
+  NumericRepresentationV01,
   PortActivation,
   PortDirection,
   PortGroupSpecV02,
@@ -71,6 +78,9 @@ export type {
   ProjectDocumentV01,
   RemoveEdgeOperationV01,
   RemoveNodeOperationV01,
+  RepresentationSpecV01,
+  RepresentationV01,
+  SemanticDataKindV01,
   ReplaceNodeInterfaceOperationV01,
   SetNodeParamOperationV01,
   SetNodeParamsOperationV01,
@@ -85,12 +95,20 @@ export type {
   ShaderLanguageV01,
   ShaderUniformDataKindV01,
   ShaderUniformV01,
+  TypeDescriptorV01,
   TriggerModeV02,
+  UintRepresentationV01,
   ValidationFailure,
   ValidationResult,
   ValidationSuccess,
   ViewStateV01
 } from "./types.js";
+export {
+  planConversion,
+  representationForDataType,
+  representationRegistryV01,
+  typeDescriptorForDataType
+} from "./conversion.js";
 export { applyGraphPatch, invertGraphPatch } from "./patch.js";
 export { createDefaultViewStateForGraph } from "./project.js";
 export { analyzeShaderInterfaceV01, shaderInterfaceToPortsV01 } from "./shaderInterface.js";
