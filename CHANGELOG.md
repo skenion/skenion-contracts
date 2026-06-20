@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/echovisionlab/skenion-contracts/compare/skenion-contracts-v0.29.0...skenion-contracts-v0.30.0) (2026-06-20)
+
+
+### Features
+
+* **contracts:** add audio clock domain contract ([#77](https://github.com/echovisionlab/skenion-contracts/issues/77)) ([0a73779](https://github.com/echovisionlab/skenion-contracts/commit/0a73779fbd2aa3e24a0bb28ac7faa5331d922ddd))
+
 ## [0.29.0](https://github.com/echovisionlab/skenion-contracts/compare/skenion-contracts-v0.28.0...skenion-contracts-v0.29.0) (2026-06-20)
 
 
