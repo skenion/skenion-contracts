@@ -1448,6 +1448,43 @@ pub fn derive_patch_contracts_v02(project: &ProjectDocumentV02) -> Vec<PatchCont
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::de::{self, Visitor};
+
+    struct FailingDeserializer;
+
+    impl<'de> Deserializer<'de> for FailingDeserializer {
+        type Error = de::value::Error;
+
+        fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+        where
+            V: Visitor<'de>,
+        {
+            Err(de::Error::custom("forced graphPatch deserializer failure"))
+        }
+
+        serde::forward_to_deserialize_any! {
+            bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes byte_buf option
+            unit unit_struct newtype_struct seq tuple tuple_struct map struct enum identifier
+            ignored_any
+        }
+    }
+
+    #[test]
+    fn propagates_runtime_graph_patch_value_deserializer_errors() {
+        let error = deserialize_runtime_graph_patch_v01(FailingDeserializer)
+            .expect_err("failing deserializer should propagate");
+
+        assert!(
+            error
+                .to_string()
+                .contains("forced graphPatch deserializer failure")
+        );
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct GraphValidationDiagnosticV02 {
     pub severity: String,

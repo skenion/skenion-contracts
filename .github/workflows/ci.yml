@@ -62,4 +62,4 @@ jobs:
       - run: cargo test --manifest-path packages/rust/Cargo.toml --all-targets --all-features
       - run: rustup component add llvm-tools-preview
       - run: cargo install cargo-llvm-cov --locked
-      - run: cargo llvm-cov --manifest-path packages/rust/Cargo.toml --all-targets --all-features --fail-under-lines 100 --fail-under-functions 100
+      - run: cargo llvm-cov --manifest-path packages/rust/Cargo.toml --all-targets --all-features --fail-uncovered-lines 0 --fail-under-functions 100

@@ -1,5 +1,6 @@
 .DS_Store
 node_modules/
+.deps/
 packages/ts/src/generated/
 crates/rust/src/generated/
 target/

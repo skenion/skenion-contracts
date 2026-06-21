@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use std::{fs, path::Path};
 
 use skenion_contracts::{
@@ -8,11 +10,12 @@ use skenion_contracts::{
     RuntimeCollaborationOperationEnvelope, RuntimeCollaborationOperationResult,
     RuntimeCollaborationPresenceEnvelope, RuntimeCollaborationSelectionEnvelope,
     RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionInfoResponse,
-    analyze_graph_fragment_v02, parse_object_text_v01, validate_graph_document_v01,
-    validate_graph_document_v02, validate_graph_fragment_v02, validate_node_definition_v01,
-    validate_node_definition_v02, validate_object_text_parse_result_v01,
-    validate_paste_graph_fragment_response, validate_project_document_v02,
-    validate_runtime_collaboration_event_envelope, validate_runtime_collaboration_operation_batch,
+    analyze_graph_document_v02, analyze_graph_fragment_v02, parse_object_text_v01,
+    validate_graph_document_v01, validate_graph_document_v02, validate_graph_fragment_v02,
+    validate_node_definition_v01, validate_node_definition_v02,
+    validate_object_text_parse_result_v01, validate_paste_graph_fragment_response,
+    validate_project_document_v02, validate_runtime_collaboration_event_envelope,
+    validate_runtime_collaboration_operation_batch,
     validate_runtime_collaboration_operation_envelope,
     validate_runtime_collaboration_operation_result,
     validate_runtime_collaboration_presence_envelope,
@@ -313,6 +316,939 @@ fn validates_runtime_session_fixtures() {
             other => panic!("{} has unexpected schema {other:?}", file.display()),
         }
     }
+}
+
+#[test]
+fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
+    let duplicate_ports: NodeDefinitionManifestV02 = serde_json::from_str(
+        r#"{
+          "schema": "skenion.node.definition",
+          "schemaVersion": "0.2.0",
+          "id": "core.duplicate-port",
+          "version": "0.2.0",
+          "displayName": "Duplicate Port",
+          "category": "Core",
+          "ports": [
+            { "id": "value", "direction": "input", "type": "number.float" },
+            { "id": "value", "direction": "output", "type": "number.float" }
+          ],
+          "execution": { "model": "value" },
+          "state": { "persistent": false },
+          "permissions": [],
+          "capabilities": []
+        }"#,
+    )
+    .expect("duplicate port definition should parse");
+    let duplicate_report =
+        validate_node_definition_v02(&duplicate_ports).expect_err("duplicate port should fail");
+    assert!(duplicate_report.to_string().contains("duplicate port id"));
+
+    let message_any_graph: GraphDocumentV02 = serde_json::from_str(
+        r#"{
+          "schema": "skenion.graph",
+          "schemaVersion": "0.2.0",
+          "id": "message-any-control-types",
+          "revision": "1",
+          "nodes": [
+            {
+              "id": "button",
+              "kind": "core.bang",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "out", "direction": "output", "type": "event.bang", "rate": "event" }
+              ]
+            },
+            {
+              "id": "float_value",
+              "kind": "core.float",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "value", "direction": "output", "type": "number.float", "rate": "event" }
+              ]
+            },
+            {
+              "id": "int_value",
+              "kind": "core.int",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "value", "direction": "output", "type": "number.int", "rate": "event" }
+              ]
+            },
+            {
+              "id": "uint_value",
+              "kind": "core.uint",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "value", "direction": "output", "type": "number.uint", "rate": "event" }
+              ]
+            },
+            {
+              "id": "bool_value",
+              "kind": "core.bool",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "value", "direction": "output", "type": "boolean", "rate": "event" }
+              ]
+            },
+            {
+              "id": "color_value",
+              "kind": "core.color",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "value", "direction": "output", "type": "color", "rate": "event" }
+              ]
+            },
+            {
+              "id": "string_value",
+              "kind": "core.string",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "value", "direction": "output", "type": "string", "rate": "event" }
+              ]
+            },
+            {
+              "id": "message",
+              "kind": "core.message",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "in", "direction": "input", "type": "message.any", "rate": "event", "maxConnections": 7, "mergePolicy": "ordered-events" }
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": "edge_button_message",
+              "source": { "nodeId": "button", "portId": "out" },
+              "target": { "nodeId": "message", "portId": "in" }
+            },
+            {
+              "id": "edge_float_message",
+              "source": { "nodeId": "float_value", "portId": "value" },
+              "target": { "nodeId": "message", "portId": "in" }
+            },
+            {
+              "id": "edge_int_message",
+              "source": { "nodeId": "int_value", "portId": "value" },
+              "target": { "nodeId": "message", "portId": "in" }
+            },
+            {
+              "id": "edge_uint_message",
+              "source": { "nodeId": "uint_value", "portId": "value" },
+              "target": { "nodeId": "message", "portId": "in" }
+            },
+            {
+              "id": "edge_bool_message",
+              "source": { "nodeId": "bool_value", "portId": "value" },
+              "target": { "nodeId": "message", "portId": "in" }
+            },
+            {
+              "id": "edge_color_message",
+              "source": { "nodeId": "color_value", "portId": "value" },
+              "target": { "nodeId": "message", "portId": "in" }
+            },
+            {
+              "id": "edge_string_message",
+              "source": { "nodeId": "string_value", "portId": "value" },
+              "target": { "nodeId": "message", "portId": "in" }
+            }
+          ]
+        }"#,
+    )
+    .expect("message-any graph should parse");
+    validate_graph_document_v02(&message_any_graph).expect("message-any graph should validate");
+
+    let invalid_cycle_graph: GraphDocumentV02 = serde_json::from_str(
+        r#"{
+          "schema": "skenion.graph",
+          "schemaVersion": "0.2.0",
+          "id": "invalid-render-cycle",
+          "revision": "1",
+          "nodes": [
+            {
+              "id": "a",
+              "kind": "render.a",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "in", "direction": "input", "type": "render.frame" },
+                { "id": "out", "direction": "output", "type": "render.frame" }
+              ]
+            },
+            {
+              "id": "b",
+              "kind": "render.b",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "in", "direction": "input", "type": "render.frame" },
+                { "id": "out", "direction": "output", "type": "render.frame" }
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": "edge-a-b",
+              "source": { "nodeId": "a", "portId": "out" },
+              "target": { "nodeId": "b", "portId": "in" }
+            },
+            {
+              "id": "edge-b-a",
+              "source": { "nodeId": "b", "portId": "out" },
+              "target": { "nodeId": "a", "portId": "in" }
+            }
+          ]
+        }"#,
+    )
+    .expect("invalid cycle graph should parse");
+    let invalid_cycle_report =
+        validate_graph_document_v02(&invalid_cycle_graph).expect_err("cycle should fail");
+    assert!(invalid_cycle_report.to_string().contains("invalid-cycle"));
+
+    let warning_graph: GraphDocumentV02 = serde_json::from_str(
+        r#"{
+          "schema": "skenion.graph",
+          "schemaVersion": "0.2.0",
+          "id": "risky-feedback-cycle",
+          "revision": "1",
+          "nodes": [
+            {
+              "id": "a",
+              "kind": "core.a",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "in", "direction": "input", "type": "value.number" },
+                { "id": "out", "direction": "output", "type": "value.number" }
+              ]
+            },
+            {
+              "id": "b",
+              "kind": "core.b",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "in", "direction": "input", "type": "value.number" },
+                { "id": "out", "direction": "output", "type": "value.number" }
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": "edge-a-b",
+              "source": { "nodeId": "a", "portId": "out" },
+              "target": { "nodeId": "b", "portId": "in" }
+            },
+            {
+              "id": "edge-b-a",
+              "source": { "nodeId": "b", "portId": "out" },
+              "target": { "nodeId": "a", "portId": "in" },
+              "feedback": { "enabled": true, "boundary": "same-turn" }
+            }
+          ]
+        }"#,
+    )
+    .expect("warning graph should parse");
+    let warning_project: ProjectDocumentV02 = serde_json::from_value(serde_json::json!({
+        "schema": "skenion.project",
+        "schemaVersion": "0.2.0",
+        "id": "project-with-warning-graph",
+        "revision": "1",
+        "graph": warning_graph,
+        "viewState": {
+            "schema": "skenion.view-state",
+            "schemaVersion": "0.1.0",
+            "canvas": {
+                "nodes": {
+                    "a": { "x": 0, "y": 0 },
+                    "b": { "x": 120, "y": 0 }
+                }
+            }
+        },
+        "patchLibrary": []
+    }))
+    .expect("warning project should parse");
+    validate_project_document_v02(&warning_project).expect("warnings should not fail project");
+
+    let invalid_event: RuntimeSessionEvent = serde_json::from_value(serde_json::json!({
+        "schema": "skenion.runtime.session.event",
+        "schemaVersion": "0.1.0",
+        "id": "event-invalid-mutation",
+        "sessionId": "session-a",
+        "sequence": 2,
+        "sessionRevision": 2,
+        "kind": "mutate",
+        "snapshot": {
+            "sessionRevision": 2,
+            "viewRevision": 2,
+            "controlRevision": 1,
+            "project": null,
+            "diagnostics": [
+                { "severity": "warning" }
+            ],
+            "plan": []
+        },
+        "history": {
+            "schema": "skenion.runtime.history",
+            "schemaVersion": "0.1.0",
+            "entries": [
+                {
+                    "id": "",
+                    "sequence": 0,
+                    "kind": "apply",
+                    "mutation": {
+                        "graphPatch": {
+                            "schema": "wrong",
+                            "schemaVersion": "9.9.9",
+                            "id": "",
+                            "baseRevision": "",
+                            "clientId": "",
+                            "createdAt": "",
+                            "ops": [
+                                {
+                                    "op": "addNode",
+                                    "node": {
+                                        "id": "",
+                                        "kind": "",
+                                        "kindVersion": "",
+                                        "params": {},
+                                        "ports": [
+                                            {
+                                                "id": "",
+                                                "direction": "input",
+                                                "type": {
+                                                    "flow": "value",
+                                                    "dataKind": "",
+                                                    "range": { "step": 0 },
+                                                    "shape": [0],
+                                                    "channels": 0,
+                                                    "sampleRate": 0,
+                                                    "format": "",
+                                                    "frameRate": 0,
+                                                    "alphaPolicy": "unsupported",
+                                                    "values": [{}]
+                                                }
+                                            },
+                                            {
+                                                "id": "format-array",
+                                                "direction": "input",
+                                                "type": {
+                                                    "flow": "value",
+                                                    "dataKind": "number.float",
+                                                    "format": [""]
+                                                }
+                                            },
+                                            {
+                                                "id": "format-absent",
+                                                "direction": "input",
+                                                "type": {
+                                                    "flow": "value",
+                                                    "dataKind": "number.float"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                { "op": "removeNode", "nodeId": "" },
+                                { "op": "setNodeParams", "nodeId": "", "params": {} },
+                                {
+                                    "op": "replaceNode",
+                                    "nodeId": "",
+                                    "node": {
+                                        "id": "",
+                                        "kind": "",
+                                        "kindVersion": "",
+                                        "params": {},
+                                        "ports": []
+                                    },
+                                    "edgePolicy": "removeInvalidEdges"
+                                },
+                                { "op": "setNodeParam", "nodeId": "", "key": "", "value": null },
+                                {
+                                    "op": "replaceNodeInterface",
+                                    "nodeId": "",
+                                    "ports": [],
+                                    "edgePolicy": "removeInvalidEdges"
+                                },
+                                {
+                                    "op": "addEdge",
+                                    "edge": {
+                                        "from": { "node": "", "port": "" },
+                                        "to": { "node": "", "port": "" }
+                                    }
+                                },
+                                {
+                                    "op": "removeEdge",
+                                    "edge": {
+                                        "from": { "node": "", "port": "" },
+                                        "to": { "node": "", "port": "" }
+                                    }
+                                }
+                            ]
+                        },
+                        "clientId": ""
+                    },
+                    "inverseMutation": {
+                        "viewPatch": {
+                            "baseViewRevision": 0,
+                            "ops": [
+                                { "op": "setNodeView", "nodeId": "", "view": { "x": 0, "y": 0 } },
+                                { "op": "moveNodeView", "nodeId": "", "from": { "x": 0, "y": 0 }, "to": { "x": 1, "y": 1 } }
+                            ]
+                        },
+                        "clientId": ""
+                    },
+                    "subjectEventId": "",
+                    "clientId": "",
+                    "createdAt": ""
+                }
+            ],
+            "canUndo": true,
+            "canRedo": false,
+            "undoDepth": 1,
+            "redoDepth": 0
+        },
+        "mutation": {
+            "id": "",
+            "sequence": 0,
+            "kind": "apply",
+            "mutation": {
+                "graphPatch": {
+                    "schema": "wrong",
+                    "schemaVersion": "9.9.9",
+                    "id": "",
+                    "baseRevision": "",
+                    "clientId": "",
+                    "createdAt": "",
+                    "ops": [
+                        { "op": "removeNode", "nodeId": "" }
+                    ]
+                },
+                "clientId": ""
+            },
+            "inverseMutation": {
+                "viewPatch": {
+                    "baseViewRevision": 0,
+                    "ops": [
+                        { "op": "setNodeView", "nodeId": "", "view": { "x": 0, "y": 0 } }
+                    ]
+                },
+                "clientId": ""
+            },
+            "subjectEventId": "",
+            "clientId": "",
+            "createdAt": ""
+        },
+        "replay": {
+            "cursor": "2",
+            "previousCursor": null,
+            "replayed": false,
+            "gap": null,
+            "overflow": false
+        },
+        "diagnostics": [],
+        "createdAt": "2026-06-22T00:00:02.000Z"
+    }))
+    .expect("invalid runtime event should parse structurally");
+    let report = validate_runtime_session_event(&invalid_event).expect_err("event should fail");
+    assert!(!report.errors().is_empty());
+    let text = report.to_string();
+    assert!(text.contains("snapshot diagnostics"));
+    assert!(text.contains("graphPatch schema must be"));
+    assert!(text.contains("graphPatch port dataKind must not be empty"));
+    assert!(text.contains("viewPatch operation nodeId must not be empty"));
+}
+
+#[test]
+fn validates_remaining_collaboration_integration_coverage_paths() {
+    let accepted_disabled_graph: GraphDocumentV02 = serde_json::from_str(
+        r#"{
+          "schema": "skenion.graph",
+          "schemaVersion": "0.2.0",
+          "id": "accepted-disabled-graph",
+          "revision": "1",
+          "nodes": [
+            {
+              "id": "texture",
+              "kind": "gpu.texture",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "out", "direction": "output", "type": "gpu.texture2d" }
+              ],
+              "portGroups": [
+                {
+                  "id": "layers",
+                  "direction": "output",
+                  "type": "gpu.texture2d",
+                  "minPorts": 1,
+                  "maxPorts": 2
+                }
+              ]
+            },
+            {
+              "id": "viewer",
+              "kind": "render.viewer",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                {
+                  "id": "in",
+                  "direction": "input",
+                  "type": "render.frame",
+                  "accepts": ["gpu.texture2d"]
+                }
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": "edge-texture-viewer",
+              "source": { "nodeId": "texture", "portId": "out" },
+              "target": { "nodeId": "viewer", "portId": "in" },
+              "enabled": false
+            }
+          ]
+        }"#,
+    )
+    .expect("accepted disabled graph should parse");
+    validate_graph_document_v02(&accepted_disabled_graph)
+        .expect("accepted disabled graph should validate");
+
+    let missing_source_graph: GraphDocumentV02 = serde_json::from_str(
+        r#"{
+          "schema": "skenion.graph",
+          "schemaVersion": "0.2.0",
+          "id": "missing-source-graph",
+          "revision": "1",
+          "nodes": [
+            {
+              "id": "viewer",
+              "kind": "render.viewer",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                { "id": "in", "direction": "input", "type": "render.frame" }
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": "edge-missing-source",
+              "source": { "nodeId": "missing-source", "portId": "out" },
+              "target": { "nodeId": "viewer", "portId": "in" }
+            }
+          ]
+        }"#,
+    )
+    .expect("missing source graph should parse");
+    let missing_source = analyze_graph_document_v02(&missing_source_graph);
+    assert!(!missing_source.ok);
+    assert!(
+        missing_source
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "missing-source-port")
+    );
+
+    let value_to_render_cycle: GraphDocumentV02 = serde_json::from_str(
+        r#"{
+          "schema": "skenion.graph",
+          "schemaVersion": "0.2.0",
+          "id": "value-to-render-cycle",
+          "revision": "1",
+          "nodes": [
+            {
+              "id": "loop",
+              "kind": "core.loop",
+              "kindVersion": "0.2.0",
+              "params": {},
+              "ports": [
+                {
+                  "id": "in",
+                  "direction": "input",
+                  "type": "render.frame",
+                  "accepts": ["value.number"]
+                },
+                { "id": "out", "direction": "output", "type": "value.number" }
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "id": "edge-loop",
+              "source": { "nodeId": "loop", "portId": "out" },
+              "target": { "nodeId": "loop", "portId": "in" }
+            }
+          ]
+        }"#,
+    )
+    .expect("value-to-render cycle should parse");
+    assert!(
+        validate_graph_document_v02(&value_to_render_cycle)
+            .expect_err("mixed family self-cycle should fail")
+            .to_string()
+            .contains("invalid-cycle")
+    );
+
+    let change_set: RuntimeCollaborationOperationEnvelope = serde_json::from_str(
+        r#"{
+          "schema": "skenion.runtime.collaboration.operation",
+          "schemaVersion": "0.1.0",
+          "operationId": "op-integration-change-set",
+          "sessionId": "session-collab-a",
+          "participantId": "participant-a",
+          "idempotencyKey": "session-collab-a:participant-a:coverage-change-set",
+          "causal": {
+            "baseRevision": "root-rev-7",
+            "baseSequence": 7,
+            "vector": { "participant-a": 7 }
+          },
+          "payload": {
+            "kind": "changeSet",
+            "target": {
+              "path": { "kind": "root" },
+              "baseRevision": "root-rev-7"
+            },
+            "changes": [
+              {
+                "op": "node.add",
+                "changeId": "change-add-node",
+                "node": {
+                  "id": "gain",
+                  "kind": "core.float",
+                  "kindVersion": "0.2.0",
+                  "params": {},
+                  "ports": [
+                    { "id": "out", "direction": "output", "type": "number.float" }
+                  ]
+                }
+              },
+              {
+                "op": "node.move",
+                "changeId": "change-move-node",
+                "nodeId": "source",
+                "to": { "x": 120, "y": 140 }
+              },
+              {
+                "op": "node.delete",
+                "changeId": "change-delete-node",
+                "nodeId": "old-preview"
+              },
+              {
+                "op": "edge.connect",
+                "changeId": "change-connect-edge",
+                "edge": {
+                  "id": "edge-source-gain",
+                  "source": { "nodeId": "source", "portId": "out" },
+                  "target": { "nodeId": "gain", "portId": "out" }
+                }
+              },
+              {
+                "op": "edge.disconnect",
+                "changeId": "change-disconnect-edge",
+                "edgeId": "edge-old-preview"
+              }
+            ]
+          },
+          "submittedAt": "2026-06-22T00:00:00.000Z"
+        }"#,
+    )
+    .expect("change-set operation should parse");
+    validate_runtime_collaboration_operation_envelope(&change_set)
+        .expect("change-set operation should validate");
+
+    let valid_gap_event: RuntimeCollaborationEventEnvelope = serde_json::from_str(
+        r#"{
+          "schema": "skenion.runtime.collaboration.event",
+          "schemaVersion": "0.1.0",
+          "eventId": "event-valid-gap",
+          "sessionId": "session-collab-a",
+          "sequence": 9,
+          "causal": {
+            "baseRevision": "root-rev-9",
+            "baseSequence": 9,
+            "vector": { "participant-a": 9 }
+          },
+          "kind": "operation-result",
+          "payload": {
+            "kind": "operationResult",
+            "result": {
+              "schema": "skenion.runtime.collaboration.operation-result",
+              "schemaVersion": "0.1.0",
+              "sessionId": "session-collab-a",
+              "operationId": "op-integration-change-set",
+              "participantId": "participant-a",
+              "idempotencyKey": "session-collab-a:participant-a:coverage-change-set",
+              "status": "accepted",
+              "causal": {
+                "baseRevision": "root-rev-9",
+                "baseSequence": 9,
+                "vector": { "participant-a": 9 }
+              },
+              "ack": {
+                "sequence": 9,
+                "revision": "root-rev-9",
+                "serverClock": {
+                  "revision": "root-rev-9",
+                  "sequence": 9,
+                  "vector": { "participant-a": 9 }
+                },
+                "appliedAt": "2026-06-22T00:00:00.050Z"
+              },
+              "diagnostics": [],
+              "createdAt": "2026-06-22T00:00:00.050Z"
+            }
+          },
+          "replay": {
+            "cursor": "9",
+            "previousCursor": "6",
+            "replayed": true,
+            "gap": {
+              "expectedSequence": 7,
+              "actualSequence": 9,
+              "reason": "retention-overflow"
+            },
+            "overflow": false
+          },
+          "createdAt": "2026-06-22T00:00:00.050Z"
+        }"#,
+    )
+    .expect("valid gap event should parse");
+    validate_runtime_collaboration_event_envelope(&valid_gap_event)
+        .expect("valid collaboration replay gap should validate");
+
+    let outside_operation: RuntimeOperationEnvelope = serde_json::from_str(
+        r#"{
+          "schema": "skenion.runtime.operation",
+          "schemaVersion": "0.1.0",
+          "id": "op-outside-fragment",
+          "kind": "pasteGraphFragment",
+          "request": {
+            "target": {
+              "path": { "kind": "root" },
+              "baseRevision": "1"
+            },
+            "fragment": {
+              "schema": "skenion.graph.fragment",
+              "schemaVersion": "0.2.0",
+              "nodes": [
+                {
+                  "id": "source",
+                  "kind": "core.float",
+                  "kindVersion": "0.2.0",
+                  "params": {},
+                  "ports": [
+                    { "id": "out", "direction": "output", "type": "number.float" }
+                  ]
+                }
+              ],
+              "edges": [
+                {
+                  "id": "edge-to-outside",
+                  "source": { "nodeId": "source", "portId": "out" },
+                  "target": { "nodeId": "outside", "portId": "in" }
+                }
+              ]
+            }
+          }
+        }"#,
+    )
+    .expect("outside runtime operation should parse");
+    assert!(
+        validate_runtime_operation_envelope(&outside_operation)
+            .expect_err("outside endpoint should fail by default")
+            .to_string()
+            .contains("fragment-edge-outside-selection")
+    );
+
+    let valid_mutation_event: RuntimeSessionEvent = serde_json::from_str(
+        r#"{
+          "schema": "skenion.runtime.session.event",
+          "schemaVersion": "0.1.0",
+          "id": "event-valid-mutation",
+          "sessionId": "session-a",
+          "sequence": 3,
+          "sessionRevision": 3,
+          "kind": "mutate",
+          "snapshot": {
+            "sessionRevision": 3,
+            "viewRevision": 3,
+            "controlRevision": 1,
+            "project": null,
+            "diagnostics": [],
+            "plan": null
+          },
+          "history": {
+            "schema": "skenion.runtime.history",
+            "schemaVersion": "0.1.0",
+            "entries": [
+              {
+                "id": "history-valid-mutation",
+                "sequence": 3,
+                "kind": "apply",
+                "mutation": {
+                  "graphPatch": {
+                    "schema": "skenion.graph.patch",
+                    "schemaVersion": "0.1.0",
+                    "id": "patch-runtime-full",
+                    "baseRevision": "2",
+                    "clientId": "studio-main",
+                    "createdAt": "2026-06-22T00:00:02.000Z",
+                    "ops": [
+                      {
+                        "op": "addNode",
+                        "node": {
+                          "id": "value_2",
+                          "kind": "core.float",
+                          "kindVersion": "0.1.0",
+                          "params": { "value": 0.75 },
+                          "ports": [
+                            {
+                              "id": "out",
+                              "direction": "output",
+                              "type": {
+                                "flow": "value",
+                                "dataKind": "number.float",
+                                "range": { "min": 0, "max": 1, "step": 0.1 },
+                                "shape": [1],
+                                "channels": 1,
+                                "sampleRate": 48000,
+                                "format": ["float32"],
+                                "frameRate": 60,
+                                "alphaPolicy": "white",
+                                "values": ["low", 0.5, true]
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      { "op": "removeNode", "nodeId": "old_value" },
+                      {
+                        "op": "replaceNode",
+                        "nodeId": "value_2",
+                        "node": {
+                          "id": "value_2",
+                          "kind": "core.float",
+                          "kindVersion": "0.1.0",
+                          "params": { "value": 0.75 },
+                          "ports": [
+                            {
+                              "id": "out",
+                              "direction": "output",
+                              "type": {
+                                "flow": "value",
+                                "dataKind": "number.float",
+                                "range": { "min": 0, "max": 1, "step": 0.1 },
+                                "shape": [1],
+                                "channels": 1,
+                                "sampleRate": 48000,
+                                "format": ["float32"],
+                                "frameRate": 60,
+                                "alphaPolicy": "white",
+                                "values": ["low", 0.5, true]
+                              }
+                            }
+                          ]
+                        },
+                        "edgePolicy": "removeInvalidEdges"
+                      },
+                      { "op": "setNodeParams", "nodeId": "value_2", "params": { "value": 0.5 } },
+                      { "op": "setNodeParam", "nodeId": "value_2", "key": "value", "value": 0.5 },
+                      {
+                        "op": "replaceNodeInterface",
+                        "nodeId": "value_2",
+                        "ports": [
+                          {
+                            "id": "out",
+                            "direction": "output",
+                            "type": {
+                              "flow": "value",
+                              "dataKind": "number.float",
+                              "range": { "min": 0, "max": 1, "step": 0.1 },
+                              "shape": [1],
+                              "channels": 1,
+                              "sampleRate": 48000,
+                              "format": ["float32"],
+                              "frameRate": 60,
+                              "alphaPolicy": "white",
+                              "values": ["low", 0.5, true]
+                            }
+                          }
+                        ],
+                        "edgePolicy": "removeInvalidEdges"
+                      },
+                      {
+                        "op": "addEdge",
+                        "edge": {
+                          "from": { "node": "value_2", "port": "out" },
+                          "to": { "node": "target_1", "port": "value" }
+                        }
+                      },
+                      {
+                        "op": "removeEdge",
+                        "edge": {
+                          "from": { "node": "value_2", "port": "out" },
+                          "to": { "node": "target_1", "port": "value" }
+                        }
+                      }
+                    ]
+                  },
+                  "viewPatch": {
+                    "baseViewRevision": 2,
+                    "ops": [
+                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 10, "y": 20 } },
+                      {
+                        "op": "moveNodeView",
+                        "nodeId": "value_2",
+                        "from": { "x": 10, "y": 20 },
+                        "to": { "x": 20, "y": 30 }
+                      }
+                    ]
+                  },
+                  "clientId": "studio-main",
+                  "description": "exercise every valid runtime patch branch"
+                },
+                "inverseMutation": {
+                  "viewPatch": {
+                    "baseViewRevision": 3,
+                    "ops": [
+                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 0, "y": 0 } }
+                    ]
+                  },
+                  "clientId": "studio-main"
+                },
+                "subjectEventId": "event-2",
+                "clientId": "studio-main",
+                "createdAt": "2026-06-22T00:00:02.000Z"
+              }
+            ],
+            "canUndo": true,
+            "canRedo": false,
+            "undoDepth": 1,
+            "redoDepth": 0
+          },
+          "replay": {
+            "cursor": "3",
+            "previousCursor": "2",
+            "replayed": false,
+            "gap": null,
+            "overflow": false
+          },
+          "diagnostics": [],
+          "createdAt": "2026-06-22T00:00:03.000Z"
+        }"#,
+    )
+    .expect("valid mutation event should parse");
+    validate_runtime_session_event(&valid_mutation_event)
+        .expect("valid mutation event should validate");
 }
 
 #[test]

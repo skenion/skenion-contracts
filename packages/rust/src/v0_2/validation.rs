@@ -69,10 +69,7 @@ impl fmt::Display for ValidationReportV02 {
 
 impl Error for ValidationReportV02 {}
 
-fn duplicate_errors<'a>(
-    values: impl Iterator<Item = &'a str>,
-    label: &str,
-) -> Vec<ValidationErrorV02> {
+fn duplicate_errors(values: Vec<&str>, label: &str) -> Vec<ValidationErrorV02> {
     let mut seen = HashSet::new();
     let mut errors = Vec::new();
 
@@ -152,11 +149,13 @@ fn accepts(source: &PortSpecV02, target: &PortSpecV02) -> bool {
     if target.port_type == "message.any" && is_control_message_port_type(&source.port_type) {
         return true;
     }
-    source.port_type == target.port_type
-        || target
-            .accepts
-            .as_ref()
-            .is_some_and(|accepted| accepted.contains(&source.port_type))
+    if source.port_type == target.port_type {
+        return true;
+    }
+    if let Some(accepted) = &target.accepts {
+        return accepted.contains(&source.port_type);
+    }
+    false
 }
 
 fn is_control_message_port_type(port_type: &str) -> bool {
@@ -529,7 +528,10 @@ pub fn analyze_graph_document_v02(graph: &GraphDocumentV02) -> GraphValidationRe
         }
 
         for group in node.port_groups.as_deref().unwrap_or_default() {
-            if group.max_ports.is_some_and(|max| max < group.min_ports) {
+            if let Some(max_ports) = group.max_ports {
+                if max_ports >= group.min_ports {
+                    continue;
+                }
                 diagnostic(
                     &mut diagnostics,
                     "error",
@@ -699,10 +701,10 @@ pub fn analyze_graph_document_v02(graph: &GraphDocumentV02) -> GraphValidationRe
         let port = ports.get(key).expect("outgoing key should exist");
         if port.direction == PortDirectionV02::Output
             && connected_edges.len() > 1
-            && port
-                .fan_out_policy
-                .as_ref()
-                .is_some_and(|policy| matches!(policy, super::FanOutPolicyV02::Forbid))
+            && matches!(
+                port.fan_out_policy.as_ref(),
+                Some(super::FanOutPolicyV02::Forbid)
+            )
         {
             diagnostic(
                 &mut diagnostics,
@@ -869,10 +871,14 @@ fn validate_runtime_collaboration_auth_separation(
     auth_subject: Option<&RuntimeCollaborationAuthSubject>,
     label: &str,
 ) -> Vec<ValidationErrorV02> {
-    if auth_subject
-        .and_then(|subject| subject.subject_id.as_deref())
-        .is_some_and(|subject_id| subject_id == participant_id)
-    {
+    let Some(subject) = auth_subject else {
+        return Vec::new();
+    };
+    let Some(subject_id) = subject.subject_id.as_deref() else {
+        return Vec::new();
+    };
+
+    if subject_id == participant_id {
         vec![ValidationErrorV02::new(format!(
             "{label} participantId must not mirror auth subject id"
         ))]
@@ -897,11 +903,11 @@ fn validate_runtime_collaboration_expiry(
 
 fn runtime_collaboration_change_id(change: &RuntimeCollaborationChange) -> &str {
     match change {
-        RuntimeCollaborationChange::NodeAdd { change_id, .. }
-        | RuntimeCollaborationChange::NodeMove { change_id, .. }
-        | RuntimeCollaborationChange::NodeDelete { change_id, .. }
-        | RuntimeCollaborationChange::EdgeConnect { change_id, .. }
-        | RuntimeCollaborationChange::EdgeDisconnect { change_id, .. } => change_id,
+        RuntimeCollaborationChange::NodeAdd { change_id, .. } => change_id,
+        RuntimeCollaborationChange::NodeMove { change_id, .. } => change_id,
+        RuntimeCollaborationChange::NodeDelete { change_id, .. } => change_id,
+        RuntimeCollaborationChange::EdgeConnect { change_id, .. } => change_id,
+        RuntimeCollaborationChange::EdgeDisconnect { change_id, .. } => change_id,
     }
 }
 
@@ -911,7 +917,10 @@ fn validate_runtime_collaboration_payload(
 ) -> Vec<ValidationErrorV02> {
     match payload {
         RuntimeCollaborationOperationPayload::ChangeSet { changes, .. } => duplicate_errors(
-            changes.iter().map(runtime_collaboration_change_id),
+            changes
+                .iter()
+                .map(runtime_collaboration_change_id)
+                .collect(),
             "collaboration change id",
         ),
         RuntimeCollaborationOperationPayload::PasteGraphFragment { request, .. } => {
@@ -1010,7 +1019,8 @@ pub fn validate_runtime_collaboration_operation_batch(
         batch
             .operations
             .iter()
-            .map(|operation| operation.idempotency_key.as_str()),
+            .map(|operation| operation.idempotency_key.as_str())
+            .collect(),
         "collaboration idempotency key",
     ));
     for operation in &batch.operations {
@@ -1056,35 +1066,44 @@ pub fn validate_runtime_collaboration_operation_result(
     let has_ack = result.ack.is_some();
     let has_nack = result.nack.is_some();
     let has_rebase = result.rebase.is_some();
-    if matches!(
+
+    let status_requires_ack = matches!(
         result.status,
         RuntimeCollaborationOperationStatus::Accepted
             | RuntimeCollaborationOperationStatus::Rebased
-    ) && !has_ack
-    {
+    );
+    if status_requires_ack && !has_ack {
         errors.push(ValidationErrorV02::new(
             "accepted or rebased collaboration result must include ack",
         ));
     }
-    if result.status == RuntimeCollaborationOperationStatus::Accepted && (has_nack || has_rebase) {
+    if result.status == RuntimeCollaborationOperationStatus::Accepted && has_nack {
         errors.push(ValidationErrorV02::new(
             "accepted collaboration result must not include nack or rebase",
         ));
     }
-    if matches!(
+    if result.status == RuntimeCollaborationOperationStatus::Accepted && has_rebase {
+        errors.push(ValidationErrorV02::new(
+            "accepted collaboration result must not include nack or rebase",
+        ));
+    }
+
+    let status_requires_nack = matches!(
         result.status,
         RuntimeCollaborationOperationStatus::Duplicate
             | RuntimeCollaborationOperationStatus::Rejected
-    ) && !has_nack
-    {
+    );
+    if status_requires_nack && !has_nack {
         errors.push(ValidationErrorV02::new(
             "duplicate or rejected collaboration result must include nack",
         ));
     }
+    let has_duplicate_idempotency_nack = match result.nack.as_ref() {
+        Some(nack) => nack.reason == RuntimeCollaborationNackReason::DuplicateIdempotencyKey,
+        None => false,
+    };
     if result.status == RuntimeCollaborationOperationStatus::Duplicate
-        && !result.nack.as_ref().is_some_and(|nack| {
-            nack.reason == RuntimeCollaborationNackReason::DuplicateIdempotencyKey
-        })
+        && !has_duplicate_idempotency_nack
     {
         errors.push(ValidationErrorV02::new(
             "duplicate collaboration result nack reason must be duplicate-idempotency-key",
@@ -1196,15 +1215,13 @@ pub fn validate_runtime_collaboration_event_envelope(
         &event.causal,
         "collaboration event causal",
     ));
-    if event
-        .replay
-        .gap
-        .as_ref()
-        .is_some_and(|gap| gap.expected_sequence >= gap.actual_sequence)
-    {
-        errors.push(ValidationErrorV02::new(
-            "collaboration event replay gap expectedSequence must be less than actualSequence",
-        ));
+    match &event.replay.gap {
+        Some(gap) if gap.expected_sequence >= gap.actual_sequence => {
+            errors.push(ValidationErrorV02::new(
+                "collaboration event replay gap expectedSequence must be less than actualSequence",
+            ));
+        }
+        _ => {}
     }
 
     if errors.is_empty() {
@@ -1848,7 +1865,11 @@ pub fn validate_node_definition_v02(
         )));
     }
     errors.extend(duplicate_errors(
-        definition.ports.iter().map(|port| port.id.as_str()),
+        definition
+            .ports
+            .iter()
+            .map(|port| port.id.as_str())
+            .collect(),
         &format!("port id on {}", definition.id),
     ));
 
@@ -1890,18 +1911,15 @@ fn graph_v02_semantic_errors(graph: &GraphDocumentV02, label: &str) -> Vec<Valid
         )));
     }
 
-    errors.extend(
-        analyze_graph_document_v02(graph)
-            .diagnostics
-            .into_iter()
-            .filter(|diagnostic| diagnostic.severity == "error")
-            .map(|diagnostic| {
-                ValidationErrorV02::new(format!(
-                    "{label} {}: {}",
-                    diagnostic.code, diagnostic.message
-                ))
-            }),
-    );
+    for diagnostic in analyze_graph_document_v02(graph).diagnostics {
+        if diagnostic.severity != "error" {
+            continue;
+        }
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} {}: {}",
+            diagnostic.code, diagnostic.message
+        )));
+    }
 
     errors
 }
@@ -1951,10 +1969,16 @@ pub fn validate_patch_definition_v02(
     }
 
     let contract = derive_patch_contract_v02(patch);
-    errors.extend(duplicate_errors(
-        contract.ports.iter().map(|port| port.port.id.as_str()),
-        &format!("boundary port id on patch {}", patch.id),
-    ));
+    let mut boundary_port_ids = HashSet::new();
+    for port in &contract.ports {
+        let port_id = port.port.id.as_str();
+        if !boundary_port_ids.insert(port_id) {
+            errors.push(ValidationErrorV02::new(format!(
+                "duplicate boundary port id on patch {}: {}",
+                patch.id, port_id
+            )));
+        }
+    }
 
     if errors.is_empty() {
         Ok(())
@@ -1996,7 +2020,11 @@ pub fn validate_project_document_v02(
         "viewState",
     ));
     errors.extend(duplicate_errors(
-        project.patch_library.iter().map(|patch| patch.id.as_str()),
+        project
+            .patch_library
+            .iter()
+            .map(|patch| patch.id.as_str())
+            .collect(),
         "patch id",
     ));
 
@@ -2019,7 +2047,10 @@ mod tests {
     use crate::v0_2::{
         EdgeEndpointV02, FeedbackPolicyV02, GraphFragmentV02, GraphNodeV02, GraphTargetRef,
         IdConflictPolicy, IdRemapResult, PasteGraphFragmentOptions, PasteGraphFragmentRequest,
-        PasteGraphFragmentResponse, PatchPath, RuntimeEventReplayGap, RuntimeEventReplayGapReason,
+        PasteGraphFragmentResponse, PatchPath, RuntimeCollaborationEventEnvelope,
+        RuntimeCollaborationOperationBatch, RuntimeCollaborationOperationEnvelope,
+        RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
+        RuntimeCollaborationSelectionEnvelope, RuntimeEventReplayGap, RuntimeEventReplayGapReason,
         RuntimeHistoryEntry, RuntimeOperationDiagnostic, RuntimeOperationEnvelope,
         RuntimeSessionEvent, RuntimeSessionInfoResponse,
     };
@@ -2032,6 +2063,10 @@ mod tests {
 
     fn node(json: &str) -> NodeDefinitionManifestV02 {
         serde_json::from_str(json).expect("node should parse")
+    }
+
+    fn value(json: &str) -> serde_json::Value {
+        serde_json::from_str(json).expect("json value should parse")
     }
 
     fn base_graph() -> GraphDocumentV02 {
@@ -2116,51 +2151,288 @@ mod tests {
         }
     }
 
+    fn collaboration_causal(participant_id: &str, sequence: u64) -> serde_json::Value {
+        let json = format!(
+            r#"{{
+              "baseRevision": "root-rev-{sequence}",
+              "baseSequence": {sequence},
+              "vector": {{ "{participant_id}": {sequence} }}
+            }}"#
+        );
+        value(&json)
+    }
+
+    fn collaboration_ack(sequence: u64) -> serde_json::Value {
+        let json = format!(
+            r#"{{
+              "sequence": {sequence},
+              "revision": "root-rev-{sequence}",
+              "serverClock": {{
+                "revision": "root-rev-{sequence}",
+                "sequence": {sequence},
+                "vector": {{ "participant-a": {sequence} }}
+              }},
+              "appliedAt": "2026-06-22T00:00:00.050Z"
+            }}"#
+        );
+        value(&json)
+    }
+
+    fn collaboration_nack(reason: &str) -> serde_json::Value {
+        let json = format!(
+            r#"{{
+              "reason": "{reason}",
+              "retryable": false,
+              "diagnostics": [
+                {{
+                  "severity": "error",
+                  "code": "{reason}",
+                  "message": "operation was rejected"
+                }}
+              ]
+            }}"#
+        );
+        value(&json)
+    }
+
+    fn collaboration_rebase_value() -> serde_json::Value {
+        value(
+            r#"{
+              "from": {
+                "baseRevision": "root-rev-1",
+                "baseSequence": 1,
+                "vector": { "participant-a": 1 }
+              },
+              "to": {
+                "baseRevision": "root-rev-2",
+                "baseSequence": 2,
+                "vector": { "participant-a": 2 }
+              },
+              "strategy": "ot-transform",
+              "conflicts": []
+            }"#,
+        )
+    }
+
+    fn collaboration_undo_redo_payload(participant_id: &str) -> serde_json::Value {
+        let json = format!(
+            r#"{{
+              "kind": "undoRedo",
+              "action": "undo",
+              "scope": {{ "kind": "participant", "participantId": "{participant_id}" }},
+              "maxOperations": 1
+            }}"#
+        );
+        value(&json)
+    }
+
+    fn collaboration_operation_value(payload: serde_json::Value) -> serde_json::Value {
+        let mut operation = value(
+            r#"{
+              "schema": "skenion.runtime.collaboration.operation",
+              "schemaVersion": "0.1.0",
+              "operationId": "op-collab-test",
+              "sessionId": "session-collab-a",
+              "participantId": "participant-a",
+              "idempotencyKey": "session-collab-a:participant-a:test",
+              "causal": null,
+              "payload": null,
+              "submittedAt": "2026-06-22T00:00:00.000Z"
+            }"#,
+        );
+        operation["causal"] = collaboration_causal("participant-a", 1);
+        operation["payload"] = payload;
+        operation
+    }
+
+    fn collaboration_operation(
+        payload: serde_json::Value,
+    ) -> RuntimeCollaborationOperationEnvelope {
+        serde_json::from_value(collaboration_operation_value(payload))
+            .expect("collaboration operation should parse")
+    }
+
+    fn collaboration_result_value(status: &str) -> serde_json::Value {
+        let mut result = value(
+            r#"{
+              "schema": "skenion.runtime.collaboration.operation-result",
+              "schemaVersion": "0.1.0",
+              "sessionId": "session-collab-a",
+              "operationId": "op-collab-test",
+              "participantId": "participant-a",
+              "idempotencyKey": "session-collab-a:participant-a:test",
+              "status": "accepted",
+              "causal": null,
+              "diagnostics": [],
+              "createdAt": "2026-06-22T00:00:00.050Z"
+            }"#,
+        );
+        result["status"] = serde_json::Value::String(status.to_owned());
+        result["causal"] = collaboration_causal("participant-a", 2);
+        result
+    }
+
+    fn accepted_collaboration_result_value() -> serde_json::Value {
+        let mut result = collaboration_result_value("accepted");
+        result["ack"] = collaboration_ack(2);
+        result
+    }
+
+    fn collaboration_presence_value() -> serde_json::Value {
+        value(
+            r#"{
+              "schema": "skenion.runtime.collaboration.presence",
+              "schemaVersion": "0.1.0",
+              "sessionId": "session-collab-a",
+              "participantId": "participant-a",
+              "presence": {
+                "state": "active",
+                "displayName": "Ada",
+                "connectionId": "conn-a",
+                "clientWindowId": "window-a"
+              },
+              "authSubject": {
+                "kind": "user",
+                "subjectId": "user-123",
+                "issuer": "local-dev"
+              },
+              "updatedAt": "2026-06-22T00:00:02.000Z",
+              "expiresAt": "2026-06-22T00:00:17.000Z"
+            }"#,
+        )
+    }
+
+    fn collaboration_selection_value() -> serde_json::Value {
+        value(
+            r#"{
+              "schema": "skenion.runtime.collaboration.selection",
+              "schemaVersion": "0.1.0",
+              "sessionId": "session-collab-a",
+              "participantId": "participant-a",
+              "target": {
+                "path": { "kind": "root" },
+                "baseRevision": "root-rev-2"
+              },
+              "selection": {
+                "ranges": [
+                  { "kind": "nodes", "nodeIds": ["source"] },
+                  {
+                    "kind": "ports",
+                    "endpoints": [
+                      { "nodeId": "source", "portId": "out" }
+                    ]
+                  },
+                  {
+                    "kind": "text",
+                    "anchor": { "nodeId": "message-1", "field": "text", "offset": 0 },
+                    "focus": { "nodeId": "message-1", "field": "text", "offset": 5 }
+                  }
+                ],
+                "activeRangeIndex": 2
+              },
+              "cursor": {
+                "kind": "node",
+                "nodeId": "source",
+                "portId": "out",
+                "clientWindowId": "window-a"
+              },
+              "updatedAt": "2026-06-22T00:00:03.000Z",
+              "expiresAt": "2026-06-22T00:00:08.000Z"
+            }"#,
+        )
+    }
+
+    fn collaboration_event_value() -> serde_json::Value {
+        let mut event = value(
+            r#"{
+              "schema": "skenion.runtime.collaboration.event",
+              "schemaVersion": "0.1.0",
+              "eventId": "event-collab-test",
+              "sessionId": "session-collab-a",
+              "sequence": 2,
+              "causal": null,
+              "kind": "operation-result",
+              "payload": {
+                "kind": "operationResult",
+                "result": null
+              },
+              "replay": {
+                "cursor": "2",
+                "previousCursor": "1",
+                "replayed": false,
+                "gap": null,
+                "overflow": false
+              },
+              "createdAt": "2026-06-22T00:00:00.050Z"
+            }"#,
+        );
+        event["causal"] = collaboration_causal("participant-a", 2);
+        event["payload"]["result"] = accepted_collaboration_result_value();
+        event
+    }
+
     fn runtime_session_info() -> RuntimeSessionInfoResponse {
-        serde_json::from_value(json!({
-            "schema": "skenion.runtime.session.info",
-            "schemaVersion": "0.1.0",
-            "ok": true,
-            "sessionId": "session-a",
-            "lifecycle": "ready",
-            "snapshot": { "sessionRevision": 1, "viewRevision": 1, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
-            "profile": {
+        serde_json::from_str(
+            r#"{
+              "schema": "skenion.runtime.session.info",
+              "schemaVersion": "0.1.0",
+              "ok": true,
+              "sessionId": "session-a",
+              "lifecycle": "ready",
+              "snapshot": {
+                "sessionRevision": 1,
+                "viewRevision": 1,
+                "controlRevision": 1,
+                "project": null,
+                "diagnostics": [],
+                "plan": null
+              },
+              "profile": {
                 "mode": "local-managed",
                 "ownership": "owned-child",
                 "endpoint": { "url": "http://127.0.0.1:49231", "protocol": "http" },
                 "process": { "ownedByHost": true }
-            },
-            "capabilities": {
+              },
+              "capabilities": {
                 "sessionAddressing": true,
                 "defaultSessionAlias": true,
                 "eventReplay": true,
                 "multiWindow": true,
                 "profiles": ["local-managed", "local-shared", "remote"],
                 "authPolicy": "deferred"
-            },
-            "eventReplay": {
+              },
+              "eventReplay": {
                 "cursorKind": "sequence",
                 "currentCursor": "1",
                 "earliestSequence": 1,
                 "latestSequence": 1,
                 "replayLimit": 512
-            },
-            "diagnostics": []
-        }))
+              },
+              "diagnostics": []
+            }"#,
+        )
         .expect("session info should parse")
     }
 
     fn runtime_session_event() -> RuntimeSessionEvent {
-        serde_json::from_value(json!({
-            "schema": "skenion.runtime.session.event",
-            "schemaVersion": "0.1.0",
-            "id": "event-1",
-            "sessionId": "session-a",
-            "sequence": 1,
-            "sessionRevision": 1,
-            "kind": "snapshot",
-            "snapshot": { "sessionRevision": 1, "viewRevision": 1, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
-            "history": {
+        serde_json::from_str(
+            r#"{
+              "schema": "skenion.runtime.session.event",
+              "schemaVersion": "0.1.0",
+              "id": "event-1",
+              "sessionId": "session-a",
+              "sequence": 1,
+              "sessionRevision": 1,
+              "kind": "snapshot",
+              "snapshot": {
+                "sessionRevision": 1,
+                "viewRevision": 1,
+                "controlRevision": 1,
+                "project": null,
+                "diagnostics": [],
+                "plan": null
+              },
+              "history": {
                 "schema": "skenion.runtime.history",
                 "schemaVersion": "0.1.0",
                 "entries": [],
@@ -2168,17 +2440,18 @@ mod tests {
                 "canRedo": false,
                 "undoDepth": 0,
                 "redoDepth": 0
-            },
-            "replay": {
+              },
+              "replay": {
                 "cursor": "1",
                 "previousCursor": null,
                 "replayed": false,
                 "gap": null,
                 "overflow": false
-            },
-            "diagnostics": [],
-            "createdAt": "2026-06-22T00:00:00.000Z"
-        }))
+              },
+              "diagnostics": [],
+              "createdAt": "2026-06-22T00:00:00.000Z"
+            }"#,
+        )
         .expect("session event should parse")
     }
 
@@ -2186,82 +2459,233 @@ mod tests {
         mutation: serde_json::Value,
         inverse_mutation: serde_json::Value,
     ) -> serde_json::Value {
-        json!({
-            "schema": "skenion.runtime.session.event",
-            "schemaVersion": "0.1.0",
-            "id": "event-mutate",
-            "sessionId": "session-a",
-            "sequence": 2,
-            "sessionRevision": 2,
-            "kind": "mutate",
-            "snapshot": { "sessionRevision": 2, "viewRevision": 2, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
-            "history": {
+        let mut event = value(
+            r#"{
+              "schema": "skenion.runtime.session.event",
+              "schemaVersion": "0.1.0",
+              "id": "event-mutate",
+              "sessionId": "session-a",
+              "sequence": 2,
+              "sessionRevision": 2,
+              "kind": "mutate",
+              "snapshot": {
+                "sessionRevision": 2,
+                "viewRevision": 2,
+                "controlRevision": 1,
+                "project": null,
+                "diagnostics": [],
+                "plan": null
+              },
+              "history": {
                 "schema": "skenion.runtime.history",
                 "schemaVersion": "0.1.0",
                 "entries": [
-                    {
-                        "id": "history-2",
-                        "sequence": 2,
-                        "kind": "apply",
-                        "mutation": mutation,
-                        "inverseMutation": inverse_mutation,
-                        "clientId": "studio-main",
-                        "createdAt": "2026-06-22T00:00:02.000Z"
-                    }
+                  {
+                    "id": "history-2",
+                    "sequence": 2,
+                    "kind": "apply",
+                    "mutation": null,
+                    "inverseMutation": null,
+                    "clientId": "studio-main",
+                    "createdAt": "2026-06-22T00:00:02.000Z"
+                  }
                 ],
                 "canUndo": true,
                 "canRedo": false,
                 "undoDepth": 1,
                 "redoDepth": 0
-            },
-            "replay": {
+              },
+              "replay": {
                 "cursor": "2",
                 "previousCursor": "1",
                 "replayed": false,
                 "gap": null,
                 "overflow": false
-            },
-            "diagnostics": [],
-            "createdAt": "2026-06-22T00:00:02.000Z"
-        })
+              },
+              "diagnostics": [],
+              "createdAt": "2026-06-22T00:00:02.000Z"
+            }"#,
+        );
+        event["history"]["entries"][0]["mutation"] = mutation;
+        event["history"]["entries"][0]["inverseMutation"] = inverse_mutation;
+        event
     }
 
     fn runtime_graph_patch_mutation(extra_operation_key: bool) -> serde_json::Value {
-        let mut operation = json!({
-            "op": "setNodeParam",
-            "nodeId": "value_1",
-            "key": "value",
-            "value": 0.5
-        });
-        if extra_operation_key {
-            operation["unexpected"] = json!(true);
-        }
-        json!({
-            "graphPatch": {
+        let mut mutation = value(
+            r#"{
+              "graphPatch": {
                 "schema": "skenion.graph.patch",
                 "schemaVersion": "0.1.0",
                 "id": "patch-runtime",
                 "baseRevision": "1",
-                "ops": [operation]
-            }
-        })
+                "ops": [
+                  {
+                    "op": "setNodeParam",
+                    "nodeId": "value_1",
+                    "key": "value",
+                    "value": 0.5
+                  }
+                ]
+              }
+            }"#,
+        );
+        if extra_operation_key {
+            mutation["graphPatch"]["ops"][0]["unexpected"] = serde_json::Value::Bool(true);
+        }
+        mutation
     }
 
     fn runtime_view_patch_mutation(extra_operation_key: bool) -> serde_json::Value {
-        let mut operation = json!({
-            "op": "setNodeView",
-            "nodeId": "value_1",
-            "view": { "x": 0, "y": 0 }
-        });
-        if extra_operation_key {
-            operation["unexpected"] = json!(true);
-        }
-        json!({
-            "viewPatch": {
+        let mut mutation = value(
+            r#"{
+              "viewPatch": {
                 "baseViewRevision": 1,
-                "ops": [operation]
-            }
-        })
+                "ops": [
+                  {
+                    "op": "setNodeView",
+                    "nodeId": "value_1",
+                    "view": { "x": 0, "y": 0 }
+                  }
+                ]
+              }
+            }"#,
+        );
+        if extra_operation_key {
+            mutation["viewPatch"]["ops"][0]["unexpected"] = serde_json::Value::Bool(true);
+        }
+        mutation
+    }
+
+    fn fully_valid_runtime_graph_patch_mutation() -> serde_json::Value {
+        value(
+            r#"{
+              "graphPatch": {
+                "schema": "skenion.graph.patch",
+                "schemaVersion": "0.1.0",
+                "id": "patch-runtime-full",
+                "baseRevision": "1",
+                "clientId": "studio-main",
+                "createdAt": "2026-06-22T00:00:02.000Z",
+                "ops": [
+                  {
+                    "op": "addNode",
+                    "node": {
+                      "id": "value_2",
+                      "kind": "core.float",
+                      "kindVersion": "0.1.0",
+                      "params": { "value": 0.75 },
+                      "ports": [
+                        {
+                          "id": "out",
+                          "direction": "output",
+                          "type": {
+                            "flow": "value",
+                            "dataKind": "number.float",
+                            "range": { "min": 0, "max": 1, "step": 0.1 },
+                            "shape": [1],
+                            "channels": 1,
+                            "sampleRate": 48000,
+                            "frameRate": 60,
+                            "format": ["float32"],
+                            "alphaPolicy": "white",
+                            "values": ["low", 0.5, true]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  { "op": "removeNode", "nodeId": "old_value" },
+                  {
+                    "op": "replaceNode",
+                    "nodeId": "value_2",
+                    "node": {
+                      "id": "value_2",
+                      "kind": "core.float",
+                      "kindVersion": "0.1.0",
+                      "params": { "value": 0.75 },
+                      "ports": [
+                        {
+                          "id": "out",
+                          "direction": "output",
+                          "type": {
+                            "flow": "value",
+                            "dataKind": "number.float",
+                            "range": { "min": 0, "max": 1, "step": 0.1 },
+                            "shape": [1],
+                            "channels": 1,
+                            "sampleRate": 48000,
+                            "frameRate": 60,
+                            "format": ["float32"],
+                            "alphaPolicy": "white",
+                            "values": ["low", 0.5, true]
+                          }
+                        }
+                      ]
+                    },
+                    "edgePolicy": "removeInvalidEdges"
+                  },
+                  { "op": "setNodeParams", "nodeId": "value_2", "params": { "value": 0.5 } },
+                  { "op": "setNodeParam", "nodeId": "value_2", "key": "value", "value": 0.5 },
+                  {
+                    "op": "replaceNodeInterface",
+                    "nodeId": "value_2",
+                    "ports": [
+                      {
+                        "id": "out",
+                        "direction": "output",
+                        "type": {
+                          "flow": "value",
+                          "dataKind": "number.float",
+                          "range": { "min": 0, "max": 1, "step": 0.1 },
+                          "shape": [1],
+                          "channels": 1,
+                          "sampleRate": 48000,
+                          "frameRate": 60,
+                          "format": ["float32"],
+                          "alphaPolicy": "white",
+                          "values": ["low", 0.5, true]
+                        }
+                      }
+                    ],
+                    "edgePolicy": "removeInvalidEdges"
+                  },
+                  {
+                    "op": "addEdge",
+                    "edge": {
+                      "from": { "node": "value_2", "port": "out" },
+                      "to": { "node": "target_1", "port": "value" }
+                    }
+                  },
+                  {
+                    "op": "removeEdge",
+                    "edge": {
+                      "from": { "node": "value_2", "port": "out" },
+                      "to": { "node": "target_1", "port": "value" }
+                    }
+                  }
+                ]
+              },
+              "viewPatch": {
+                "baseViewRevision": 1,
+                "ops": [
+                  {
+                    "op": "setNodeView",
+                    "nodeId": "value_2",
+                    "view": { "x": 10, "y": 20 }
+                  },
+                  {
+                    "op": "moveNodeView",
+                    "nodeId": "value_2",
+                    "from": { "x": 10, "y": 20 },
+                    "to": { "x": 20, "y": 30 }
+                  }
+                ]
+              },
+              "clientId": "studio-main",
+              "description": "exercise every valid runtime patch branch"
+            }"#,
+        )
     }
 
     #[test]
@@ -2375,21 +2799,108 @@ mod tests {
     }
 
     #[test]
+    fn validates_complete_runtime_mutation_patch_branches() {
+        let event: RuntimeSessionEvent = serde_json::from_value(runtime_session_mutation_event(
+            fully_valid_runtime_graph_patch_mutation(),
+            fully_valid_runtime_graph_patch_mutation(),
+        ))
+        .expect("valid mutation event should parse");
+
+        validate_runtime_session_event(&event).expect("valid mutation event should validate");
+    }
+
+    #[test]
+    fn validates_project_document_branches_in_unit_target() {
+        let graph = serde_json::to_value(base_graph()).expect("base graph should serialize");
+        let mut project: ProjectDocumentV02 = serde_json::from_value(json!({
+            "schema": "skenion.project",
+            "schemaVersion": "0.2.0",
+            "id": "project-unit",
+            "revision": "1",
+            "graph": graph.clone(),
+            "viewState": {
+                "schema": "skenion.view-state",
+                "schemaVersion": "0.1.0",
+                "canvas": {
+                    "nodes": {
+                        "source": { "x": 0, "y": 0 },
+                        "target": { "x": 120, "y": 0 }
+                    }
+                }
+            },
+            "patchLibrary": [
+                {
+                    "id": "patch-unit",
+                    "revision": "1",
+                    "graph": graph,
+                    "viewState": {
+                        "schema": "skenion.view-state",
+                        "schemaVersion": "0.1.0",
+                        "canvas": {
+                            "nodes": {
+                                "source": { "x": 0, "y": 0 },
+                                "target": { "x": 120, "y": 0 }
+                            }
+                        }
+                    }
+                }
+            ]
+        }))
+        .expect("project should parse");
+
+        validate_project_document_v02(&project).expect("project should validate");
+
+        project.schema = "wrong".to_owned();
+        project.patch_library.push(project.patch_library[0].clone());
+        project.view_state.canvas.nodes.insert(
+            "missing-node".to_owned(),
+            crate::v0_1::CanvasNodeViewV01 {
+                x: 1.0,
+                y: 1.0,
+                width: None,
+                height: None,
+                collapsed: None,
+            },
+        );
+        let report = validate_project_document_v02(&project).expect_err("project should fail");
+        assert!(report.errors().len() >= 3);
+        let text = report.to_string();
+        assert!(text.contains("expected schema skenion.project"));
+        assert!(text.contains("viewState references missing graph node"));
+        assert!(text.contains("duplicate patch id"));
+    }
+
+    #[test]
     fn validates_basic_graph_and_serializes_optional_fields_as_absent() {
         let mut graph = base_graph();
-        graph.nodes[0].port_groups = Some(vec![super::super::PortGroupSpecV02 {
-            id: "outputs".to_owned(),
-            direction: PortDirectionV02::Output,
-            port_type: "value.number".to_owned(),
-            min_ports: 1,
-            label: Some("Outputs".to_owned()),
-            rate: None,
-            max_ports: Some(2),
-            ordered: Some(true),
-            port_id_pattern: Some("out_{index}".to_owned()),
-            create_label: Some("Add output".to_owned()),
-            default_port_spec: None,
-        }]);
+        graph.nodes[0].port_groups = Some(vec![
+            super::super::PortGroupSpecV02 {
+                id: "outputs".to_owned(),
+                direction: PortDirectionV02::Output,
+                port_type: "value.number".to_owned(),
+                min_ports: 1,
+                label: Some("Outputs".to_owned()),
+                rate: None,
+                max_ports: Some(2),
+                ordered: Some(true),
+                port_id_pattern: Some("out_{index}".to_owned()),
+                create_label: Some("Add output".to_owned()),
+                default_port_spec: None,
+            },
+            super::super::PortGroupSpecV02 {
+                id: "dynamic_outputs".to_owned(),
+                direction: PortDirectionV02::Output,
+                port_type: "value.number".to_owned(),
+                min_ports: 0,
+                label: None,
+                rate: None,
+                max_ports: None,
+                ordered: None,
+                port_id_pattern: None,
+                create_label: None,
+                default_port_spec: None,
+            },
+        ]);
         let result = validate_graph_document_v02(&graph).expect("graph should validate");
         assert!(result.ok);
         assert!(result.diagnostics.is_empty());
@@ -2579,6 +3090,567 @@ mod tests {
         assert!(response_text.contains("0.1.0"));
         assert!(response_text.contains("cannot be applied"));
         assert!(response_text.contains("revisionAfter"));
+    }
+
+    #[test]
+    fn validates_collaboration_operation_branch_coverage() {
+        let disconnect_operation = collaboration_operation(json!({
+            "kind": "changeSet",
+            "target": {
+                "path": { "kind": "root" },
+                "baseRevision": "root-rev-1"
+            },
+            "changes": [
+                {
+                    "op": "edge.disconnect",
+                    "changeId": "change-disconnect-source-target",
+                    "edgeId": "edge_source_target"
+                }
+            ],
+            "undoGroupId": "undo-group-disconnect",
+            "description": "Disconnect source from target"
+        }));
+        validate_runtime_collaboration_operation_envelope(&disconnect_operation)
+            .expect("edge.disconnect change should validate");
+        let serialized =
+            serde_json::to_value(&disconnect_operation).expect("operation should serialize");
+        assert_eq!(serialized["payload"]["changes"][0]["op"], "edge.disconnect");
+        assert_eq!(
+            serialized["payload"]["changes"][0]["changeId"],
+            "change-disconnect-source-target"
+        );
+
+        let mut outside_fragment = base_fragment();
+        outside_fragment.edges[0].target.node_id = "outside".to_owned();
+        let outside_paste = collaboration_operation(json!({
+            "kind": "pasteGraphFragment",
+            "request": paste_request(outside_fragment)
+        }));
+        assert!(
+            validate_runtime_collaboration_operation_envelope(&outside_paste)
+                .expect_err("outside paste should fail")
+                .to_string()
+                .contains("fragment-edge-outside-selection")
+        );
+
+        let mut missing_participant =
+            collaboration_operation_value(collaboration_undo_redo_payload("participant-a"));
+        missing_participant["schema"] = json!("wrong");
+        missing_participant["schemaVersion"] = json!("9.9.9");
+        missing_participant["causal"]["vector"] = json!({ "participant-b": 1 });
+        let missing_participant: RuntimeCollaborationOperationEnvelope =
+            serde_json::from_value(missing_participant)
+                .expect("missing-participant operation should parse");
+        let text = validate_runtime_collaboration_operation_envelope(&missing_participant)
+            .expect_err("schema and causal vector should fail")
+            .to_string();
+        assert!(text.contains("skenion.runtime.collaboration.operation"));
+        assert!(text.contains("0.1.0"));
+        assert!(text.contains("causal vector must include participantId"));
+    }
+
+    #[test]
+    fn validates_collaboration_batch_branch_coverage() {
+        let mut mismatched_operation =
+            collaboration_operation_value(collaboration_undo_redo_payload("participant-a"));
+        mismatched_operation["sessionId"] = json!("session-other");
+        let batch: RuntimeCollaborationOperationBatch = serde_json::from_value(json!({
+            "schema": "wrong",
+            "schemaVersion": "9.9.9",
+            "sessionId": "session-collab-a",
+            "operations": [mismatched_operation],
+            "submittedAt": "2026-06-22T00:00:00.000Z"
+        }))
+        .expect("batch should parse");
+
+        let text = validate_runtime_collaboration_operation_batch(&batch)
+            .expect_err("batch schema and session mismatch should fail")
+            .to_string();
+        assert!(text.contains("skenion.runtime.collaboration.operation-batch"));
+        assert!(text.contains("0.1.0"));
+        assert!(text.contains("sessionId must match batch sessionId"));
+    }
+
+    #[test]
+    fn validates_collaboration_result_branch_coverage() {
+        let mut accepted_with_nack = accepted_collaboration_result_value();
+        accepted_with_nack["schema"] = json!("wrong");
+        accepted_with_nack["schemaVersion"] = json!("9.9.9");
+        accepted_with_nack["nack"] = collaboration_nack("invalid-operation");
+        let accepted_with_nack: RuntimeCollaborationOperationResult =
+            serde_json::from_value(accepted_with_nack)
+                .expect("accepted result with nack should parse");
+        let text = validate_runtime_collaboration_operation_result(&accepted_with_nack)
+            .expect_err("accepted result with nack should fail")
+            .to_string();
+        assert!(text.contains("skenion.runtime.collaboration.operation-result"));
+        assert!(text.contains("0.1.0"));
+        assert!(text.contains("must not include nack or rebase"));
+
+        let rejected_without_nack: RuntimeCollaborationOperationResult =
+            serde_json::from_value(collaboration_result_value("rejected"))
+                .expect("rejected result without nack should parse");
+        assert!(
+            validate_runtime_collaboration_operation_result(&rejected_without_nack)
+                .expect_err("rejected result without nack should fail")
+                .to_string()
+                .contains("must include nack")
+        );
+
+        let mut duplicate_with_wrong_nack = collaboration_result_value("duplicate");
+        duplicate_with_wrong_nack["nack"] = collaboration_nack("invalid-operation");
+        let duplicate_with_wrong_nack: RuntimeCollaborationOperationResult =
+            serde_json::from_value(duplicate_with_wrong_nack)
+                .expect("duplicate result with wrong nack should parse");
+        assert!(
+            validate_runtime_collaboration_operation_result(&duplicate_with_wrong_nack)
+                .expect_err("duplicate result with wrong nack should fail")
+                .to_string()
+                .contains("duplicate-idempotency-key")
+        );
+
+        let mut rebased_without_rebase = collaboration_result_value("rebased");
+        rebased_without_rebase["ack"] = collaboration_ack(2);
+        let rebased_without_rebase: RuntimeCollaborationOperationResult =
+            serde_json::from_value(rebased_without_rebase)
+                .expect("rebased result without rebase should parse");
+        assert!(
+            validate_runtime_collaboration_operation_result(&rebased_without_rebase)
+                .expect_err("rebased result without rebase should fail")
+                .to_string()
+                .contains("must include rebase metadata")
+        );
+    }
+
+    #[test]
+    fn validates_collaboration_presence_selection_and_event_branches() {
+        let mut presence = collaboration_presence_value();
+        presence["schema"] = json!("wrong");
+        presence["schemaVersion"] = json!("9.9.9");
+        let presence: RuntimeCollaborationPresenceEnvelope =
+            serde_json::from_value(presence).expect("presence should parse");
+        let text = validate_runtime_collaboration_presence_envelope(&presence)
+            .expect_err("presence schema should fail")
+            .to_string();
+        assert!(text.contains("skenion.runtime.collaboration.presence"));
+        assert!(text.contains("0.1.0"));
+
+        let mut selection = collaboration_selection_value();
+        selection["schema"] = json!("wrong");
+        selection["schemaVersion"] = json!("9.9.9");
+        selection["expiresAt"] = selection["updatedAt"].clone();
+        let selection: RuntimeCollaborationSelectionEnvelope =
+            serde_json::from_value(selection).expect("selection should parse");
+        let text = validate_runtime_collaboration_selection_envelope(&selection)
+            .expect_err("selection schema and expiry should fail")
+            .to_string();
+        assert!(text.contains("skenion.runtime.collaboration.selection"));
+        assert!(text.contains("0.1.0"));
+        assert!(text.contains("expiresAt must be later than updatedAt"));
+
+        let mut event = collaboration_event_value();
+        event["schema"] = json!("wrong");
+        event["schemaVersion"] = json!("9.9.9");
+        let event: RuntimeCollaborationEventEnvelope =
+            serde_json::from_value(event).expect("event should parse");
+        let text = validate_runtime_collaboration_event_envelope(&event)
+            .expect_err("event schema should fail")
+            .to_string();
+        assert!(text.contains("skenion.runtime.collaboration.event"));
+        assert!(text.contains("0.1.0"));
+
+        let mut invalid_gap_event = collaboration_event_value();
+        invalid_gap_event["replay"]["gap"] = value(
+            r#"{
+              "expectedSequence": 8,
+              "actualSequence": 6,
+              "reason": "unknown"
+            }"#,
+        );
+        let invalid_gap_event: RuntimeCollaborationEventEnvelope =
+            serde_json::from_value(invalid_gap_event).expect("invalid gap event should parse");
+        assert!(
+            validate_runtime_collaboration_event_envelope(&invalid_gap_event)
+                .expect_err("replay gap order should fail")
+                .to_string()
+                .contains("expectedSequence must be less than actualSequence")
+        );
+
+        let mut valid_gap_event = collaboration_event_value();
+        valid_gap_event["replay"]["gap"] = value(
+            r#"{
+              "expectedSequence": 1,
+              "actualSequence": 3,
+              "reason": "retention-overflow"
+            }"#,
+        );
+        let valid_gap_event: RuntimeCollaborationEventEnvelope =
+            serde_json::from_value(valid_gap_event).expect("valid gap event should parse");
+        validate_runtime_collaboration_event_envelope(&valid_gap_event)
+            .expect("valid replay gap should validate");
+    }
+
+    #[test]
+    fn validates_unit_target_optional_success_and_rebase_branches() {
+        let valid_presence: RuntimeCollaborationPresenceEnvelope =
+            serde_json::from_value(collaboration_presence_value()).expect("presence should parse");
+        validate_runtime_collaboration_presence_envelope(&valid_presence)
+            .expect("valid presence should validate");
+
+        let mut deferred_auth_presence = collaboration_presence_value();
+        deferred_auth_presence["authSubject"] = json!({
+            "kind": "deferred",
+            "issuer": "local-dev"
+        });
+        let deferred_auth_presence: RuntimeCollaborationPresenceEnvelope =
+            serde_json::from_value(deferred_auth_presence)
+                .expect("deferred auth presence should parse");
+        validate_runtime_collaboration_presence_envelope(&deferred_auth_presence)
+            .expect("auth subject without subjectId should validate");
+
+        let valid_selection: RuntimeCollaborationSelectionEnvelope =
+            serde_json::from_value(collaboration_selection_value())
+                .expect("selection should parse");
+        validate_runtime_collaboration_selection_envelope(&valid_selection)
+            .expect("valid selection should validate");
+
+        let mut valid_batch = value(
+            r#"{
+              "schema": "skenion.runtime.collaboration.operation-batch",
+              "schemaVersion": "0.1.0",
+              "sessionId": "session-collab-a",
+              "operations": [],
+              "submittedAt": "2026-06-22T00:00:00.000Z"
+            }"#,
+        );
+        valid_batch["operations"] = serde_json::Value::Array(vec![collaboration_operation_value(
+            collaboration_undo_redo_payload("participant-a"),
+        )]);
+        let valid_batch: RuntimeCollaborationOperationBatch =
+            serde_json::from_value(valid_batch).expect("valid batch should parse");
+        validate_runtime_collaboration_operation_batch(&valid_batch)
+            .expect("valid batch should validate");
+
+        let change_set = collaboration_operation(value(
+            r#"{
+              "kind": "changeSet",
+              "target": {
+                "path": { "kind": "root" },
+                "baseRevision": "root-rev-1"
+              },
+              "changes": [
+                {
+                  "op": "node.add",
+                  "changeId": "change-add",
+                  "node": {
+                    "id": "added",
+                    "kind": "core.float",
+                    "kindVersion": "0.2.0",
+                    "params": {},
+                    "ports": [
+                      { "id": "out", "direction": "output", "type": "number.float" }
+                    ]
+                  }
+                },
+                {
+                  "op": "node.move",
+                  "changeId": "change-move",
+                  "nodeId": "source",
+                  "to": { "x": 20, "y": 40 }
+                },
+                {
+                  "op": "node.delete",
+                  "changeId": "change-delete",
+                  "nodeId": "old"
+                },
+                {
+                  "op": "edge.connect",
+                  "changeId": "change-connect",
+                  "edge": {
+                    "id": "edge-added-target",
+                    "source": { "nodeId": "added", "portId": "out" },
+                    "target": { "nodeId": "target", "portId": "in" }
+                  }
+                }
+              ]
+            }"#,
+        ));
+        validate_runtime_collaboration_operation_envelope(&change_set)
+            .expect("all change id variants should validate");
+
+        let mut accepted_with_rebase = accepted_collaboration_result_value();
+        accepted_with_rebase["rebase"] = collaboration_rebase_value();
+        let accepted_with_rebase: RuntimeCollaborationOperationResult =
+            serde_json::from_value(accepted_with_rebase)
+                .expect("accepted result with rebase should parse");
+        assert!(
+            validate_runtime_collaboration_operation_result(&accepted_with_rebase)
+                .expect_err("accepted result with rebase should fail")
+                .to_string()
+                .contains("must not include nack or rebase")
+        );
+
+        let mut rebased = collaboration_result_value("rebased");
+        rebased["ack"] = collaboration_ack(2);
+        rebased["rebase"] = collaboration_rebase_value();
+        let rebased: RuntimeCollaborationOperationResult =
+            serde_json::from_value(rebased).expect("rebased result should parse");
+        validate_runtime_collaboration_operation_result(&rebased)
+            .expect("rebased result with rebase metadata should validate");
+
+        let mut event = runtime_session_event();
+        event.replay.gap = Some(RuntimeEventReplayGap {
+            expected_sequence: 1,
+            actual_sequence: 0,
+            reason: RuntimeEventReplayGapReason::Unknown,
+        });
+        assert!(
+            validate_runtime_session_event(&event)
+                .expect_err("zero actual replay sequence should fail")
+                .to_string()
+                .contains("replay gap sequences must be at least 1")
+        );
+
+        let mut valid_gap_event = runtime_session_event();
+        valid_gap_event.replay.gap = Some(RuntimeEventReplayGap {
+            expected_sequence: 1,
+            actual_sequence: 3,
+            reason: RuntimeEventReplayGapReason::RetentionOverflow,
+        });
+        validate_runtime_session_event(&valid_gap_event)
+            .expect("ordered replay gap should validate");
+
+        let grouped = node(
+            r#"{
+              "schema": "skenion.node.definition",
+              "schemaVersion": "0.2.0",
+              "id": "core.dynamic-group",
+              "version": "0.2.0",
+              "displayName": "Dynamic Group",
+              "category": "Core",
+              "ports": [
+                { "id": "sum", "direction": "output", "type": "number.float" }
+              ],
+              "portGroups": [
+                {
+                  "id": "inputs",
+                  "direction": "input",
+                  "type": "number.float",
+                  "minPorts": 1,
+                  "maxPorts": 2
+                }
+              ],
+              "execution": { "model": "value" },
+              "state": { "persistent": false },
+              "permissions": [],
+              "capabilities": []
+            }"#,
+        );
+        validate_node_definition_v02(&grouped).expect("valid maxPorts should validate");
+    }
+
+    #[test]
+    fn validates_unit_target_project_and_cycle_edge_branches() {
+        let self_loop = graph(
+            r#"{
+              "schema": "skenion.graph",
+              "schemaVersion": "0.2.0",
+              "id": "self-loop",
+              "revision": "1",
+              "nodes": [
+                {
+                  "id": "loop",
+                  "kind": "core.loop",
+                  "kindVersion": "0.2.0",
+                  "params": {},
+                  "ports": [
+                    { "id": "in", "direction": "input", "type": "value.number" },
+                    { "id": "out", "direction": "output", "type": "value.number" }
+                  ]
+                }
+              ],
+              "edges": [
+                {
+                  "id": "edge-loop",
+                  "source": { "nodeId": "loop", "portId": "out" },
+                  "target": { "nodeId": "loop", "portId": "in" }
+                }
+              ]
+            }"#,
+        );
+        assert!(
+            validate_graph_document_v02(&self_loop)
+                .expect_err("self-loop should require feedback")
+                .to_string()
+                .contains("ambiguous-algebraic-loop")
+        );
+
+        let warning_project: ProjectDocumentV02 = serde_json::from_str(
+            r#"{
+              "schema": "skenion.project",
+              "schemaVersion": "0.2.0",
+              "id": "project-warning",
+              "revision": "1",
+              "graph": {
+                "schema": "skenion.graph",
+                "schemaVersion": "0.2.0",
+                "id": "warning-graph",
+                "revision": "1",
+                "nodes": [
+                  {
+                    "id": "a",
+                    "kind": "core.a",
+                    "kindVersion": "0.2.0",
+                    "params": {},
+                    "ports": [
+                      { "id": "in", "direction": "input", "type": "value.number" },
+                      { "id": "out", "direction": "output", "type": "value.number" }
+                    ]
+                  },
+                  {
+                    "id": "b",
+                    "kind": "core.b",
+                    "kindVersion": "0.2.0",
+                    "params": {},
+                    "ports": [
+                      { "id": "in", "direction": "input", "type": "value.number" },
+                      { "id": "out", "direction": "output", "type": "value.number" }
+                    ]
+                  }
+                ],
+                "edges": [
+                  {
+                    "id": "edge-a-b",
+                    "source": { "nodeId": "a", "portId": "out" },
+                    "target": { "nodeId": "b", "portId": "in" }
+                  },
+                  {
+                    "id": "edge-b-a",
+                    "source": { "nodeId": "b", "portId": "out" },
+                    "target": { "nodeId": "a", "portId": "in" },
+                    "feedback": { "enabled": true, "boundary": "same-turn" }
+                  }
+                ]
+              },
+              "viewState": {
+                "schema": "skenion.view-state",
+                "schemaVersion": "0.1.0",
+                "canvas": {
+                  "nodes": {
+                    "a": { "x": 0, "y": 0 },
+                    "b": { "x": 120, "y": 0 }
+                  }
+                }
+              },
+              "patchLibrary": [
+                {
+                  "id": "boundary",
+                  "revision": "1",
+                  "graph": {
+                    "schema": "skenion.graph",
+                    "schemaVersion": "0.2.0",
+                    "id": "boundary-graph",
+                    "revision": "1",
+                    "nodes": [
+                      {
+                        "id": "left_in",
+                        "kind": "core.inlet",
+                        "kindVersion": "0.2.0",
+                        "params": {},
+                        "ports": [
+                          { "id": "out", "direction": "output", "type": "number.float" }
+                        ]
+                      },
+                      {
+                        "id": "right_out",
+                        "kind": "core.outlet",
+                        "kindVersion": "0.2.0",
+                        "params": {},
+                        "ports": [
+                          { "id": "in", "direction": "input", "type": "number.float" }
+                        ]
+                      }
+                    ],
+                    "edges": []
+                  }
+                }
+              ]
+            }"#,
+        )
+        .expect("warning project should parse");
+        validate_project_document_v02(&warning_project)
+            .expect("warning-only graph and boundary patch should validate");
+
+        let invalid_patch_project: ProjectDocumentV02 = serde_json::from_str(
+            r#"{
+              "schema": "skenion.project",
+              "schemaVersion": "0.2.0",
+              "id": "project-invalid-patch",
+              "revision": "1",
+              "graph": {
+                "schema": "skenion.graph",
+                "schemaVersion": "0.2.0",
+                "id": "root",
+                "revision": "1",
+                "nodes": [],
+                "edges": []
+              },
+              "viewState": {
+                "schema": "skenion.view-state",
+                "schemaVersion": "0.1.0",
+                "canvas": { "nodes": {} }
+              },
+              "patchLibrary": [
+                {
+                  "id": "",
+                  "revision": "",
+                  "graph": {
+                    "schema": "skenion.graph",
+                    "schemaVersion": "0.2.0",
+                    "id": "invalid-patch-graph",
+                    "revision": "1",
+                    "nodes": [
+                      {
+                        "id": "inlet_a",
+                        "kind": "core.inlet",
+                        "kindVersion": "0.2.0",
+                        "params": { "portId": "same" },
+                        "ports": [
+                          { "id": "out", "direction": "output", "type": "number.float" }
+                        ]
+                      },
+                      {
+                        "id": "inlet_b",
+                        "kind": "core.inlet",
+                        "kindVersion": "0.2.0",
+                        "params": { "portId": "same" },
+                        "ports": [
+                          { "id": "out", "direction": "output", "type": "number.float" }
+                        ]
+                      }
+                    ],
+                    "edges": []
+                  },
+                  "viewState": {
+                    "schema": "skenion.view-state",
+                    "schemaVersion": "0.1.0",
+                    "canvas": {
+                      "nodes": {
+                        "missing": { "x": 0, "y": 0 }
+                      }
+                    }
+                  }
+                }
+              ]
+            }"#,
+        )
+        .expect("invalid patch project should parse");
+        let text = validate_project_document_v02(&invalid_patch_project)
+            .expect_err("invalid patch should propagate into project validation")
+            .to_string();
+        assert!(text.contains("patch id must not be empty"));
+        assert!(text.contains("duplicate boundary port id"));
+        assert!(text.contains("references missing graph node"));
     }
 
     #[test]
@@ -3087,14 +4159,17 @@ mod tests {
         invalid_info.profile.endpoint.url.clear();
         invalid_info.profile.endpoint.canonical_url = Some(String::new());
         invalid_info.profile.endpoint.host = Some(String::new());
-        if let Some(process) = &mut invalid_info.profile.process {
-            process.pid = Some(0);
-            process.executable_path = Some(String::new());
-            process.working_directory = Some(String::new());
-            process.owner_window_id = Some(String::new());
-            process.platform = Some(String::new());
-            process.arch = Some(String::new());
-        }
+        let process = invalid_info
+            .profile
+            .process
+            .as_mut()
+            .expect("local-managed fixture should include process metadata");
+        process.pid = Some(0);
+        process.executable_path = Some(String::new());
+        process.working_directory = Some(String::new());
+        process.owner_window_id = Some(String::new());
+        process.platform = Some(String::new());
+        process.arch = Some(String::new());
         invalid_info.profile.ownership = RuntimeOwnershipMode::Remote;
         let info_error = validate_runtime_session_info_response(&invalid_info)
             .expect_err("invalid session info should fail")
@@ -3325,120 +4400,66 @@ mod tests {
         let event_error = validate_runtime_session_event(&invalid_event)
             .expect_err("invalid session event should fail")
             .to_string();
-        assert!(event_error.contains("skenion.runtime.session.event"));
-        assert!(event_error.contains("0.1.0"));
-        assert!(event_error.contains("event id must not be empty"));
-        assert!(event_error.contains("sessionId must not be empty"));
-        assert!(event_error.contains("sequence must be at least 1"));
-        assert!(event_error.contains("createdAt must not be empty"));
-        assert!(event_error.contains("snapshot diagnostics must include non-empty message"));
-        assert!(event_error.contains("snapshot plan must be an object or null"));
-        assert!(event_error.contains("expected history schema skenion.runtime.history"));
-        assert!(event_error.contains("expected history schemaVersion 0.1.0"));
-        assert!(event_error.contains("history entry id must not be empty"));
-        assert!(event_error.contains("history entry sequence must be at least 1"));
-        assert!(event_error.contains("history entry createdAt must not be empty"));
-        assert!(event_error.contains("history entry subjectEventId must not be empty"));
-        assert!(event_error.contains("history entry clientId must not be empty"));
-        assert!(event_error.contains("history entry mutation graphPatch schema must be"));
-        assert!(event_error.contains("history entry mutation graphPatch schemaVersion must be"));
-        assert!(event_error.contains("history entry mutation graphPatch id must not be empty"));
-        assert!(
-            event_error
-                .contains("history entry mutation graphPatch baseRevision must not be empty")
-        );
-        assert!(
-            event_error.contains("history entry mutation graphPatch clientId must not be empty")
-        );
-        assert!(
-            event_error.contains("history entry mutation graphPatch createdAt must not be empty")
-        );
-        assert!(
-            event_error
-                .contains("history entry mutation graphPatch operation nodeId must not be empty")
-        );
-        assert!(
-            event_error
-                .contains("history entry mutation graphPatch operation key must not be empty")
-        );
-        assert!(
-            event_error.contains("history entry mutation graphPatch node id must not be empty")
-        );
-        assert!(
-            event_error.contains("history entry mutation graphPatch node kind must not be empty")
-        );
-        assert!(
-            event_error
-                .contains("history entry mutation graphPatch node kindVersion must not be empty")
-        );
-        assert!(
-            event_error.contains("history entry mutation graphPatch port id must not be empty")
-        );
-        assert!(
-            event_error
-                .contains("history entry mutation graphPatch port dataKind must not be empty")
-        );
-        assert!(
-            event_error.contains(
-                "history entry mutation graphPatch port range step must be greater than 0"
-            )
-        );
-        assert!(
-            event_error.contains(
-                "history entry mutation graphPatch port shape entries must be at least 1"
-            )
-        );
-        assert!(
-            event_error
-                .contains("history entry mutation graphPatch port channels must be at least 1")
-        );
-        assert!(
-            event_error.contains(
-                "history entry mutation graphPatch port sampleRate must be greater than 0"
-            )
-        );
-        assert!(
-            event_error.contains(
-                "history entry mutation graphPatch port frameRate must be greater than 0"
-            )
-        );
-        assert!(
-            event_error.contains("history entry mutation graphPatch port format must not be empty")
-        );
-        assert!(
-            event_error
-                .contains("history entry mutation graphPatch port alphaPolicy must be supported")
-        );
-        assert!(event_error.contains(
-            "history entry mutation graphPatch port values must be scalar strings, numbers, or booleans"
-        ));
-        assert!(
-            event_error.contains("history entry mutation graphPatch edge source must not be empty")
-        );
-        assert!(
-            event_error.contains("history entry mutation graphPatch edge target must not be empty")
-        );
-        assert!(event_error.contains("history entry mutation clientId must not be empty"));
-        assert!(event_error.contains(
-            "history entry inverseMutation viewPatch operation nodeId must not be empty"
-        ));
-        assert!(event_error.contains("history entry inverseMutation clientId must not be empty"));
-        assert!(event_error.contains("mutation id must not be empty"));
-        assert!(event_error.contains("mutation mutation graphPatch schema must be"));
-        assert!(
-            event_error.contains("mutation mutation graphPatch operation nodeId must not be empty")
-        );
-        assert!(event_error.contains("mutation mutation clientId must not be empty"));
-        assert!(
-            event_error
-                .contains("mutation inverseMutation viewPatch operation nodeId must not be empty")
-        );
-        assert!(event_error.contains("mutation inverseMutation clientId must not be empty"));
-        assert!(event_error.contains("replay cursor must not be empty"));
-        assert!(event_error.contains("replay previousCursor must not be empty"));
-        assert!(event_error.contains("replay gap sequences must be at least 1"));
-        assert!(event_error.contains("expectedSequence must be less than actualSequence"));
-        assert!(event_error.contains("sessionRevision must match"));
+        let expected_messages = [
+            "skenion.runtime.session.event",
+            "0.1.0",
+            "event id must not be empty",
+            "sessionId must not be empty",
+            "sequence must be at least 1",
+            "createdAt must not be empty",
+            "snapshot diagnostics must include non-empty message",
+            "snapshot plan must be an object or null",
+            "expected history schema skenion.runtime.history",
+            "expected history schemaVersion 0.1.0",
+            "history entry id must not be empty",
+            "history entry sequence must be at least 1",
+            "history entry createdAt must not be empty",
+            "history entry subjectEventId must not be empty",
+            "history entry clientId must not be empty",
+            "history entry mutation graphPatch schema must be",
+            "history entry mutation graphPatch schemaVersion must be",
+            "history entry mutation graphPatch id must not be empty",
+            "history entry mutation graphPatch baseRevision must not be empty",
+            "history entry mutation graphPatch clientId must not be empty",
+            "history entry mutation graphPatch createdAt must not be empty",
+            "history entry mutation graphPatch operation nodeId must not be empty",
+            "history entry mutation graphPatch operation key must not be empty",
+            "history entry mutation graphPatch node id must not be empty",
+            "history entry mutation graphPatch node kind must not be empty",
+            "history entry mutation graphPatch node kindVersion must not be empty",
+            "history entry mutation graphPatch port id must not be empty",
+            "history entry mutation graphPatch port dataKind must not be empty",
+            "history entry mutation graphPatch port range step must be greater than 0",
+            "history entry mutation graphPatch port shape entries must be at least 1",
+            "history entry mutation graphPatch port channels must be at least 1",
+            "history entry mutation graphPatch port sampleRate must be greater than 0",
+            "history entry mutation graphPatch port frameRate must be greater than 0",
+            "history entry mutation graphPatch port format must not be empty",
+            "history entry mutation graphPatch port alphaPolicy must be supported",
+            "history entry mutation graphPatch port values must be scalar strings, numbers, or booleans",
+            "history entry mutation graphPatch edge source must not be empty",
+            "history entry mutation graphPatch edge target must not be empty",
+            "history entry mutation clientId must not be empty",
+            "history entry inverseMutation viewPatch operation nodeId must not be empty",
+            "history entry inverseMutation clientId must not be empty",
+            "mutation id must not be empty",
+            "mutation mutation graphPatch schema must be",
+            "mutation mutation graphPatch operation nodeId must not be empty",
+            "mutation mutation clientId must not be empty",
+            "mutation inverseMutation viewPatch operation nodeId must not be empty",
+            "mutation inverseMutation clientId must not be empty",
+            "replay cursor must not be empty",
+            "replay previousCursor must not be empty",
+            "replay gap sequences must be at least 1",
+            "expectedSequence must be less than actualSequence",
+            "sessionRevision must match",
+        ];
+        let missing_messages = expected_messages
+            .iter()
+            .copied()
+            .filter(|expected| !event_error.contains(expected))
+            .collect::<Vec<_>>();
+        assert!(missing_messages.is_empty(), "{missing_messages:?}");
     }
 
     #[test]
