@@ -1220,9 +1220,9 @@ components:
               const: setNodeView
             nodeId:
               type: string
+              minLength: 1
             view:
-              type: object
-              additionalProperties: true
+              $ref: "#/components/schemas/RuntimeCanvasNodeView"
           additionalProperties: false
         - type: object
           required:
@@ -1235,13 +1235,29 @@ components:
               const: moveNodeView
             nodeId:
               type: string
+              minLength: 1
             from:
-              type: object
-              additionalProperties: true
+              $ref: "#/components/schemas/RuntimeCanvasNodeView"
             to:
-              type: object
-              additionalProperties: true
+              $ref: "#/components/schemas/RuntimeCanvasNodeView"
           additionalProperties: false
+    RuntimeCanvasNodeView:
+      type: object
+      required:
+        - x
+        - y
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        collapsed:
+          type: boolean
+      additionalProperties: false
     RuntimeMutationResponse:
       type: object
       required:

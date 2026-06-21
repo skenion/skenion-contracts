@@ -13,9 +13,12 @@ use super::{
     ProjectDocumentV02, RuntimeConnectionProfile, RuntimeConnectionProfileMode, RuntimeHistory,
     RuntimeHistoryEntry, RuntimeMutationRequest, RuntimeOperationEnvelope, RuntimeOwnershipMode,
     RuntimeSessionEvent, RuntimeSessionInfoResponse, RuntimeSessionSnapshot,
-    derive_patch_contract_v02,
+    RuntimeViewPatchOperation, derive_patch_contract_v02,
 };
-use crate::v0_1::ViewStateV01;
+use crate::v0_1::{
+    DataTypeV01, EdgeV01, GraphNodeV01, GraphPatchOperationV01, GraphPatchV01, PortV01,
+    StringOrStringsV01, ViewStateV01,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationErrorV02 {
@@ -1198,27 +1201,261 @@ fn runtime_mutation_request_errors(
     label: &str,
 ) -> Vec<ValidationErrorV02> {
     let mut errors = Vec::new();
-    if mutation
-        .graph_patch
-        .as_ref()
-        .is_some_and(|patch| !patch.is_object())
-    {
-        errors.push(ValidationErrorV02::new(format!(
-            "{label} graphPatch must be an object"
-        )));
+    if let Some(graph_patch) = &mutation.graph_patch {
+        errors.extend(runtime_graph_patch_errors(graph_patch, label));
     }
-    if mutation
-        .view_patch
-        .as_ref()
-        .is_some_and(|patch| !patch.is_object())
-    {
-        errors.push(ValidationErrorV02::new(format!(
-            "{label} viewPatch must be an object"
-        )));
+    if let Some(view_patch) = &mutation.view_patch {
+        for operation in &view_patch.ops {
+            match operation {
+                RuntimeViewPatchOperation::SetNodeView { node_id, .. }
+                | RuntimeViewPatchOperation::MoveNodeView { node_id, .. } => {
+                    if node_id.is_empty() {
+                        errors.push(ValidationErrorV02::new(format!(
+                            "{label} viewPatch operation nodeId must not be empty"
+                        )));
+                    }
+                }
+            }
+        }
     }
     if mutation.client_id.as_ref().is_some_and(String::is_empty) {
         errors.push(ValidationErrorV02::new(format!(
             "{label} clientId must not be empty"
+        )));
+    }
+    errors
+}
+
+#[allow(clippy::collapsible_match)]
+fn runtime_graph_patch_errors(patch: &GraphPatchV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if patch.schema != "skenion.graph.patch" {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch schema must be skenion.graph.patch"
+        )));
+    }
+    if patch.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch schemaVersion must be 0.1.0"
+        )));
+    }
+    if patch.id.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch id must not be empty"
+        )));
+    }
+    if patch.base_revision.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch baseRevision must not be empty"
+        )));
+    }
+    if patch.client_id.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch clientId must not be empty"
+        )));
+    }
+    if patch.created_at.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch createdAt must not be empty"
+        )));
+    }
+    for operation in &patch.ops {
+        match operation {
+            GraphPatchOperationV01::AddNode { node } => {
+                errors.extend(runtime_graph_patch_node_errors(node, label));
+            }
+            GraphPatchOperationV01::RemoveNode { node_id } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::ReplaceNode { node_id, node, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+                errors.extend(runtime_graph_patch_node_errors(node, label));
+            }
+            GraphPatchOperationV01::SetNodeParams { node_id, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::SetNodeParam { node_id, key, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+                if key.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation key must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::ReplaceNodeInterface { node_id, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::AddEdge { edge }
+            | GraphPatchOperationV01::RemoveEdge { edge } => {
+                errors.extend(runtime_graph_patch_edge_errors(edge, label));
+            }
+        }
+    }
+    errors
+}
+
+fn runtime_graph_patch_node_errors(node: &GraphNodeV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if node.id.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch node id must not be empty"
+        )));
+    }
+    if node.kind.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch node kind must not be empty"
+        )));
+    }
+    if node.kind_version.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch node kindVersion must not be empty"
+        )));
+    }
+    for port in &node.ports {
+        errors.extend(runtime_graph_patch_port_errors(port, label));
+    }
+    errors
+}
+
+fn runtime_graph_patch_port_errors(port: &PortV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if port.id.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port id must not be empty"
+        )));
+    }
+    errors.extend(runtime_graph_patch_data_type_errors(&port.data_type, label));
+    errors
+}
+
+fn runtime_graph_patch_data_type_errors(
+    data_type: &DataTypeV01,
+    label: &str,
+) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if data_type.data_kind.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port dataKind must not be empty"
+        )));
+    }
+    let invalid_range_step = match &data_type.range {
+        Some(range) => matches!(range.step, Some(step) if step <= 0.0),
+        None => false,
+    };
+    if invalid_range_step {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port range step must be greater than 0"
+        )));
+    }
+    let invalid_shape = match &data_type.shape {
+        Some(shape) => {
+            let mut has_invalid_shape_entry = false;
+            for entry in shape {
+                if *entry == 0 {
+                    has_invalid_shape_entry = true;
+                }
+            }
+            has_invalid_shape_entry
+        }
+        None => false,
+    };
+    if invalid_shape {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port shape entries must be at least 1"
+        )));
+    }
+    if data_type.channels == Some(0) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port channels must be at least 1"
+        )));
+    }
+    if matches!(data_type.sample_rate, Some(sample_rate) if sample_rate <= 0.0) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port sampleRate must be greater than 0"
+        )));
+    }
+    if matches!(data_type.frame_rate, Some(frame_rate) if frame_rate <= 0.0) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port frameRate must be greater than 0"
+        )));
+    }
+    let invalid_format = match &data_type.format {
+        Some(StringOrStringsV01::One(value)) => value.is_empty(),
+        Some(StringOrStringsV01::Many(values)) => {
+            let mut has_empty_format = false;
+            for value in values {
+                if value.is_empty() {
+                    has_empty_format = true;
+                }
+            }
+            has_empty_format
+        }
+        None => false,
+    };
+    if invalid_format {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port format must not be empty"
+        )));
+    }
+    let invalid_alpha_policy = match &data_type.alpha_policy {
+        Some(policy) => !matches!(policy.as_str(), "error" | "white" | "black" | "luminance"),
+        None => false,
+    };
+    if invalid_alpha_policy {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port alphaPolicy must be supported"
+        )));
+    }
+    let invalid_values = match &data_type.values {
+        Some(values) => {
+            let mut has_invalid_value = false;
+            for value in values {
+                if !(value.is_string() || value.is_number() || value.is_boolean()) {
+                    has_invalid_value = true;
+                }
+            }
+            has_invalid_value
+        }
+        None => false,
+    };
+    if invalid_values {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port values must be scalar strings, numbers, or booleans"
+        )));
+    }
+    errors
+}
+
+fn runtime_graph_patch_edge_errors(edge: &EdgeV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if edge.from.node.is_empty() || edge.from.port.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch edge source must not be empty"
+        )));
+    }
+    if edge.to.node.is_empty() || edge.to.port.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch edge target must not be empty"
         )));
     }
     errors
@@ -2402,12 +2639,114 @@ mod tests {
         invalid_event.snapshot.plan = Some(json!("opaque-plan"));
         invalid_event.history.schema = "wrong".to_owned();
         invalid_event.history.schema_version = "9.9.9".to_owned();
+        let invalid_graph_patch = json!({
+            "schema": "wrong",
+            "schemaVersion": "9.9.9",
+            "id": "",
+            "baseRevision": "",
+            "clientId": "",
+            "createdAt": "",
+            "ops": [
+                {
+                    "op": "addNode",
+                    "node": {
+                        "id": "",
+                        "kind": "",
+                        "kindVersion": "",
+                        "params": {},
+                        "ports": [
+                            {
+                                "id": "",
+                                "direction": "input",
+                                "type": {
+                                    "flow": "value",
+                                    "dataKind": "",
+                                    "range": { "step": 0 },
+                                    "shape": [0],
+                                    "channels": 0,
+                                    "sampleRate": 0,
+                                    "format": "",
+                                    "frameRate": 0,
+                                    "alphaPolicy": "unsupported",
+                                    "values": [{}]
+                                }
+                            },
+                            {
+                                "id": "format-array",
+                                "direction": "input",
+                                "type": {
+                                    "flow": "value",
+                                    "dataKind": "number.float",
+                                    "format": [""]
+                                }
+                            },
+                            {
+                                "id": "format-absent",
+                                "direction": "input",
+                                "type": {
+                                    "flow": "value",
+                                    "dataKind": "number.float"
+                                }
+                            }
+                        ]
+                    }
+                },
+                { "op": "removeNode", "nodeId": "" },
+                { "op": "setNodeParams", "nodeId": "", "params": {} },
+                {
+                    "op": "replaceNode",
+                    "nodeId": "",
+                    "node": {
+                        "id": "",
+                        "kind": "",
+                        "kindVersion": "",
+                        "params": {},
+                        "ports": []
+                    },
+                    "edgePolicy": "removeInvalidEdges"
+                },
+                { "op": "setNodeParam", "nodeId": "", "key": "", "value": null },
+                {
+                    "op": "replaceNodeInterface",
+                    "nodeId": "",
+                    "ports": [],
+                    "edgePolicy": "removeInvalidEdges"
+                },
+                {
+                    "op": "addEdge",
+                    "edge": {
+                        "from": { "node": "node-a", "port": "out" },
+                        "to": { "node": "node-b", "port": "in" }
+                    }
+                },
+                {
+                    "op": "removeEdge",
+                    "edge": {
+                        "from": { "node": "", "port": "" },
+                        "to": { "node": "", "port": "" }
+                    }
+                }
+            ]
+        });
+        let invalid_view_patch = json!({
+            "baseViewRevision": 0,
+            "ops": [
+                { "op": "setNodeView", "nodeId": "", "view": { "x": 0, "y": 0 } },
+                { "op": "moveNodeView", "nodeId": "", "from": { "x": 0, "y": 0 }, "to": { "x": 1, "y": 1 } }
+            ]
+        });
         let invalid_entry: RuntimeHistoryEntry = serde_json::from_value(json!({
             "id": "",
             "sequence": 0,
             "kind": "apply",
-            "mutation": { "graphPatch": [], "clientId": "" },
-            "inverseMutation": { "viewPatch": [], "clientId": "" },
+            "mutation": {
+                "graphPatch": invalid_graph_patch,
+                "clientId": ""
+            },
+            "inverseMutation": {
+                "viewPatch": invalid_view_patch,
+                "clientId": ""
+            },
             "subjectEventId": "",
             "clientId": "",
             "createdAt": ""
@@ -2440,14 +2779,99 @@ mod tests {
         assert!(event_error.contains("history entry createdAt must not be empty"));
         assert!(event_error.contains("history entry subjectEventId must not be empty"));
         assert!(event_error.contains("history entry clientId must not be empty"));
-        assert!(event_error.contains("history entry mutation graphPatch must be an object"));
+        assert!(event_error.contains("history entry mutation graphPatch schema must be"));
+        assert!(event_error.contains("history entry mutation graphPatch schemaVersion must be"));
+        assert!(event_error.contains("history entry mutation graphPatch id must not be empty"));
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch baseRevision must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch clientId must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch createdAt must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch operation nodeId must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch operation key must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch node id must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch node kind must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch node kindVersion must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch port id must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch port dataKind must not be empty")
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port range step must be greater than 0"
+            )
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port shape entries must be at least 1"
+            )
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch port channels must be at least 1")
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port sampleRate must be greater than 0"
+            )
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port frameRate must be greater than 0"
+            )
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch port format must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch port alphaPolicy must be supported")
+        );
+        assert!(event_error.contains(
+            "history entry mutation graphPatch port values must be scalar strings, numbers, or booleans"
+        ));
+        assert!(
+            event_error.contains("history entry mutation graphPatch edge source must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch edge target must not be empty")
+        );
         assert!(event_error.contains("history entry mutation clientId must not be empty"));
-        assert!(event_error.contains("history entry inverseMutation viewPatch must be an object"));
+        assert!(event_error.contains(
+            "history entry inverseMutation viewPatch operation nodeId must not be empty"
+        ));
         assert!(event_error.contains("history entry inverseMutation clientId must not be empty"));
         assert!(event_error.contains("mutation id must not be empty"));
-        assert!(event_error.contains("mutation mutation graphPatch must be an object"));
+        assert!(event_error.contains("mutation mutation graphPatch schema must be"));
+        assert!(
+            event_error.contains("mutation mutation graphPatch operation nodeId must not be empty")
+        );
         assert!(event_error.contains("mutation mutation clientId must not be empty"));
-        assert!(event_error.contains("mutation inverseMutation viewPatch must be an object"));
+        assert!(
+            event_error
+                .contains("mutation inverseMutation viewPatch operation nodeId must not be empty")
+        );
         assert!(event_error.contains("mutation inverseMutation clientId must not be empty"));
         assert!(event_error.contains("replay cursor must not be empty"));
         assert!(event_error.contains("replay previousCursor must not be empty"));

@@ -21,7 +21,8 @@ pub use types::{
     RuntimeOwnershipMode, RuntimeProcessMetadata, RuntimeProjectSnapshot,
     RuntimeSessionCapabilitySet, RuntimeSessionEvent, RuntimeSessionEventKind,
     RuntimeSessionInfoResponse, RuntimeSessionLifecycleState, RuntimeSessionSnapshot,
-    TriggerModeV02, derive_patch_contract_v02, derive_patch_contracts_v02,
+    RuntimeViewPatch, RuntimeViewPatchOperation, TriggerModeV02, derive_patch_contract_v02,
+    derive_patch_contracts_v02,
 };
 pub use validation::{
     ValidationErrorV02, ValidationReportV02, analyze_graph_document_v02,

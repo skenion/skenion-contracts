@@ -295,10 +295,10 @@
       "type": "object",
       "properties": {
         "graphPatch": {
-          "type": "object"
+          "$ref": "https://skenion.dev/schemas/graph/v0.1/patch.schema.json"
         },
         "viewPatch": {
-          "type": "object"
+          "$ref": "#/$defs/runtimeViewPatch"
         },
         "clientId": {
           "type": "string",
@@ -306,6 +306,89 @@
         },
         "description": {
           "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimeViewPatch": {
+      "type": "object",
+      "required": ["baseViewRevision", "ops"],
+      "properties": {
+        "baseViewRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ops": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/runtimeSetNodeViewOperation"
+              },
+              {
+                "$ref": "#/$defs/runtimeMoveNodeViewOperation"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimeSetNodeViewOperation": {
+      "type": "object",
+      "required": ["op", "nodeId", "view"],
+      "properties": {
+        "op": {
+          "const": "setNodeView"
+        },
+        "nodeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "view": {
+          "$ref": "#/$defs/runtimeCanvasNodeView"
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimeMoveNodeViewOperation": {
+      "type": "object",
+      "required": ["op", "nodeId", "to"],
+      "properties": {
+        "op": {
+          "const": "moveNodeView"
+        },
+        "nodeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from": {
+          "$ref": "#/$defs/runtimeCanvasNodeView"
+        },
+        "to": {
+          "$ref": "#/$defs/runtimeCanvasNodeView"
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimeCanvasNodeView": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "collapsed": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

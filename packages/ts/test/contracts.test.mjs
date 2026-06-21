@@ -166,7 +166,8 @@ test("validates runtime session profile and replay fixtures", async () => {
     "fixtures/runtime-session/v0/invalid/replay-additional-property.session-event.json",
     "fixtures/runtime-session/v0/invalid/replay-gap-order.session-event.json",
     "fixtures/runtime-session/v0/invalid/scalar-plan.session-event.json",
-    "fixtures/runtime-session/v0/invalid/nested-mutation-client-id.session-event.json"
+    "fixtures/runtime-session/v0/invalid/nested-mutation-client-id.session-event.json",
+    "fixtures/runtime-session/v0/invalid/malformed-nested-patches.session-event.json"
   ];
 
   for (const fixture of invalidEventFixtures) {
@@ -176,6 +177,44 @@ test("validates runtime session profile and replay fixtures", async () => {
     assert.equal(invalidEventResult.ok, false, fixture);
     assert.equal(isRuntimeSessionEvent(invalidEvent), false, fixture);
   }
+
+  const extraViewPatchView = structuredClone(event);
+  extraViewPatchView.kind = "mutate";
+  extraViewPatchView.history.entries = [
+    {
+      id: "history-extra-view",
+      sequence: 8,
+      kind: "apply",
+      mutation: {
+        viewPatch: {
+          baseViewRevision: 2,
+          ops: [
+            {
+              op: "setNodeView",
+              nodeId: "node-a",
+              view: { x: 0, y: 0, extra: true }
+            }
+          ]
+        }
+      },
+      inverseMutation: {
+        viewPatch: {
+          baseViewRevision: 3,
+          ops: [
+            {
+              op: "moveNodeView",
+              nodeId: "node-a",
+              to: { x: 1, y: 1 }
+            }
+          ]
+        }
+      },
+      clientId: "studio-main",
+      createdAt: "2026-06-22T00:00:05.000Z"
+    }
+  ];
+  assert.equal(validateRuntimeSessionEvent(extraViewPatchView).ok, false);
+  assert.equal(isRuntimeSessionEvent(extraViewPatchView), false);
 
   const extraReplay = structuredClone(event);
   extraReplay.replay.extra = true;

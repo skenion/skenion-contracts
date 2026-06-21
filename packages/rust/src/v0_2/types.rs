@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-use crate::v0_1::{CanvasNodeViewV01, ViewStateV01};
+use crate::v0_1::{CanvasNodeViewV01, GraphPatchV01, ViewStateV01};
 
 fn deserialize_nullable_u64<'de, D>(deserializer: D) -> Result<Option<Option<u64>>, D::Error>
 where
@@ -615,13 +615,39 @@ pub struct RuntimeSessionSnapshot {
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeMutationRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub graph_patch: Option<Value>,
+    pub graph_patch: Option<GraphPatchV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub view_patch: Option<Value>,
+    pub view_patch: Option<RuntimeViewPatch>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RuntimeViewPatch {
+    pub base_view_revision: u64,
+    pub ops: Vec<RuntimeViewPatchOperation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "op")]
+pub enum RuntimeViewPatchOperation {
+    #[serde(rename = "setNodeView")]
+    SetNodeView {
+        #[serde(rename = "nodeId")]
+        node_id: String,
+        view: CanvasNodeViewV01,
+    },
+    #[serde(rename = "moveNodeView")]
+    MoveNodeView {
+        #[serde(rename = "nodeId")]
+        node_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        from: Option<CanvasNodeViewV01>,
+        to: CanvasNodeViewV01,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

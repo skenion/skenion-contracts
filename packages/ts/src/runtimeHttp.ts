@@ -922,6 +922,7 @@ function isRuntimeViewPatchOperation(value: unknown): boolean {
 function isCanvasNodeView(value: unknown): value is CanvasNodeViewV01 {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["x", "y", "width", "height", "collapsed"]) &&
     typeof value.x === "number" &&
     Number.isFinite(value.x) &&
     typeof value.y === "number" &&
