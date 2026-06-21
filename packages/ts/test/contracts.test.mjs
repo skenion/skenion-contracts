@@ -9,6 +9,8 @@ import {
   builtinNodeHelpV01,
   builtinNodeDefinitionsV01,
   createDefaultViewStateForGraph,
+  derivePatchContractV02,
+  derivePatchContractsV02,
   controlMessageV01Schema,
   extensionManifestV01Schema,
   getBuiltinNodeDefinition,
@@ -26,6 +28,7 @@ import {
   planAudioClockBridgeV01,
   planConversion,
   projectV01Schema,
+  projectV02Schema,
   parseObjectTextV01,
   representationForDataType,
   representationRegistryV01,
@@ -49,7 +52,9 @@ import {
   validateGraphDocumentV02,
   validateNodeDefinition,
   validateNodeDefinitionV02,
+  validatePatchDefinitionV02,
   validateProjectDocument,
+  validateProjectDocumentV02,
   validateViewState,
   validateShaderInterface
 } from "../dist/index.js";
@@ -1135,6 +1140,120 @@ test("exports and validates v0.2 graph and node schemas", async () => {
 
   assert.equal(validateGraphDocumentV02(graph).ok, true);
   assert.equal(validateNodeDefinitionV02(node).ok, true);
+});
+
+test("exports and validates v0.2 project patch library contracts", async () => {
+  assert.equal(projectV02Schema.properties.schemaVersion.const, "0.2.0");
+  assert.equal(projectV02Schema.properties.patchLibrary.items.$ref, "#/$defs/patchDefinition");
+  assert.equal(projectV02Schema.$defs.patchDefinition.properties.contract, undefined);
+
+  for (const fixture of await fixtureFiles("fixtures/project/v0.2/valid")) {
+    const project = await readJson(fixture);
+    const result = validateProjectDocumentV02(project);
+    assert.equal(result.ok, true, fixture);
+    assert.equal(validatePatchDefinitionV02(project.patchLibrary[0]).ok, true, fixture);
+  }
+
+  for (const fixture of await fixtureFiles("fixtures/project/v0.2/invalid")) {
+    const result = validateProjectDocumentV02(await readJson(fixture));
+    assert.equal(result.ok, false, fixture);
+    assert.match(result.errors.join("\n"), /duplicate boundary port id/, fixture);
+  }
+
+  const validProject = await readJson("fixtures/project/v0.2/valid/input-only-patch.project.json");
+  const schemaInvalidProject = structuredClone(validProject);
+  delete schemaInvalidProject.patchLibrary;
+  const schemaInvalidProjectResult = validateProjectDocumentV02(schemaInvalidProject);
+  assert.equal(schemaInvalidProjectResult.ok, false);
+  assert.match(schemaInvalidProjectResult.errors.join("\n"), /patchLibrary/);
+
+  const schemaInvalidPatch = structuredClone(validProject.patchLibrary[0]);
+  schemaInvalidPatch.id = "";
+  const schemaInvalidPatchResult = validatePatchDefinitionV02(schemaInvalidPatch);
+  assert.equal(schemaInvalidPatchResult.ok, false);
+  assert.match(schemaInvalidPatchResult.errors.join("\n"), /must NOT have fewer than 1 characters/);
+
+  const semanticInvalidProject = await readJson("fixtures/project/v0.2/invalid/duplicate-boundary-port-id.project.json");
+  const semanticInvalidPatchResult = validatePatchDefinitionV02(semanticInvalidProject.patchLibrary[0]);
+  assert.equal(semanticInvalidPatchResult.ok, false);
+  assert.match(semanticInvalidPatchResult.errors.join("\n"), /duplicate boundary port id/);
+
+  const graphInvalidPatch = structuredClone(validProject.patchLibrary[0]);
+  graphInvalidPatch.graph.nodes.push(structuredClone(graphInvalidPatch.graph.nodes[0]));
+  const graphInvalidPatchResult = validatePatchDefinitionV02(graphInvalidPatch);
+  assert.equal(graphInvalidPatchResult.ok, false);
+  assert.match(graphInvalidPatchResult.errors.join("\n"), /duplicate node id/);
+});
+
+test("derives v0.2 patch contracts from core inlet and outlet boundary nodes", async () => {
+  const inputProject = await readJson("fixtures/project/v0.2/valid/input-only-patch.project.json");
+  const inputContract = derivePatchContractV02(inputProject.patchLibrary[0]);
+  assert.deepEqual(inputContract.ports.map((port) => port.id), ["frequency"]);
+  assert.equal(inputContract.ports[0].direction, "input");
+  assert.equal(inputContract.ports[0].boundaryNodeId, "frequency_in");
+  assert.equal(inputContract.ports[0].boundaryPortId, "out");
+  assert.equal(inputContract.ports[0].label, "Frequency");
+  assert.equal(inputContract.ports[0].description, "Frequency value entering the patch.");
+  assert.equal("tooltip" in inputContract.ports[0], false);
+
+  const outputProject = await readJson("fixtures/project/v0.2/valid/output-only-patch.project.json");
+  const outputContract = derivePatchContractsV02(outputProject)[0];
+  assert.deepEqual(outputContract.ports.map((port) => `${port.id}:${port.direction}`), [
+    "amplitude:output"
+  ]);
+  assert.equal(outputContract.ports[0].description, "Amplitude value leaving the patch.");
+
+  const boundaryProject = await readJson("fixtures/project/v0.2/valid/n-m-boundary-patch.project.json");
+  const boundaryContract = derivePatchContractV02(boundaryProject.patchLibrary[0]);
+  assert.deepEqual(boundaryContract.ports.map((port) => `${port.id}:${port.direction}`), [
+    "left:input",
+    "right:input",
+    "sum:output",
+    "difference:output"
+  ]);
+
+  const recursiveProject = await readJson("fixtures/project/v0.2/valid/recursive-reference.project.json");
+  const recursiveContract = derivePatchContractV02(recursiveProject.patchLibrary[0]);
+  assert.deepEqual(recursiveContract.ports.map((port) => port.id), ["value", "result"]);
+
+  const fallbackPatch = {
+    id: "fallbacks",
+    revision: "1",
+    graph: {
+      schema: "skenion.graph",
+      schemaVersion: "0.2.0",
+      id: "fallback-boundary-graph",
+      revision: "1",
+      nodes: [
+        {
+          id: "single_boundary",
+          kind: "core.inlet",
+          kindVersion: "0.2.0",
+          params: {},
+          ports: [
+            { id: "out", direction: "output", type: "number.float", rate: "control" }
+          ]
+        },
+        {
+          id: "multi_boundary",
+          kind: "core.outlet",
+          kindVersion: "0.2.0",
+          params: {},
+          ports: [
+            { id: "left", direction: "input", type: "number.float", rate: "control" },
+            { id: "right", direction: "input", type: "number.float", rate: "control" }
+          ]
+        }
+      ],
+      edges: []
+    }
+  };
+  const fallbackContract = derivePatchContractV02(fallbackPatch);
+  assert.deepEqual(fallbackContract.ports.map((port) => `${port.id}:${port.direction}`), [
+    "single_boundary:input",
+    "left:output",
+    "right:output"
+  ]);
 });
 
 test("v0.2 validates fan-out, fan-in, accepts, and feedback fixtures", async () => {
