@@ -32,6 +32,12 @@ import type {
   RuntimeDiagnosticSeverity,
   RuntimeExtensionDescriptor,
   RuntimeExtensionListResponse,
+  RuntimeConnectionProfile,
+  RuntimeConnectionProfileMode,
+  RuntimeEndpointMetadata,
+  RuntimeEventReplayGap,
+  RuntimeEventReplayMetadata,
+  RuntimeEventReplayWindow,
   RuntimeGeneratedShaderResponse,
   RuntimeHealth,
   RuntimeHistory,
@@ -43,10 +49,15 @@ import type {
   RuntimeOperationAttribution,
   RuntimeOperationDiagnostic,
   RuntimeOperationEnvelope,
+  RuntimeOwnershipMode,
   RuntimePatchResponse,
+  RuntimeProcessMetadata,
   RuntimePreviewStatus,
+  RuntimeSessionCapabilitySet,
   RuntimeSessionEvent,
   RuntimeSessionEventKind,
+  RuntimeSessionInfoResponse,
+  RuntimeSessionLifecycleState,
   RuntimeSessionResponse,
   RuntimeSessionSnapshot,
   RuntimeTelemetrySnapshot
@@ -74,6 +85,10 @@ const RUNTIME_OPERATION_DIAGNOSTIC_CODES = new Set([
   "target-not-found",
   "unsupported-operation"
 ]);
+const RUNTIME_SESSION_LIFECYCLE_STATES = new Set(["initializing", "ready", "closing", "closed", "error"]);
+const RUNTIME_CONNECTION_PROFILE_MODES = new Set(["local-managed", "local-shared", "remote"]);
+const RUNTIME_OWNERSHIP_MODES = new Set(["owned-child", "external", "remote"]);
+const RUNTIME_EVENT_REPLAY_GAP_REASONS = new Set(["retention-overflow", "stream-reset", "unknown"]);
 
 export function isRuntimeHealth(value: unknown): value is RuntimeHealth {
   return isRecord(value) && typeof value.ok === "boolean" && typeof value.service === "string" && typeof value.version === "string";
@@ -145,6 +160,23 @@ export function isRuntimeSessionResponse(value: unknown): value is RuntimeSessio
   );
 }
 
+export function isRuntimeSessionInfoResponse(value: unknown): value is RuntimeSessionInfoResponse {
+  return (
+    isRecord(value) &&
+    value.schema === "skenion.runtime.session.info" &&
+    value.schemaVersion === "0.1.0" &&
+    typeof value.ok === "boolean" &&
+    typeof value.sessionId === "string" &&
+    isRuntimeSessionLifecycleState(value.lifecycle) &&
+    isRuntimeSessionSnapshot(value.snapshot) &&
+    isRuntimeConnectionProfile(value.profile) &&
+    isRuntimeSessionCapabilitySet(value.capabilities) &&
+    isRuntimeEventReplayWindow(value.eventReplay) &&
+    Array.isArray(value.diagnostics) &&
+    value.diagnostics.every(isRuntimeDiagnostic)
+  );
+}
+
 export function isRuntimePatchResponse(value: unknown): value is RuntimePatchResponse {
   return (
     isRecord(value) &&
@@ -213,6 +245,7 @@ export function isRuntimeSessionEvent(value: unknown): value is RuntimeSessionEv
     typeof value.id === "string" &&
     typeof value.sessionId === "string" &&
     typeof value.sequence === "number" &&
+    typeof value.sessionRevision === "number" &&
     isRuntimeSessionEventKind(value.kind) &&
     isRuntimeSessionSnapshot(value.snapshot) &&
     !("session" in value) &&
@@ -221,9 +254,113 @@ export function isRuntimeSessionEvent(value: unknown): value is RuntimeSessionEv
     !("graphEvent" in value) &&
     isRuntimeHistory(value.history) &&
     (value.mutation === undefined || isRuntimeHistoryEntry(value.mutation)) &&
+    isRuntimeEventReplayMetadata(value.replay) &&
     Array.isArray(value.diagnostics) &&
     value.diagnostics.every(isRuntimeDiagnostic) &&
     typeof value.createdAt === "string"
+  );
+}
+
+function isRuntimeSessionLifecycleState(value: unknown): value is RuntimeSessionLifecycleState {
+  return typeof value === "string" && RUNTIME_SESSION_LIFECYCLE_STATES.has(value);
+}
+
+function isRuntimeConnectionProfileMode(value: unknown): value is RuntimeConnectionProfileMode {
+  return typeof value === "string" && RUNTIME_CONNECTION_PROFILE_MODES.has(value);
+}
+
+function isRuntimeOwnershipMode(value: unknown): value is RuntimeOwnershipMode {
+  return typeof value === "string" && RUNTIME_OWNERSHIP_MODES.has(value);
+}
+
+function isRuntimeEndpointMetadata(value: unknown): value is RuntimeEndpointMetadata {
+  return (
+    isRecord(value) &&
+    typeof value.url === "string" &&
+    (value.canonicalUrl === undefined || typeof value.canonicalUrl === "string") &&
+    (value.protocol === "http" || value.protocol === "https") &&
+    (value.host === undefined || typeof value.host === "string") &&
+    (value.port === undefined || (typeof value.port === "number" && Number.isInteger(value.port) && value.port >= 0 && value.port <= 65535)) &&
+    (value.tls === undefined || typeof value.tls === "boolean")
+  );
+}
+
+function isRuntimeProcessMetadata(value: unknown): value is RuntimeProcessMetadata {
+  return (
+    isRecord(value) &&
+    typeof value.ownedByHost === "boolean" &&
+    (value.pid === undefined || (typeof value.pid === "number" && Number.isInteger(value.pid) && value.pid >= 1)) &&
+    (value.executablePath === undefined || typeof value.executablePath === "string") &&
+    (value.workingDirectory === undefined || typeof value.workingDirectory === "string") &&
+    (value.startedAt === undefined || typeof value.startedAt === "string") &&
+    (value.ownerWindowId === undefined || typeof value.ownerWindowId === "string") &&
+    (value.platform === undefined || typeof value.platform === "string") &&
+    (value.arch === undefined || typeof value.arch === "string")
+  );
+}
+
+function isRuntimeConnectionProfile(value: unknown): value is RuntimeConnectionProfile {
+  return (
+    isRecord(value) &&
+    isRuntimeConnectionProfileMode(value.mode) &&
+    isRuntimeOwnershipMode(value.ownership) &&
+    (value.displayName === undefined || typeof value.displayName === "string") &&
+    isRuntimeEndpointMetadata(value.endpoint) &&
+    (value.process === undefined || value.process === null || isRuntimeProcessMetadata(value.process))
+  );
+}
+
+function isRuntimeEventReplayWindow(value: unknown): value is RuntimeEventReplayWindow {
+  return (
+    isRecord(value) &&
+    value.cursorKind === "sequence" &&
+    typeof value.currentCursor === "string" &&
+    typeof value.earliestSequence === "number" &&
+    Number.isInteger(value.earliestSequence) &&
+    value.earliestSequence >= 1 &&
+    typeof value.latestSequence === "number" &&
+    Number.isInteger(value.latestSequence) &&
+    value.latestSequence >= 0 &&
+    (value.replayLimit === null || (typeof value.replayLimit === "number" && Number.isInteger(value.replayLimit) && value.replayLimit >= 0)) &&
+    (value.overflow === undefined || typeof value.overflow === "boolean")
+  );
+}
+
+function isRuntimeSessionCapabilitySet(value: unknown): value is RuntimeSessionCapabilitySet {
+  return (
+    isRecord(value) &&
+    typeof value.sessionAddressing === "boolean" &&
+    typeof value.defaultSessionAlias === "boolean" &&
+    typeof value.eventReplay === "boolean" &&
+    typeof value.multiWindow === "boolean" &&
+    Array.isArray(value.profiles) &&
+    value.profiles.every(isRuntimeConnectionProfileMode) &&
+    value.authPolicy === "deferred"
+  );
+}
+
+function isRuntimeEventReplayGap(value: unknown): value is RuntimeEventReplayGap {
+  return (
+    isRecord(value) &&
+    typeof value.expectedSequence === "number" &&
+    Number.isInteger(value.expectedSequence) &&
+    value.expectedSequence >= 1 &&
+    typeof value.actualSequence === "number" &&
+    Number.isInteger(value.actualSequence) &&
+    value.actualSequence >= 1 &&
+    typeof value.reason === "string" &&
+    RUNTIME_EVENT_REPLAY_GAP_REASONS.has(value.reason)
+  );
+}
+
+function isRuntimeEventReplayMetadata(value: unknown): value is RuntimeEventReplayMetadata {
+  return (
+    isRecord(value) &&
+    typeof value.cursor === "string" &&
+    (value.previousCursor === null || typeof value.previousCursor === "string") &&
+    typeof value.replayed === "boolean" &&
+    (value.gap === null || isRuntimeEventReplayGap(value.gap)) &&
+    typeof value.overflow === "boolean"
   );
 }
 

@@ -19,6 +19,7 @@ import {
   projectV01Schema,
   projectV02Schema,
   runtimeOperationV0Schema,
+  runtimeSessionV0Schema,
   shaderInterfaceV01Schema,
   viewStateV01Schema
 } from "./generated/schemas.js";
@@ -52,6 +53,8 @@ import type {
   ProjectDocumentV01,
   ProjectDocumentV02,
   RuntimeOperationEnvelope,
+  RuntimeSessionEvent,
+  RuntimeSessionInfoResponse,
   ShaderInterfaceV01,
   ValidationResult,
   ViewStateV01
@@ -69,10 +72,17 @@ ajv.addSchema(graphFragmentV02Schema);
 ajv.addSchema(graphPatchV01Schema);
 ajv.addSchema(graphPatchEventV01Schema);
 ajv.addSchema(nodeDefinitionV01Schema);
+ajv.addSchema(runtimeSessionV0Schema);
 const graphV01Validator = ajv.compile(graphV01Schema);
 const graphV02Validator = ajv.compile(graphV02Schema);
 const graphFragmentV02Validator = ajv.compile(graphFragmentV02Schema);
 const runtimeOperationV0Validator = ajv.compile(runtimeOperationV0Schema);
+const runtimeSessionInfoResponseValidator = ajv.compile(runtimeSessionV0Schema);
+const runtimeSessionEventValidator = ajv.compile({
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://skenion.dev/schemas/runtime/v0/session-event.schema.json",
+  $ref: "https://skenion.dev/schemas/runtime/v0/session.schema.json#/$defs/runtimeSessionEvent"
+});
 const pasteGraphFragmentRequestValidator = ajv.compile({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://skenion.dev/schemas/runtime/v0/paste-graph-fragment-request.schema.json",
@@ -968,6 +978,26 @@ export function validateRuntimeOperationEnvelope(
   }
 
   return { ok: true, value: envelope };
+}
+
+export function validateRuntimeSessionInfoResponse(
+  document: unknown
+): ValidationResult<RuntimeSessionInfoResponse> {
+  if (!runtimeSessionInfoResponseValidator(document)) {
+    return { ok: false, errors: schemaErrors(runtimeSessionInfoResponseValidator.errors as ErrorObject[]) };
+  }
+
+  return { ok: true, value: document as RuntimeSessionInfoResponse };
+}
+
+export function validateRuntimeSessionEvent(
+  document: unknown
+): ValidationResult<RuntimeSessionEvent> {
+  if (!runtimeSessionEventValidator(document)) {
+    return { ok: false, errors: schemaErrors(runtimeSessionEventValidator.errors as ErrorObject[]) };
+  }
+
+  return { ok: true, value: document as RuntimeSessionEvent };
 }
 
 export function validatePasteGraphFragmentRequest(

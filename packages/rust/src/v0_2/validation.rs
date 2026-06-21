@@ -10,7 +10,9 @@ use super::{
     GraphFragmentV02, GraphFragmentValidationResultV02, GraphValidationDiagnosticV02,
     GraphValidationResultV02, MergePolicyV02, NodeDefinitionManifestV02, PasteGraphFragmentRequest,
     PasteGraphFragmentResponse, PatchDefinitionV02, PortDirectionV02, PortSpecV02,
-    ProjectDocumentV02, RuntimeOperationEnvelope, derive_patch_contract_v02,
+    ProjectDocumentV02, RuntimeConnectionProfileMode, RuntimeOperationEnvelope,
+    RuntimeOwnershipMode, RuntimeSessionEvent, RuntimeSessionInfoResponse,
+    derive_patch_contract_v02,
 };
 use crate::v0_1::ViewStateV01;
 
@@ -906,6 +908,126 @@ pub fn validate_paste_graph_fragment_response(
     }
 }
 
+pub fn validate_runtime_session_info_response(
+    response: &RuntimeSessionInfoResponse,
+) -> Result<(), ValidationReportV02> {
+    let mut errors = Vec::new();
+    if response.schema != "skenion.runtime.session.info" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schema skenion.runtime.session.info, found {}",
+            response.schema
+        )));
+    }
+    if response.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schemaVersion 0.1.0, found {}",
+            response.schema_version
+        )));
+    }
+    if response.session_id.is_empty() {
+        errors.push(ValidationErrorV02::new("sessionId must not be empty"));
+    }
+    if response.capabilities.auth_policy != "deferred" {
+        errors.push(ValidationErrorV02::new(
+            "runtime session authPolicy must be deferred",
+        ));
+    }
+    if response.event_replay.cursor_kind != "sequence" {
+        errors.push(ValidationErrorV02::new(
+            "runtime eventReplay cursorKind must be sequence",
+        ));
+    }
+    if response.event_replay.current_cursor.is_empty() {
+        errors.push(ValidationErrorV02::new(
+            "runtime eventReplay currentCursor must not be empty",
+        ));
+    }
+    if response.event_replay.earliest_sequence == 0 {
+        errors.push(ValidationErrorV02::new(
+            "runtime eventReplay earliestSequence must be at least 1",
+        ));
+    }
+    if matches!(
+        (&response.profile.mode, &response.profile.ownership),
+        (
+            RuntimeConnectionProfileMode::LocalManaged,
+            RuntimeOwnershipMode::OwnedChild
+        ) | (
+            RuntimeConnectionProfileMode::LocalShared,
+            RuntimeOwnershipMode::External
+        ) | (
+            RuntimeConnectionProfileMode::Remote,
+            RuntimeOwnershipMode::Remote
+        )
+    ) {
+    } else {
+        errors.push(ValidationErrorV02::new(
+            "runtime profile ownership must match local-managed, local-shared, or remote mode",
+        ));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV02::new(errors))
+    }
+}
+
+pub fn validate_runtime_session_event(
+    event: &RuntimeSessionEvent,
+) -> Result<(), ValidationReportV02> {
+    let mut errors = Vec::new();
+    if event.schema != "skenion.runtime.session.event" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schema skenion.runtime.session.event, found {}",
+            event.schema
+        )));
+    }
+    if event.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schemaVersion 0.1.0, found {}",
+            event.schema_version
+        )));
+    }
+    if event.session_id.is_empty() {
+        errors.push(ValidationErrorV02::new("sessionId must not be empty"));
+    }
+    if event.sequence == 0 {
+        errors.push(ValidationErrorV02::new("sequence must be at least 1"));
+    }
+    if event.replay.cursor.is_empty() {
+        errors.push(ValidationErrorV02::new("replay cursor must not be empty"));
+    }
+    if let Some(gap) = &event.replay.gap {
+        if gap.expected_sequence == 0 || gap.actual_sequence == 0 {
+            errors.push(ValidationErrorV02::new(
+                "replay gap sequences must be at least 1",
+            ));
+        }
+        if gap.expected_sequence >= gap.actual_sequence {
+            errors.push(ValidationErrorV02::new(
+                "replay gap expectedSequence must be less than actualSequence",
+            ));
+        }
+    }
+    if event
+        .snapshot
+        .get("sessionRevision")
+        .and_then(serde_json::Value::as_u64)
+        .is_some_and(|snapshot_revision| event.session_revision != snapshot_revision)
+    {
+        errors.push(ValidationErrorV02::new(
+            "event sessionRevision must match snapshot.sessionRevision",
+        ));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV02::new(errors))
+    }
+}
+
 pub fn validate_node_definition_v02(
     definition: &NodeDefinitionManifestV02,
 ) -> Result<(), ValidationReportV02> {
@@ -1095,8 +1217,9 @@ mod tests {
     use crate::v0_2::{
         EdgeEndpointV02, FeedbackPolicyV02, GraphFragmentV02, GraphNodeV02, GraphTargetRef,
         IdConflictPolicy, IdRemapResult, PasteGraphFragmentOptions, PasteGraphFragmentRequest,
-        PasteGraphFragmentResponse, PatchPath, RuntimeOperationDiagnostic,
-        RuntimeOperationEnvelope,
+        PasteGraphFragmentResponse, PatchPath, RuntimeEventReplayGap, RuntimeEventReplayGapReason,
+        RuntimeOperationDiagnostic, RuntimeOperationEnvelope, RuntimeSessionEvent,
+        RuntimeSessionInfoResponse,
     };
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -1189,6 +1312,64 @@ mod tests {
             correlation_id: None,
             created_at: None,
         }
+    }
+
+    fn runtime_session_info() -> RuntimeSessionInfoResponse {
+        serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.info",
+            "schemaVersion": "0.1.0",
+            "ok": true,
+            "sessionId": "session-a",
+            "lifecycle": "ready",
+            "snapshot": { "sessionRevision": 1 },
+            "profile": {
+                "mode": "local-managed",
+                "ownership": "owned-child",
+                "endpoint": { "url": "http://127.0.0.1:49231", "protocol": "http" },
+                "process": { "ownedByHost": true }
+            },
+            "capabilities": {
+                "sessionAddressing": true,
+                "defaultSessionAlias": true,
+                "eventReplay": true,
+                "multiWindow": true,
+                "profiles": ["local-managed", "local-shared", "remote"],
+                "authPolicy": "deferred"
+            },
+            "eventReplay": {
+                "cursorKind": "sequence",
+                "currentCursor": "1",
+                "earliestSequence": 1,
+                "latestSequence": 1,
+                "replayLimit": 512
+            },
+            "diagnostics": []
+        }))
+        .expect("session info should parse")
+    }
+
+    fn runtime_session_event() -> RuntimeSessionEvent {
+        serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.event",
+            "schemaVersion": "0.1.0",
+            "id": "event-1",
+            "sessionId": "session-a",
+            "sequence": 1,
+            "sessionRevision": 1,
+            "kind": "snapshot",
+            "snapshot": { "sessionRevision": 1 },
+            "history": { "entries": [] },
+            "replay": {
+                "cursor": "1",
+                "previousCursor": null,
+                "replayed": false,
+                "gap": null,
+                "overflow": false
+            },
+            "diagnostics": [],
+            "createdAt": "2026-06-22T00:00:00.000Z"
+        }))
+        .expect("session event should parse")
     }
 
     #[test]
@@ -1886,6 +2067,126 @@ mod tests {
         assert!(text.contains("unsupported permission"));
         assert!(text.contains("duplicate port id"));
         assert!(text.contains("maxPorts"));
+    }
+
+    #[test]
+    fn validates_runtime_session_profile_and_replay_branches() {
+        let info = runtime_session_info();
+        validate_runtime_session_info_response(&info).expect("session info should validate");
+
+        let mut invalid_info = info.clone();
+        invalid_info.schema = "wrong".to_owned();
+        invalid_info.schema_version = "9.9.9".to_owned();
+        invalid_info.session_id.clear();
+        invalid_info.capabilities.auth_policy = "trusted-local".to_owned();
+        invalid_info.event_replay.cursor_kind = "timestamp".to_owned();
+        invalid_info.event_replay.current_cursor.clear();
+        invalid_info.event_replay.earliest_sequence = 0;
+        invalid_info.profile.ownership = RuntimeOwnershipMode::Remote;
+        let info_error = validate_runtime_session_info_response(&invalid_info)
+            .expect_err("invalid session info should fail")
+            .to_string();
+        assert!(info_error.contains("skenion.runtime.session.info"));
+        assert!(info_error.contains("0.1.0"));
+        assert!(info_error.contains("sessionId must not be empty"));
+        assert!(info_error.contains("authPolicy must be deferred"));
+        assert!(info_error.contains("cursorKind must be sequence"));
+        assert!(info_error.contains("currentCursor must not be empty"));
+        assert!(info_error.contains("earliestSequence must be at least 1"));
+        assert!(info_error.contains("profile ownership must match"));
+
+        let shared = serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.info",
+            "schemaVersion": "0.1.0",
+            "ok": true,
+            "sessionId": "session-b",
+            "lifecycle": "ready",
+            "snapshot": {},
+            "profile": {
+                "mode": "local-shared",
+                "ownership": "external",
+                "endpoint": { "url": "http://127.0.0.1:49232", "protocol": "http" },
+                "process": { "ownedByHost": false }
+            },
+            "capabilities": {
+                "sessionAddressing": true,
+                "defaultSessionAlias": true,
+                "eventReplay": true,
+                "multiWindow": true,
+                "profiles": ["local-shared"],
+                "authPolicy": "deferred"
+            },
+            "eventReplay": {
+                "cursorKind": "sequence",
+                "currentCursor": "1",
+                "earliestSequence": 1,
+                "latestSequence": 1,
+                "replayLimit": null
+            },
+            "diagnostics": []
+        }))
+        .expect("shared info should parse");
+        validate_runtime_session_info_response(&shared).expect("shared info should validate");
+
+        let remote = serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.info",
+            "schemaVersion": "0.1.0",
+            "ok": true,
+            "sessionId": "session-c",
+            "lifecycle": "ready",
+            "snapshot": {},
+            "profile": {
+                "mode": "remote",
+                "ownership": "remote",
+                "endpoint": { "url": "https://runtime.example.test", "protocol": "https" },
+                "process": null
+            },
+            "capabilities": {
+                "sessionAddressing": true,
+                "defaultSessionAlias": false,
+                "eventReplay": true,
+                "multiWindow": true,
+                "profiles": ["remote"],
+                "authPolicy": "deferred"
+            },
+            "eventReplay": {
+                "cursorKind": "sequence",
+                "currentCursor": "1",
+                "earliestSequence": 1,
+                "latestSequence": 1,
+                "replayLimit": 512
+            },
+            "diagnostics": []
+        }))
+        .expect("remote info should parse");
+        validate_runtime_session_info_response(&remote).expect("remote info should validate");
+
+        let event = runtime_session_event();
+        validate_runtime_session_event(&event).expect("session event should validate");
+
+        let mut invalid_event = event.clone();
+        invalid_event.schema = "wrong".to_owned();
+        invalid_event.schema_version = "9.9.9".to_owned();
+        invalid_event.session_id.clear();
+        invalid_event.sequence = 0;
+        invalid_event.session_revision = 2;
+        invalid_event.replay.cursor.clear();
+        invalid_event.replay.gap = Some(RuntimeEventReplayGap {
+            expected_sequence: 0,
+            actual_sequence: 0,
+            reason: RuntimeEventReplayGapReason::Unknown,
+        });
+        let event_error = validate_runtime_session_event(&invalid_event)
+            .expect_err("invalid session event should fail")
+            .to_string();
+        assert!(event_error.contains("skenion.runtime.session.event"));
+        assert!(event_error.contains("0.1.0"));
+        assert!(event_error.contains("sessionId must not be empty"));
+        assert!(event_error.contains("sequence must be at least 1"));
+        assert!(event_error.contains("replay cursor must not be empty"));
+        assert!(event_error.contains("replay gap sequences must be at least 1"));
+        assert!(event_error.contains("expectedSequence must be less than actualSequence"));
+        assert!(event_error.contains("sessionRevision must match"));
     }
 
     #[test]

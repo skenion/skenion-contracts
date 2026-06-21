@@ -5,15 +5,17 @@ use skenion_contracts::{
     GraphFragmentOutsideEndpointPolicyV02, GraphFragmentV02, GraphPatchOperationV01, GraphPatchV01,
     MidiClockMessageKindV01, MidiClockMessageV01, MidiClockSnapshotV01, NodeDefinitionManifestV01,
     NodeDefinitionManifestV02, NumberRangeV01, ObjectTextParseResultV01, ProjectDocumentV02,
-    RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionEventKind, StringOrStringsV01,
-    analyze_graph_document_v02, analyze_graph_fragment_v02, apply_graph_patch_v01,
-    apply_midi_clock_message_v01, compatible_data_types_v01, derive_patch_contract_v02,
-    derive_patch_contracts_v02, invert_graph_patch_v01, midi_clock_snapshot_to_clock_state_v01,
-    parse_midi_clock_message_v01, parse_object_text_v01, plan_audio_clock_bridge_v01,
-    type_label_v01, validate_graph_document_v01, validate_graph_document_v02,
-    validate_graph_fragment_v02, validate_node_definition_v01, validate_node_definition_v02,
+    RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionEventKind,
+    RuntimeSessionInfoResponse, StringOrStringsV01, analyze_graph_document_v02,
+    analyze_graph_fragment_v02, apply_graph_patch_v01, apply_midi_clock_message_v01,
+    compatible_data_types_v01, derive_patch_contract_v02, derive_patch_contracts_v02,
+    invert_graph_patch_v01, midi_clock_snapshot_to_clock_state_v01, parse_midi_clock_message_v01,
+    parse_object_text_v01, plan_audio_clock_bridge_v01, type_label_v01,
+    validate_graph_document_v01, validate_graph_document_v02, validate_graph_fragment_v02,
+    validate_node_definition_v01, validate_node_definition_v02,
     validate_object_text_parse_result_v01, validate_project_document_v02,
-    validate_runtime_operation_envelope,
+    validate_runtime_operation_envelope, validate_runtime_session_event,
+    validate_runtime_session_info_response,
 };
 
 fn data_type(flow: DataFlowV01, data_kind: &str) -> DataTypeV01 {
@@ -128,6 +130,42 @@ fn parses_public_graph_fragment_paste_contracts() {
 
 #[test]
 fn parses_public_session_addressed_runtime_event() {
+    let info: RuntimeSessionInfoResponse = serde_json::from_str(
+        r#"{
+          "schema": "skenion.runtime.session.info",
+          "schemaVersion": "0.1.0",
+          "ok": true,
+          "sessionId": "session-a",
+          "lifecycle": "ready",
+          "snapshot": { "sessionRevision": 1, "viewRevision": 1, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
+          "profile": {
+            "mode": "remote",
+            "ownership": "remote",
+            "endpoint": { "url": "https://runtime.example.test", "protocol": "https" },
+            "process": null
+          },
+          "capabilities": {
+            "sessionAddressing": true,
+            "defaultSessionAlias": true,
+            "eventReplay": true,
+            "multiWindow": true,
+            "profiles": ["local-managed", "local-shared", "remote"],
+            "authPolicy": "deferred"
+          },
+          "eventReplay": {
+            "cursorKind": "sequence",
+            "currentCursor": "1",
+            "earliestSequence": 1,
+            "latestSequence": 1,
+            "replayLimit": 512
+          },
+          "diagnostics": []
+        }"#,
+    )
+    .expect("session info should parse");
+    validate_runtime_session_info_response(&info).expect("session info should validate");
+    assert_eq!(info.session_id, "session-a");
+
     let event: RuntimeSessionEvent = serde_json::from_str(
         r#"{
           "schema": "skenion.runtime.session.event",
@@ -135,15 +173,24 @@ fn parses_public_session_addressed_runtime_event() {
           "id": "event-1",
           "sessionId": "session-a",
           "sequence": 1,
+          "sessionRevision": 1,
           "kind": "snapshot",
           "snapshot": { "sessionRevision": 1 },
           "history": { "entries": [] },
+          "replay": {
+            "cursor": "1",
+            "previousCursor": null,
+            "replayed": false,
+            "gap": null,
+            "overflow": false
+          },
           "diagnostics": [],
           "createdAt": "2026-06-21T00:00:00.000Z"
         }"#,
     )
     .expect("session event should parse");
 
+    validate_runtime_session_event(&event).expect("session event should validate");
     assert_eq!(event.session_id, "session-a");
     assert_eq!(event.kind, RuntimeSessionEventKind::Snapshot);
 }

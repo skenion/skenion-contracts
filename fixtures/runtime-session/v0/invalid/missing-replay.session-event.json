@@ -1,0 +1,13 @@
+{
+  "schema": "skenion.runtime.session.event",
+  "schemaVersion": "0.1.0",
+  "id": "event-1",
+  "sessionId": "session-a",
+  "sequence": 1,
+  "sessionRevision": 1,
+  "kind": "snapshot",
+  "snapshot": {},
+  "history": {},
+  "diagnostics": [],
+  "createdAt": "2026-06-22T00:00:00.000Z"
+}

@@ -506,6 +506,158 @@ pub enum RuntimeSessionEventKind {
     Redo,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeSessionLifecycleState {
+    Initializing,
+    Ready,
+    Closing,
+    Closed,
+    Error,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeConnectionProfileMode {
+    LocalManaged,
+    LocalShared,
+    Remote,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeOwnershipMode {
+    OwnedChild,
+    External,
+    Remote,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeEndpointProtocol {
+    Http,
+    Https,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEndpointMetadata {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub canonical_url: Option<String>,
+    pub protocol: RuntimeEndpointProtocol,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tls: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeProcessMetadata {
+    pub owned_by_host: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executable_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_window_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arch: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeConnectionProfile {
+    pub mode: RuntimeConnectionProfileMode,
+    pub ownership: RuntimeOwnershipMode,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    pub endpoint: RuntimeEndpointMetadata,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process: Option<RuntimeProcessMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEventReplayWindow {
+    pub cursor_kind: String,
+    pub current_cursor: String,
+    pub earliest_sequence: u64,
+    pub latest_sequence: u64,
+    pub replay_limit: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overflow: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSessionCapabilitySet {
+    pub session_addressing: bool,
+    pub default_session_alias: bool,
+    pub event_replay: bool,
+    pub multi_window: bool,
+    pub profiles: Vec<RuntimeConnectionProfileMode>,
+    pub auth_policy: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSessionInfoResponse {
+    pub schema: String,
+    pub schema_version: String,
+    pub ok: bool,
+    pub session_id: String,
+    pub lifecycle: RuntimeSessionLifecycleState,
+    pub snapshot: Value,
+    pub profile: RuntimeConnectionProfile,
+    pub capabilities: RuntimeSessionCapabilitySet,
+    pub event_replay: RuntimeEventReplayWindow,
+    pub diagnostics: Vec<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeEventReplayGapReason {
+    RetentionOverflow,
+    StreamReset,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEventReplayGap {
+    pub expected_sequence: u64,
+    pub actual_sequence: u64,
+    pub reason: RuntimeEventReplayGapReason,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEventReplayMetadata {
+    pub cursor: String,
+    pub previous_cursor: Option<String>,
+    pub replayed: bool,
+    pub gap: Option<RuntimeEventReplayGap>,
+    pub overflow: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -515,11 +667,13 @@ pub struct RuntimeSessionEvent {
     pub id: String,
     pub session_id: String,
     pub sequence: u64,
+    pub session_revision: u64,
     pub kind: RuntimeSessionEventKind,
     pub snapshot: Value,
     pub history: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mutation: Option<Value>,
+    pub replay: RuntimeEventReplayMetadata,
     pub diagnostics: Vec<Value>,
     pub created_at: String,
 }

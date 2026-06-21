@@ -16,6 +16,7 @@ const viewStateV01Schema = await readSchema("json-schema/view/v0.1/view-state.sc
 const projectV01Schema = await readSchema("json-schema/project/v0.1/project.schema.json");
 const projectV02Schema = await readSchema("json-schema/project/v0.2/project.schema.json");
 const runtimeOperationV0Schema = await readSchema("json-schema/runtime/v0/operation.schema.json");
+const runtimeSessionV0Schema = await readSchema("json-schema/runtime/v0/session.schema.json");
 const graphPatchV01Schema = await readSchema("json-schema/graph/v0.1/patch.schema.json");
 const graphPatchEventV01Schema = await readSchema(
   "json-schema/graph/v0.1/patch-event.schema.json"
@@ -64,6 +65,8 @@ await writeFile(
     `export const projectV02Schema = ${JSON.stringify(projectV02Schema, null, 2)} as const;`,
     "",
     `export const runtimeOperationV0Schema = ${JSON.stringify(runtimeOperationV0Schema, null, 2)} as const;`,
+    "",
+    `export const runtimeSessionV0Schema = ${JSON.stringify(runtimeSessionV0Schema, null, 2)} as const;`,
     "",
     `export const graphPatchV01Schema = ${JSON.stringify(graphPatchV01Schema, null, 2)} as const;`,
     "",

@@ -31,6 +31,7 @@ import {
   projectV01Schema,
   projectV02Schema,
   runtimeOperationV0Schema,
+  runtimeSessionV0Schema,
   parseObjectTextV01,
   representationForDataType,
   representationRegistryV01,
@@ -62,12 +63,15 @@ import {
   validateProjectDocument,
   validateProjectDocumentV02,
   validateRuntimeOperationEnvelope,
+  validateRuntimeSessionEvent,
+  validateRuntimeSessionInfoResponse,
   validateViewState,
   validateShaderInterface,
   isPasteGraphFragmentRequest,
   isPasteGraphFragmentResponse,
   isRuntimeOperationEnvelope,
-  isRuntimeSessionEvent
+  isRuntimeSessionEvent,
+  isRuntimeSessionInfoResponse
 } from "../dist/index.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
@@ -95,6 +99,7 @@ test("exports v0.1 graph and node definition schemas", () => {
   assert.equal(objectTextParseResultV01Schema.properties.schema.const, "skenion.object-text.parse-result");
   assert.equal(extensionManifestV01Schema.properties.schema.const, "skenion.extension.manifest");
   assert.equal(shaderInterfaceV01Schema.properties.schema.const, "skenion.shader.interface");
+  assert.equal(runtimeSessionV0Schema.properties.schema.const, "skenion.runtime.session.info");
   assert.equal(controlMessageV01Schema.properties.selector.type, "string");
   assert.deepEqual(shaderDiagnosticV01Schema.properties.phase.enum, [
     "interface-analysis",
@@ -104,6 +109,41 @@ test("exports v0.1 graph and node definition schemas", () => {
     "render-pipeline",
     "render-frame"
   ]);
+});
+
+test("validates runtime session profile and replay fixtures", async () => {
+  const info = await readJson("fixtures/runtime-session/v0/valid/local-managed-session-info.json");
+  const infoResult = validateRuntimeSessionInfoResponse(info);
+
+  assert.equal(infoResult.ok, true);
+  assert.equal(isRuntimeSessionInfoResponse(info), true);
+  assert.equal(info.profile.mode, "local-managed");
+  assert.equal(info.profile.ownership, "owned-child");
+  assert.equal(info.capabilities.authPolicy, "deferred");
+  assert.deepEqual(info.capabilities.profiles, ["local-managed", "local-shared", "remote"]);
+
+  const event = await readJson("fixtures/runtime-session/v0/valid/replayed-session-event.json");
+  const eventResult = validateRuntimeSessionEvent(event);
+
+  assert.equal(eventResult.ok, true);
+  assert.equal(isRuntimeSessionEvent(event), true);
+  assert.equal(event.sessionId, "session-a");
+  assert.equal(event.sessionRevision, event.snapshot.sessionRevision);
+  assert.equal(event.replay.gap.reason, "retention-overflow");
+
+  const invalidProfile = await readJson("fixtures/runtime-session/v0/invalid/invalid-profile-mode.session-info.json");
+  const invalidProfileResult = validateRuntimeSessionInfoResponse(invalidProfile);
+
+  assert.equal(invalidProfileResult.ok, false);
+  assert.equal(isRuntimeSessionInfoResponse(invalidProfile), false);
+  assert.match(invalidProfileResult.errors.join("\n"), /must be equal to one of the allowed values|must be equal to constant/);
+
+  const missingReplay = await readJson("fixtures/runtime-session/v0/invalid/missing-replay.session-event.json");
+  const missingReplayResult = validateRuntimeSessionEvent(missingReplay);
+
+  assert.equal(missingReplayResult.ok, false);
+  assert.equal(isRuntimeSessionEvent(missingReplay), false);
+  assert.match(missingReplayResult.errors.join("\n"), /must have required property 'replay'/);
 });
 
 test("validates extension package manifests with help and tests", async () => {
@@ -146,6 +186,10 @@ test("documents runtime IO discovery HTTP API", async () => {
     "RuntimeIoDeviceDescriptor",
     "RuntimeIoBindingConfig",
     "RuntimeIoDiagnostic",
+    "RuntimeSessionInfoResponse",
+    "RuntimeConnectionProfile",
+    "RuntimeSessionCapabilitySet",
+    "RuntimeEventReplayMetadata",
     "RuntimeOperationEnvelope",
     "PasteGraphFragmentRequest",
     "PasteGraphFragmentResponse",
@@ -157,9 +201,12 @@ test("documents runtime IO discovery HTTP API", async () => {
     assert.match(openApi, new RegExp(`\\b${schemaName}:`));
   }
 
+  assert.match(openApi, /\/v0\/sessions\/\{sessionId\}:/);
   assert.match(openApi, /\/v0\/sessions\/\{sessionId\}\/operations:/);
   assert.match(openApi, /\/v0\/sessions\/\{sessionId\}\/events\/stream:/);
   assert.match(openApi, /Compatibility\/default-session alias/);
+  assert.match(openApi, /name: since/);
+  assert.match(openApi, /authPolicy:/);
   assert.match(openApi, /sessions\.events\.stream/);
   assert.match(openApi, /sessionId:/);
 });
@@ -1315,6 +1362,7 @@ test("runtime session events are session-addressed", () => {
     id: "event-1",
     sessionId: "session-a",
     sequence: 1,
+    sessionRevision: 1,
     kind: "snapshot",
     snapshot: {
       sessionRevision: 1,
@@ -1332,6 +1380,13 @@ test("runtime session events are session-addressed", () => {
       canRedo: false,
       undoDepth: 0,
       redoDepth: 0
+    },
+    replay: {
+      cursor: "1",
+      previousCursor: null,
+      replayed: false,
+      gap: null,
+      overflow: false
     },
     diagnostics: [],
     createdAt: "2026-06-21T00:00:00.000Z"

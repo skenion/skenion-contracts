@@ -896,6 +896,12 @@ function selectValidator(file, document, validators) {
   if (document.schema === "skenion.runtime.operation" && document.schemaVersion === "0.1.0") {
     return validators.runtimeOperationV0;
   }
+  if (document.schema === "skenion.runtime.session.info" && document.schemaVersion === "0.1.0") {
+    return validators.runtimeSessionInfo;
+  }
+  if (document.schema === "skenion.runtime.session.event" && document.schemaVersion === "0.1.0") {
+    return validators.runtimeSessionEvent;
+  }
   if (document.schema === "skenion.runtime.paste-graph-fragment.response" && document.schemaVersion === "0.1.0") {
     return validators.pasteGraphFragmentResponse;
   }
@@ -983,6 +989,7 @@ const graphV01Schema = await readJson("json-schema/graph/v0.1/graph.schema.json"
 const graphV02Schema = await readJson("json-schema/graph/v0.2/graph.schema.json");
 const graphFragmentV02Schema = await readJson("json-schema/graph/v0.2/fragment.schema.json");
 const runtimeOperationV0Schema = await readJson("json-schema/runtime/v0/operation.schema.json");
+const runtimeSessionV0Schema = await readJson("json-schema/runtime/v0/session.schema.json");
 const viewStateV01Schema = await readJson("json-schema/view/v0.1/view-state.schema.json");
 const projectV01Schema = await readJson("json-schema/project/v0.1/project.schema.json");
 const projectV02Schema = await readJson("json-schema/project/v0.2/project.schema.json");
@@ -992,6 +999,7 @@ const nodeDefinitionV01Schema = await readJson("json-schema/node/v0.1/node-defin
 ajv.addSchema(graphV02Schema);
 ajv.addSchema(graphFragmentV02Schema);
 ajv.addSchema(runtimeOperationV0Schema);
+ajv.addSchema(runtimeSessionV0Schema);
 ajv.addSchema(graphPatchV01Schema);
 ajv.addSchema(graphPatchEventV01Schema);
 ajv.addSchema(nodeDefinitionV01Schema);
@@ -1002,6 +1010,12 @@ const validators = {
   graphV02: ajv.compile(graphV02Schema),
   graphFragmentV02: ajv.compile(graphFragmentV02Schema),
   runtimeOperationV0: ajv.compile(runtimeOperationV0Schema),
+  runtimeSessionInfo: ajv.compile(runtimeSessionV0Schema),
+  runtimeSessionEvent: ajv.compile({
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: "https://skenion.dev/schemas/runtime/v0/session-event.schema.json",
+    $ref: "https://skenion.dev/schemas/runtime/v0/session.schema.json#/$defs/runtimeSessionEvent"
+  }),
   pasteGraphFragmentResponse: ajv.compile({
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: "https://skenion.dev/schemas/runtime/v0/paste-graph-fragment-response.schema.json",
