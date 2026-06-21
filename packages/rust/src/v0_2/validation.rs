@@ -7,8 +7,10 @@ use std::{
 use super::{
     CycleValidationV02, EdgeSpecV02, FeedbackBoundaryV02, GraphCycleValidationV02,
     GraphDocumentV02, GraphValidationDiagnosticV02, GraphValidationResultV02, MergePolicyV02,
-    NodeDefinitionManifestV02, PortDirectionV02, PortSpecV02,
+    NodeDefinitionManifestV02, PatchDefinitionV02, PortDirectionV02, PortSpecV02,
+    ProjectDocumentV02, derive_patch_contract_v02,
 };
+use crate::v0_1::ViewStateV01;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationErrorV02 {
@@ -105,7 +107,11 @@ fn edge_enabled(edge: &EdgeSpecV02) -> bool {
 }
 
 fn input_max_connections(port: &PortSpecV02) -> u64 {
-    port.max_connections.unwrap_or(1)
+    match port.max_connections {
+        Some(Some(max_connections)) => max_connections,
+        Some(None) => u64::MAX,
+        None => 1,
+    }
 }
 
 fn merge_policy_for(port: &PortSpecV02) -> MergePolicyV02 {
@@ -480,14 +486,15 @@ pub fn analyze_graph_document_v02(graph: &GraphDocumentV02) -> GraphValidationRe
                 None,
             );
         }
-        if connected_edges.len() as u64 > input_max_connections(port) {
+        let max_connections = input_max_connections(port);
+        if connected_edges.len() as u64 > max_connections {
             diagnostic(
                 &mut diagnostics,
                 "error",
                 "fan-in-cardinality",
                 format!(
                     "input {key} accepts at most {} connection(s)",
-                    port.max_connections.unwrap_or(1)
+                    max_connections
                 ),
                 None,
                 None,
@@ -650,6 +657,145 @@ pub fn validate_node_definition_v02(
     }
 }
 
+fn graph_v02_semantic_errors(graph: &GraphDocumentV02, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+
+    if graph.schema != "skenion.graph" {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} expected schema skenion.graph, found {}",
+            graph.schema
+        )));
+    }
+    if graph.schema_version != "0.2.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} expected schemaVersion 0.2.0, found {}",
+            graph.schema_version
+        )));
+    }
+
+    errors.extend(
+        analyze_graph_document_v02(graph)
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| diagnostic.severity == "error")
+            .map(|diagnostic| {
+                ValidationErrorV02::new(format!(
+                    "{label} {}: {}",
+                    diagnostic.code, diagnostic.message
+                ))
+            }),
+    );
+
+    errors
+}
+
+fn view_state_node_reference_errors(
+    view_state: &ViewStateV01,
+    graph: &GraphDocumentV02,
+    label: &str,
+) -> Vec<ValidationErrorV02> {
+    let graph_node_ids: HashSet<&str> = graph.nodes.iter().map(|node| node.id.as_str()).collect();
+    let mut errors = Vec::new();
+
+    for node_id in view_state.canvas.nodes.keys() {
+        if !graph_node_ids.contains(node_id.as_str()) {
+            errors.push(ValidationErrorV02::new(format!(
+                "{label} references missing graph node: {node_id}"
+            )));
+        }
+    }
+
+    errors
+}
+
+pub fn validate_patch_definition_v02(
+    patch: &PatchDefinitionV02,
+) -> Result<(), ValidationReportV02> {
+    let mut errors = Vec::new();
+
+    if patch.id.is_empty() {
+        errors.push(ValidationErrorV02::new("patch id must not be empty"));
+    }
+    if patch.revision.is_empty() {
+        errors.push(ValidationErrorV02::new("patch revision must not be empty"));
+    }
+
+    errors.extend(graph_v02_semantic_errors(
+        &patch.graph,
+        &format!("patch {} graph", patch.id),
+    ));
+
+    if let Some(view_state) = &patch.view_state {
+        errors.extend(view_state_node_reference_errors(
+            view_state,
+            &patch.graph,
+            &format!("patch {} viewState", patch.id),
+        ));
+    }
+
+    let contract = derive_patch_contract_v02(patch);
+    errors.extend(duplicate_errors(
+        contract.ports.iter().map(|port| port.port.id.as_str()),
+        &format!("boundary port id on patch {}", patch.id),
+    ));
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV02::new(errors))
+    }
+}
+
+pub fn validate_project_document_v02(
+    project: &ProjectDocumentV02,
+) -> Result<(), ValidationReportV02> {
+    let mut errors = Vec::new();
+
+    if project.schema != "skenion.project" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schema skenion.project, found {}",
+            project.schema
+        )));
+    }
+    if project.schema_version != "0.2.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schemaVersion 0.2.0, found {}",
+            project.schema_version
+        )));
+    }
+    if project.id.is_empty() {
+        errors.push(ValidationErrorV02::new("project id must not be empty"));
+    }
+    if project.revision.is_empty() {
+        errors.push(ValidationErrorV02::new(
+            "project revision must not be empty",
+        ));
+    }
+
+    errors.extend(graph_v02_semantic_errors(&project.graph, "root graph"));
+    errors.extend(view_state_node_reference_errors(
+        &project.view_state,
+        &project.graph,
+        "viewState",
+    ));
+    errors.extend(duplicate_errors(
+        project.patch_library.iter().map(|patch| patch.id.as_str()),
+        "patch id",
+    ));
+
+    for patch in &project.patch_library {
+        if let Err(report) = validate_patch_definition_v02(patch) {
+            errors.extend(report.errors);
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV02::new(errors))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -704,7 +850,20 @@ mod tests {
 
     #[test]
     fn validates_basic_graph_and_serializes_optional_fields_as_absent() {
-        let graph = base_graph();
+        let mut graph = base_graph();
+        graph.nodes[0].port_groups = Some(vec![super::super::PortGroupSpecV02 {
+            id: "outputs".to_owned(),
+            direction: PortDirectionV02::Output,
+            port_type: "value.number".to_owned(),
+            min_ports: 1,
+            label: Some("Outputs".to_owned()),
+            rate: None,
+            max_ports: Some(2),
+            ordered: Some(true),
+            port_id_pattern: Some("out_{index}".to_owned()),
+            create_label: Some("Add output".to_owned()),
+            default_port_spec: None,
+        }]);
         let result = validate_graph_document_v02(&graph).expect("graph should validate");
         assert!(result.ok);
         assert!(result.diagnostics.is_empty());
@@ -770,6 +929,25 @@ mod tests {
             },
             target: EdgeEndpointV02 {
                 node_id: "missing".to_owned(),
+                port_id: "in".to_owned(),
+            },
+            resolved_type: None,
+            order: None,
+            enabled: None,
+            adapter: None,
+            feedback: None,
+            style_override: None,
+            label: None,
+            description: None,
+        });
+        graph.edges.push(EdgeSpecV02 {
+            id: "edge_missing_source_node".to_owned(),
+            source: EdgeEndpointV02 {
+                node_id: "missing".to_owned(),
+                port_id: "out".to_owned(),
+            },
+            target: EdgeEndpointV02 {
+                node_id: "target".to_owned(),
                 port_id: "in".to_owned(),
             },
             resolved_type: None,
@@ -899,7 +1077,7 @@ mod tests {
         graph.edges[1].enabled = None;
         let fan_in = validate_graph_document_v02(&graph).expect_err("default fan-in should fail");
         assert!(fan_in.to_string().contains("fan-in-cardinality"));
-        graph.nodes[1].ports[0].max_connections = Some(2);
+        graph.nodes[1].ports[0].max_connections = Some(Some(2));
         let merge = validate_graph_document_v02(&graph).expect_err("missing merge should fail");
         assert!(merge.to_string().contains("fan-in-without-merge-policy"));
         graph.nodes[1].ports[0].merge_policy = Some(MergePolicyV02::Array);
@@ -1094,6 +1272,20 @@ mod tests {
 
         let ambiguous = validate_graph_document_v02(&graph).expect_err("cycle should fail");
         assert!(ambiguous.to_string().contains("ambiguous-algebraic-loop"));
+
+        let mut control_cycle = graph.clone();
+        for node in &mut control_cycle.nodes {
+            for port in &mut node.ports {
+                port.port_type = "control.number".to_owned();
+            }
+        }
+        let control_ambiguous =
+            validate_graph_document_v02(&control_cycle).expect_err("control cycle should fail");
+        assert!(
+            control_ambiguous
+                .to_string()
+                .contains("ambiguous-algebraic-loop")
+        );
 
         graph.edges[1].feedback = Some(FeedbackPolicyV02 {
             enabled: true,

@@ -143,12 +143,75 @@ function validateGraphV01Semantics(file, graph) {
 
 function validateProjectV01Semantics(file, project) {
   validateGraphV01Semantics(file, project.graph);
+  validateViewStateNodeReferences(file, project.graph, project.viewState);
+}
 
-  const graphNodeIds = new Set(project.graph.nodes.map((node) => node.id));
-  for (const nodeId of Object.keys(project.viewState.canvas.nodes)) {
+function validateViewStateNodeReferences(file, graph, viewState, label = "viewState") {
+  const graphNodeIds = new Set(graph.nodes.map((node) => node.id));
+  for (const nodeId of Object.keys(viewState.canvas.nodes)) {
     if (!graphNodeIds.has(nodeId)) {
-      fail(file, `viewState references missing graph node: ${nodeId}`);
+      fail(file, `${label} references missing graph node: ${nodeId}`);
     }
+  }
+}
+
+function boundaryStringParam(node, key) {
+  const value = node.params?.[key];
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  return undefined;
+}
+
+function boundaryPortId(node, port, eligiblePortCount) {
+  return (
+    boundaryStringParam(node, "portId") ??
+    boundaryStringParam(node, "externalPortId") ??
+    (eligiblePortCount === 1 ? node.id : port.id)
+  );
+}
+
+function derivedPatchBoundaryPortIds(patch) {
+  const portIds = [];
+
+  for (const node of patch.graph.nodes) {
+    if (node.kind === "core.inlet") {
+      const ports = node.ports.filter((port) => port.direction === "output");
+      for (const port of ports) {
+        portIds.push(boundaryPortId(node, port, ports.length));
+      }
+    } else if (node.kind === "core.outlet") {
+      const ports = node.ports.filter((port) => port.direction === "input");
+      for (const port of ports) {
+        portIds.push(boundaryPortId(node, port, ports.length));
+      }
+    }
+  }
+
+  return portIds;
+}
+
+function validatePatchDefinitionV02Semantics(file, patch) {
+  validateGraphV02Semantics(file, patch.graph);
+
+  if (patch.viewState) {
+    validateViewStateNodeReferences(file, patch.graph, patch.viewState, `patch ${patch.id} viewState`);
+  }
+
+  duplicateCheck(file, derivedPatchBoundaryPortIds(patch), `boundary port id on patch ${patch.id}`);
+}
+
+function validateProjectV02Semantics(file, project) {
+  validateGraphV02Semantics(file, project.graph);
+  validateViewStateNodeReferences(file, project.graph, project.viewState);
+  duplicateCheck(
+    file,
+    project.patchLibrary.map((patch) => patch.id),
+    "patch id"
+  );
+
+  for (const patch of project.patchLibrary) {
+    validatePatchDefinitionV02Semantics(file, patch);
   }
 }
 
@@ -781,6 +844,9 @@ function selectValidator(file, document, validators) {
   if (document.schema === "skenion.project" && document.schemaVersion === "0.1.0") {
     return validators.projectV01;
   }
+  if (document.schema === "skenion.project" && document.schemaVersion === "0.2.0") {
+    return validators.projectV02;
+  }
   if (document.schema === "skenion.graph.patch" && document.schemaVersion === "0.0.0") {
     return validators.patchV0;
   }
@@ -827,6 +893,9 @@ function validateDocument(file, document, validators) {
   if (document.schema === "skenion.project" && document.schemaVersion === "0.1.0") {
     validateProjectV01Semantics(file, document);
   }
+  if (document.schema === "skenion.project" && document.schemaVersion === "0.2.0") {
+    validateProjectV02Semantics(file, document);
+  }
   if (document.schema === "skenion.node.definition" && document.schemaVersion === "0.1.0") {
     validateNodeDefinitionV01Semantics(file, document);
   }
@@ -844,8 +913,10 @@ await readFile("openapi/runtime-http.v0.yaml", "utf8");
 
 const ajv = new Ajv2020({ allErrors: true });
 const graphV01Schema = await readJson("json-schema/graph/v0.1/graph.schema.json");
+const graphV02Schema = await readJson("json-schema/graph/v0.2/graph.schema.json");
 const viewStateV01Schema = await readJson("json-schema/view/v0.1/view-state.schema.json");
 const projectV01Schema = await readJson("json-schema/project/v0.1/project.schema.json");
+const projectV02Schema = await readJson("json-schema/project/v0.2/project.schema.json");
 const graphPatchV01Schema = await readJson("json-schema/graph/v0.1/patch.schema.json");
 const graphPatchEventV01Schema = await readJson("json-schema/graph/v0.1/patch-event.schema.json");
 const nodeDefinitionV01Schema = await readJson("json-schema/node/v0.1/node-definition.schema.json");
@@ -856,9 +927,10 @@ const validators = {
   graphV0: ajv.compile(await readJson("json-schema/graph/v0/graph.schema.json")),
   patchV0: ajv.compile(await readJson("json-schema/graph/v0/patch.schema.json")),
   graphV01: ajv.compile(graphV01Schema),
-  graphV02: ajv.compile(await readJson("json-schema/graph/v0.2/graph.schema.json")),
+  graphV02: ajv.compile(graphV02Schema),
   viewStateV01: ajv.compile(viewStateV01Schema),
   projectV01: ajv.compile(projectV01Schema),
+  projectV02: ajv.compile(projectV02Schema),
   patchV01: ajv.compile(graphPatchV01Schema),
   patchEventV01: ajv.compile(graphPatchEventV01Schema),
   patchHistoryV01: ajv.compile(await readJson("json-schema/graph/v0.1/patch-history.schema.json")),
