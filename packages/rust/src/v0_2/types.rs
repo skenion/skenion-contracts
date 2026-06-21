@@ -753,13 +753,21 @@ pub struct RuntimeCollaborationConflict {
     pub edge_ids: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeCollaborationRebaseStrategy {
+    OtTransform,
+    CrdtMerge,
+    ServerReject,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeCollaborationRebase {
     pub from: RuntimeCollaborationCausalMetadata,
     pub to: RuntimeCollaborationCausalMetadata,
-    pub strategy: String,
+    pub strategy: RuntimeCollaborationRebaseStrategy,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transformed_payload: Option<RuntimeCollaborationOperationPayload>,
     pub conflicts: Vec<RuntimeCollaborationConflict>,
@@ -792,6 +800,18 @@ pub struct RuntimeCollaborationOperationResult {
     pub nack: Option<RuntimeCollaborationNack>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rebase: Option<RuntimeCollaborationRebase>,
+    pub diagnostics: Vec<RuntimeCollaborationOperationDiagnostic>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeCollaborationOperationBatchResult {
+    pub schema: String,
+    pub schema_version: String,
+    pub session_id: String,
+    pub results: Vec<RuntimeCollaborationOperationResult>,
     pub diagnostics: Vec<RuntimeCollaborationOperationDiagnostic>,
     pub created_at: String,
 }
@@ -945,6 +965,14 @@ pub enum RuntimeCollaborationEventPayload {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeCollaborationEventKind {
+    OperationResult,
+    Presence,
+    Selection,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -955,7 +983,7 @@ pub struct RuntimeCollaborationEventEnvelope {
     pub session_id: String,
     pub sequence: u64,
     pub causal: RuntimeCollaborationCausalMetadata,
-    pub kind: String,
+    pub kind: RuntimeCollaborationEventKind,
     pub payload: RuntimeCollaborationEventPayload,
     pub replay: RuntimeEventReplayMetadata,
     pub created_at: String,

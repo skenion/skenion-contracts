@@ -65,6 +65,7 @@ import {
   validateProjectDocumentV02,
   validateRuntimeCollaborationEventEnvelope,
   validateRuntimeCollaborationOperationBatch,
+  validateRuntimeCollaborationOperationBatchResult,
   validateRuntimeCollaborationOperationEnvelope,
   validateRuntimeCollaborationOperationResult,
   validateRuntimeCollaborationPresenceEnvelope,
@@ -289,6 +290,7 @@ test("documents runtime IO discovery HTTP API", async () => {
     "RuntimeCollaborationOperationEnvelope",
     "RuntimeCollaborationOperationBatch",
     "RuntimeCollaborationOperationResult",
+    "RuntimeCollaborationOperationBatchResult",
     "RuntimeCollaborationPresenceEnvelope",
     "RuntimeCollaborationSelectionEnvelope",
     "RuntimeCollaborationEventEnvelope",
@@ -1463,6 +1465,8 @@ function validateCollaborationDocument(document) {
       return validateRuntimeCollaborationOperationEnvelope(document);
     case "skenion.runtime.collaboration.operation-batch":
       return validateRuntimeCollaborationOperationBatch(document);
+    case "skenion.runtime.collaboration.operation-batch-result":
+      return validateRuntimeCollaborationOperationBatchResult(document);
     case "skenion.runtime.collaboration.operation-result":
       return validateRuntimeCollaborationOperationResult(document);
     case "skenion.runtime.collaboration.presence":
@@ -1543,6 +1547,22 @@ test("validates realtime collaboration operation, presence, causality, and undo 
   assert.equal(sessionMismatchBatchResult.ok, false);
   assert.match(sessionMismatchBatchResult.errors.join("\n"), /sessionId must match/);
 
+  const batchResult = await readJson("fixtures/runtime-collaboration/v0/valid/operation-batch-result.json");
+  assert.equal(validateRuntimeCollaborationOperationBatchResult(batchResult).ok, true);
+  assert.deepEqual(batchResult.results.map((result) => result.status), ["accepted", "rejected"]);
+
+  const invalidBatchResultShape = structuredClone(batchResult);
+  delete invalidBatchResultShape.results;
+  assert.equal(validateRuntimeCollaborationOperationBatchResult(invalidBatchResultShape).ok, false);
+
+  const batchResultMismatch = await readJson(
+    "fixtures/runtime-collaboration/v0/invalid/batch-result-session-mismatch.operation-batch-result.json"
+  );
+  const batchResultMismatchResult =
+    validateRuntimeCollaborationOperationBatchResult(batchResultMismatch);
+  assert.equal(batchResultMismatchResult.ok, false);
+  assert.match(batchResultMismatchResult.errors.join("\n"), /batch result operation sessionId/);
+
   const staleCausal = await readJson("fixtures/runtime-collaboration/v0/invalid/stale-causal-vector.operation.json");
   const staleCausalResult = validateRuntimeCollaborationOperationEnvelope(staleCausal);
   assert.equal(staleCausalResult.ok, false);
@@ -1593,6 +1613,28 @@ test("validates realtime collaboration operation, presence, causality, and undo 
   assert.equal(rebase.rebase.strategy, "ot-transform");
   assert.equal(rebase.rebase.transformedPayload.kind, "changeSet");
 
+  const mixedRebase = await readJson(
+    "fixtures/runtime-collaboration/v0/valid/rebased-mixed-change-set.operation-result.json"
+  );
+  assert.equal(validateRuntimeCollaborationOperationResult(mixedRebase).ok, true);
+  assert.deepEqual(mixedRebase.rebase.transformedPayload.changes.map((change) => change.op), [
+    "node.add",
+    "node.move",
+    "node.delete",
+    "edge.connect"
+  ]);
+
+  const pasteRebase = await readJson(
+    "fixtures/runtime-collaboration/v0/valid/rebased-paste-fragment.operation-result.json"
+  );
+  assert.equal(validateRuntimeCollaborationOperationResult(pasteRebase).ok, true);
+  assert.equal(pasteRebase.rebase.transformedPayload.kind, "pasteGraphFragment");
+
+  const invalidRebaseStrategy = await readJson(
+    "fixtures/runtime-collaboration/v0/invalid/rebase-unknown-strategy.operation-result.json"
+  );
+  assert.equal(validateRuntimeCollaborationOperationResult(invalidRebaseStrategy).ok, false);
+
   const extraWindow = await readJson("fixtures/runtime-collaboration/v0/invalid/extra-client-window.operation.json");
   const extraWindowResult = validateRuntimeCollaborationOperationEnvelope(extraWindow);
   assert.equal(extraWindowResult.ok, false);
@@ -1630,6 +1672,13 @@ test("validates realtime collaboration operation, presence, causality, and undo 
   const invalidEventResult = validateRuntimeCollaborationEventEnvelope(invalidEvent);
   assert.equal(invalidEventResult.ok, false);
   assert.match(invalidEventResult.errors.join("\n"), /replay gap expectedSequence/);
+
+  const mismatchedEvent = await readJson(
+    "fixtures/runtime-collaboration/v0/invalid/event-kind-payload-mismatch.event.json"
+  );
+  const mismatchedEventResult = validateRuntimeCollaborationEventEnvelope(mismatchedEvent);
+  assert.equal(mismatchedEventResult.ok, false);
+  assert.match(mismatchedEventResult.errors.join("\n"), /kind/);
 
   const invalidResultShape = structuredClone(duplicateResult);
   delete invalidResultShape.status;

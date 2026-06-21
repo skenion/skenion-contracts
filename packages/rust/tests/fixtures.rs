@@ -7,15 +7,16 @@ use skenion_contracts::{
     GraphPatchEventV01, GraphPatchHistoryV01, GraphPatchV01, NodeDefinitionManifestV01,
     NodeDefinitionManifestV02, ObjectTextParseResultV01, PasteGraphFragmentResponse,
     ProjectDocumentV02, RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationBatch,
-    RuntimeCollaborationOperationEnvelope, RuntimeCollaborationOperationResult,
-    RuntimeCollaborationPresenceEnvelope, RuntimeCollaborationSelectionEnvelope,
-    RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionInfoResponse,
-    analyze_graph_document_v02, analyze_graph_fragment_v02, parse_object_text_v01,
-    validate_graph_document_v01, validate_graph_document_v02, validate_graph_fragment_v02,
-    validate_node_definition_v01, validate_node_definition_v02,
+    RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
+    RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
+    RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeSessionEvent,
+    RuntimeSessionInfoResponse, analyze_graph_document_v02, analyze_graph_fragment_v02,
+    parse_object_text_v01, validate_graph_document_v01, validate_graph_document_v02,
+    validate_graph_fragment_v02, validate_node_definition_v01, validate_node_definition_v02,
     validate_object_text_parse_result_v01, validate_paste_graph_fragment_response,
     validate_project_document_v02, validate_runtime_collaboration_event_envelope,
     validate_runtime_collaboration_operation_batch,
+    validate_runtime_collaboration_operation_batch_result,
     validate_runtime_collaboration_operation_envelope,
     validate_runtime_collaboration_operation_result,
     validate_runtime_collaboration_presence_envelope,
@@ -162,6 +163,13 @@ fn validates_runtime_collaboration_fixtures() {
                 validate_runtime_collaboration_operation_batch(&batch)
                     .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
             }
+            Some("skenion.runtime.collaboration.operation-batch-result") => {
+                let result: RuntimeCollaborationOperationBatchResult =
+                    serde_json::from_value(value)
+                        .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
+                validate_runtime_collaboration_operation_batch_result(&result)
+                    .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+            }
             Some("skenion.runtime.collaboration.operation-result") => {
                 let result: RuntimeCollaborationOperationResult = serde_json::from_value(value)
                     .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
@@ -213,6 +221,17 @@ fn validates_runtime_collaboration_fixtures() {
                 {
                     assert!(
                         validate_runtime_collaboration_operation_batch(&batch).is_err(),
+                        "{} should fail validation",
+                        file.display()
+                    );
+                }
+            }
+            Some("skenion.runtime.collaboration.operation-batch-result") => {
+                if let Ok(result) =
+                    serde_json::from_value::<RuntimeCollaborationOperationBatchResult>(value)
+                {
+                    assert!(
+                        validate_runtime_collaboration_operation_batch_result(&result).is_err(),
                         "{} should fail validation",
                         file.display()
                     );

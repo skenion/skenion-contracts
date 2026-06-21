@@ -1411,10 +1411,15 @@ export interface RuntimeCollaborationConflict {
   edgeIds?: string[];
 }
 
+export type RuntimeCollaborationRebaseStrategy =
+  | "ot-transform"
+  | "crdt-merge"
+  | "server-reject";
+
 export interface RuntimeCollaborationRebase {
   from: RuntimeCollaborationCausalMetadata;
   to: RuntimeCollaborationCausalMetadata;
-  strategy: "ot-transform" | "crdt-merge" | "server-reject";
+  strategy: RuntimeCollaborationRebaseStrategy;
   transformedPayload?: RuntimeCollaborationOperationPayload;
   conflicts: RuntimeCollaborationConflict[];
 }
@@ -1437,6 +1442,15 @@ export interface RuntimeCollaborationOperationResult {
   ack?: RuntimeCollaborationAck;
   nack?: RuntimeCollaborationNack;
   rebase?: RuntimeCollaborationRebase;
+  diagnostics: RuntimeCollaborationOperationDiagnostic[];
+  createdAt: string;
+}
+
+export interface RuntimeCollaborationOperationBatchResult {
+  schema: "skenion.runtime.collaboration.operation-batch-result";
+  schemaVersion: "0.1.0";
+  sessionId: string;
+  results: RuntimeCollaborationOperationResult[];
   diagnostics: RuntimeCollaborationOperationDiagnostic[];
   createdAt: string;
 }
@@ -1517,6 +1531,11 @@ export type RuntimeCollaborationEventPayload =
   | { kind: "presence"; presence: RuntimeCollaborationPresenceEnvelope }
   | { kind: "selection"; selection: RuntimeCollaborationSelectionEnvelope };
 
+export type RuntimeCollaborationEventKind =
+  | "operation-result"
+  | "presence"
+  | "selection";
+
 export interface RuntimeCollaborationEventEnvelope {
   schema: "skenion.runtime.collaboration.event";
   schemaVersion: "0.1.0";
@@ -1524,7 +1543,7 @@ export interface RuntimeCollaborationEventEnvelope {
   sessionId: string;
   sequence: number;
   causal: RuntimeCollaborationCausalMetadata;
-  kind: "operation-result" | "presence" | "selection";
+  kind: RuntimeCollaborationEventKind;
   payload: RuntimeCollaborationEventPayload;
   replay: RuntimeEventReplayMetadata;
   createdAt: string;

@@ -57,6 +57,7 @@ import type {
   RuntimeCollaborationCausalMetadata,
   RuntimeCollaborationEventEnvelope,
   RuntimeCollaborationOperationBatch,
+  RuntimeCollaborationOperationBatchResult,
   RuntimeCollaborationOperationEnvelope,
   RuntimeCollaborationOperationPayload,
   RuntimeCollaborationOperationResult,
@@ -104,6 +105,11 @@ const runtimeCollaborationOperationResultValidator = ajv.compile({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://skenion.dev/schemas/runtime/v0/collaboration-operation-result.schema.json",
   $ref: "https://skenion.dev/schemas/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationOperationResult"
+});
+const runtimeCollaborationOperationBatchResultValidator = ajv.compile({
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://skenion.dev/schemas/runtime/v0/collaboration-operation-batch-result.schema.json",
+  $ref: "https://skenion.dev/schemas/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationOperationBatchResult"
 });
 const runtimeCollaborationPresenceEnvelopeValidator = ajv.compile({
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -1080,6 +1086,25 @@ export function validateRuntimeCollaborationOperationResult(
   return { ok: true, value: result };
 }
 
+export function validateRuntimeCollaborationOperationBatchResult(
+  document: unknown
+): ValidationResult<RuntimeCollaborationOperationBatchResult> {
+  if (!runtimeCollaborationOperationBatchResultValidator(document)) {
+    return {
+      ok: false,
+      errors: schemaErrors(runtimeCollaborationOperationBatchResultValidator.errors as ErrorObject[])
+    };
+  }
+
+  const result = document as RuntimeCollaborationOperationBatchResult;
+  const errors = validateRuntimeCollaborationOperationBatchResultSemantics(result);
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: result };
+}
+
 export function validateRuntimeCollaborationPresenceEnvelope(
   document: unknown
 ): ValidationResult<RuntimeCollaborationPresenceEnvelope> {
@@ -1294,6 +1319,24 @@ function validateRuntimeCollaborationOperationResultSemantics(
       ...validateRuntimeCollaborationCausality(result.rebase.from, "rebase from causal"),
       ...validateRuntimeCollaborationCausality(result.rebase.to, "rebase to causal")
     );
+  }
+
+  return errors;
+}
+
+function validateRuntimeCollaborationOperationBatchResultSemantics(
+  result: RuntimeCollaborationOperationBatchResult
+): string[] {
+  const errors = duplicateErrors(
+    result.results.map((operationResult) => operationResult.idempotencyKey),
+    "collaboration batch result idempotency key"
+  );
+
+  for (const operationResult of result.results) {
+    if (operationResult.sessionId !== result.sessionId) {
+      errors.push("collaboration batch result operation sessionId must match batch result sessionId");
+    }
+    errors.push(...validateRuntimeCollaborationOperationResultSemantics(operationResult));
   }
 
   return errors;

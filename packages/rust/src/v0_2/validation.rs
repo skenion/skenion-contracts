@@ -11,14 +11,16 @@ use super::{
     GraphValidationResultV02, MergePolicyV02, NodeDefinitionManifestV02, PasteGraphFragmentRequest,
     PasteGraphFragmentResponse, PatchDefinitionV02, PortDirectionV02, PortSpecV02,
     ProjectDocumentV02, RuntimeCollaborationAuthSubject, RuntimeCollaborationCausalMetadata,
-    RuntimeCollaborationChange, RuntimeCollaborationEventEnvelope, RuntimeCollaborationNackReason,
-    RuntimeCollaborationOperationBatch, RuntimeCollaborationOperationEnvelope,
-    RuntimeCollaborationOperationPayload, RuntimeCollaborationOperationResult,
-    RuntimeCollaborationOperationStatus, RuntimeCollaborationPresenceEnvelope,
-    RuntimeCollaborationSelectionEnvelope, RuntimeConnectionProfile, RuntimeConnectionProfileMode,
-    RuntimeHistory, RuntimeHistoryEntry, RuntimeMutationRequest, RuntimeOperationEnvelope,
-    RuntimeOwnershipMode, RuntimeSessionEvent, RuntimeSessionInfoResponse, RuntimeSessionSnapshot,
-    RuntimeViewPatchOperation, derive_patch_contract_v02,
+    RuntimeCollaborationChange, RuntimeCollaborationEventEnvelope, RuntimeCollaborationEventKind,
+    RuntimeCollaborationEventPayload, RuntimeCollaborationNackReason,
+    RuntimeCollaborationOperationBatch, RuntimeCollaborationOperationBatchResult,
+    RuntimeCollaborationOperationEnvelope, RuntimeCollaborationOperationPayload,
+    RuntimeCollaborationOperationResult, RuntimeCollaborationOperationStatus,
+    RuntimeCollaborationPresenceEnvelope, RuntimeCollaborationSelectionEnvelope,
+    RuntimeConnectionProfile, RuntimeConnectionProfileMode, RuntimeHistory, RuntimeHistoryEntry,
+    RuntimeMutationRequest, RuntimeOperationEnvelope, RuntimeOwnershipMode, RuntimeSessionEvent,
+    RuntimeSessionInfoResponse, RuntimeSessionSnapshot, RuntimeViewPatchOperation,
+    derive_patch_contract_v02,
 };
 use crate::v0_1::{
     DataTypeV01, EdgeV01, GraphNodeV01, GraphPatchOperationV01, GraphPatchV01, PortV01,
@@ -1132,6 +1134,53 @@ pub fn validate_runtime_collaboration_operation_result(
     }
 }
 
+pub fn validate_runtime_collaboration_operation_batch_result(
+    result: &RuntimeCollaborationOperationBatchResult,
+) -> Result<(), ValidationReportV02> {
+    let mut errors = Vec::new();
+    if result.schema != "skenion.runtime.collaboration.operation-batch-result" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schema skenion.runtime.collaboration.operation-batch-result, found {}",
+            result.schema
+        )));
+    }
+    if result.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schemaVersion 0.1.0, found {}",
+            result.schema_version
+        )));
+    }
+    if result.results.is_empty() {
+        errors.push(ValidationErrorV02::new(
+            "collaboration batch result must include at least one operation result",
+        ));
+    }
+    errors.extend(duplicate_errors(
+        result
+            .results
+            .iter()
+            .map(|operation_result| operation_result.idempotency_key.as_str())
+            .collect(),
+        "collaboration batch result idempotency key",
+    ));
+    for operation_result in &result.results {
+        if operation_result.session_id != result.session_id {
+            errors.push(ValidationErrorV02::new(
+                "collaboration batch result operation sessionId must match batch result sessionId",
+            ));
+        }
+        if let Err(report) = validate_runtime_collaboration_operation_result(operation_result) {
+            errors.extend(report.errors().to_vec());
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV02::new(errors))
+    }
+}
+
 pub fn validate_runtime_collaboration_presence_envelope(
     presence: &RuntimeCollaborationPresenceEnvelope,
 ) -> Result<(), ValidationReportV02> {
@@ -1195,6 +1244,22 @@ pub fn validate_runtime_collaboration_selection_envelope(
     }
 }
 
+fn runtime_collaboration_event_payload_kind(
+    payload: &RuntimeCollaborationEventPayload,
+) -> RuntimeCollaborationEventKind {
+    match payload {
+        RuntimeCollaborationEventPayload::OperationResult { .. } => {
+            RuntimeCollaborationEventKind::OperationResult
+        }
+        RuntimeCollaborationEventPayload::Presence { .. } => {
+            RuntimeCollaborationEventKind::Presence
+        }
+        RuntimeCollaborationEventPayload::Selection { .. } => {
+            RuntimeCollaborationEventKind::Selection
+        }
+    }
+}
+
 pub fn validate_runtime_collaboration_event_envelope(
     event: &RuntimeCollaborationEventEnvelope,
 ) -> Result<(), ValidationReportV02> {
@@ -1215,6 +1280,11 @@ pub fn validate_runtime_collaboration_event_envelope(
         &event.causal,
         "collaboration event causal",
     ));
+    if event.kind != runtime_collaboration_event_payload_kind(&event.payload) {
+        errors.push(ValidationErrorV02::new(
+            "collaboration event kind must match payload kind",
+        ));
+    }
     match &event.replay.gap {
         Some(gap) if gap.expected_sequence >= gap.actual_sequence => {
             errors.push(ValidationErrorV02::new(

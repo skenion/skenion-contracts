@@ -970,6 +970,20 @@ function validateRuntimeCollaborationOperationResultSemantics(file, result) {
   }
 }
 
+function validateRuntimeCollaborationOperationBatchResultSemantics(file, result) {
+  duplicateCheck(
+    file,
+    result.results.map((operationResult) => operationResult.idempotencyKey),
+    "collaboration batch result idempotency key"
+  );
+  for (const operationResult of result.results) {
+    if (operationResult.sessionId !== result.sessionId) {
+      fail(file, "collaboration batch result operation sessionId must match batch result sessionId");
+    }
+    validateRuntimeCollaborationOperationResultSemantics(file, operationResult);
+  }
+}
+
 function validateRuntimeCollaborationPresenceSemantics(file, presence) {
   validateRuntimeCollaborationAuthSeparation(file, presence.participantId, presence.authSubject, "presence");
   validateRuntimeCollaborationExpiry(file, presence.updatedAt, presence.expiresAt, "presence");
@@ -981,6 +995,14 @@ function validateRuntimeCollaborationSelectionSemantics(file, selection) {
 
 function validateRuntimeCollaborationEventSemantics(file, event) {
   validateRuntimeCollaborationCausality(file, event.causal, "collaboration event causal");
+  const expectedPayloadKindByEventKind = {
+    "operation-result": "operationResult",
+    presence: "presence",
+    selection: "selection"
+  };
+  if (event.payload.kind !== expectedPayloadKindByEventKind[event.kind]) {
+    fail(file, "collaboration event kind must match payload kind");
+  }
   const gap = event.replay?.gap;
   if (gap && gap.expectedSequence >= gap.actualSequence) {
     fail(file, "collaboration event replay gap expectedSequence must be less than actualSequence");
@@ -1017,6 +1039,9 @@ function selectValidator(file, document, validators) {
   }
   if (document.schema === "skenion.runtime.collaboration.operation-batch" && document.schemaVersion === "0.1.0") {
     return validators.runtimeCollaborationOperationBatch;
+  }
+  if (document.schema === "skenion.runtime.collaboration.operation-batch-result" && document.schemaVersion === "0.1.0") {
+    return validators.runtimeCollaborationOperationBatchResult;
   }
   if (document.schema === "skenion.runtime.collaboration.operation-result" && document.schemaVersion === "0.1.0") {
     return validators.runtimeCollaborationOperationResult;
@@ -1096,6 +1121,9 @@ function validateDocument(file, document, validators) {
   }
   if (document.schema === "skenion.runtime.collaboration.operation-batch" && document.schemaVersion === "0.1.0") {
     validateRuntimeCollaborationOperationBatchSemantics(file, document);
+  }
+  if (document.schema === "skenion.runtime.collaboration.operation-batch-result" && document.schemaVersion === "0.1.0") {
+    validateRuntimeCollaborationOperationBatchResultSemantics(file, document);
   }
   if (document.schema === "skenion.runtime.collaboration.operation-result" && document.schemaVersion === "0.1.0") {
     validateRuntimeCollaborationOperationResultSemantics(file, document);
@@ -1180,6 +1208,11 @@ const validators = {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: "https://skenion.dev/schemas/runtime/v0/collaboration-operation-batch.fixture.schema.json",
     $ref: "https://skenion.dev/schemas/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationOperationBatch"
+  }),
+  runtimeCollaborationOperationBatchResult: ajv.compile({
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: "https://skenion.dev/schemas/runtime/v0/collaboration-operation-batch-result.fixture.schema.json",
+    $ref: "https://skenion.dev/schemas/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationOperationBatchResult"
   }),
   runtimeCollaborationOperationResult: ajv.compile({
     $schema: "https://json-schema.org/draft/2020-12/schema",

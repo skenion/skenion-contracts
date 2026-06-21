@@ -281,6 +281,7 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/PasteGraphFragmentResponse"
                   - $ref: "#/components/schemas/RuntimeCollaborationOperationResult"
+                  - $ref: "#/components/schemas/RuntimeCollaborationOperationBatchResult"
   /v0/sessions/{sessionId}/collaboration/presence:
     post:
       summary: Update participant presence for a Runtime collaboration session.
@@ -1251,6 +1252,8 @@ components:
       $ref: "../json-schema/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationOperationBatch"
     RuntimeCollaborationOperationResult:
       $ref: "../json-schema/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationOperationResult"
+    RuntimeCollaborationOperationBatchResult:
+      $ref: "../json-schema/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationOperationBatchResult"
     RuntimeCollaborationPresenceEnvelope:
       $ref: "../json-schema/runtime/v0/collaboration.schema.json#/$defs/runtimeCollaborationPresenceEnvelope"
     RuntimeCollaborationSelectionEnvelope:

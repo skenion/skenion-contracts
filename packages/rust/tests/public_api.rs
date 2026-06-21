@@ -5,7 +5,9 @@ use skenion_contracts::{
     GraphFragmentOutsideEndpointPolicyV02, GraphFragmentV02, GraphPatchOperationV01, GraphPatchV01,
     MidiClockMessageKindV01, MidiClockMessageV01, MidiClockSnapshotV01, NodeDefinitionManifestV01,
     NodeDefinitionManifestV02, NumberRangeV01, ObjectTextParseResultV01, ProjectDocumentV02,
-    RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationEnvelope,
+    RuntimeCollaborationEventEnvelope, RuntimeCollaborationEventKind,
+    RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
+    RuntimeCollaborationOperationResult, RuntimeCollaborationRebaseStrategy,
     RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionEventKind,
     RuntimeSessionInfoResponse, StringOrStringsV01, analyze_graph_document_v02,
     analyze_graph_fragment_v02, apply_graph_patch_v01, apply_midi_clock_message_v01,
@@ -16,7 +18,9 @@ use skenion_contracts::{
     validate_node_definition_v01, validate_node_definition_v02,
     validate_object_text_parse_result_v01, validate_project_document_v02,
     validate_runtime_collaboration_event_envelope,
-    validate_runtime_collaboration_operation_envelope, validate_runtime_operation_envelope,
+    validate_runtime_collaboration_operation_batch_result,
+    validate_runtime_collaboration_operation_envelope,
+    validate_runtime_collaboration_operation_result, validate_runtime_operation_envelope,
     validate_runtime_session_event, validate_runtime_session_info_response,
 };
 
@@ -159,6 +163,87 @@ fn parses_public_collaboration_operation_contract() {
     validate_runtime_collaboration_operation_envelope(&operation)
         .expect("collaboration operation should validate");
     assert_eq!(operation.participant_id, "participant-a");
+}
+
+#[test]
+fn parses_public_collaboration_batch_result_and_rebase_enums() {
+    let batch_result: RuntimeCollaborationOperationBatchResult =
+        serde_json::from_str(include_str!(
+            "../../../fixtures/runtime-collaboration/v0/valid/operation-batch-result.json"
+        ))
+        .expect("batch result should parse");
+    validate_runtime_collaboration_operation_batch_result(&batch_result)
+        .expect("batch result should validate");
+    assert_eq!(batch_result.results.len(), 2);
+
+    let mut wrong_schema = batch_result.clone();
+    wrong_schema.schema = "skenion.runtime.collaboration.operation-batch".to_owned();
+    let wrong_schema_report = validate_runtime_collaboration_operation_batch_result(&wrong_schema)
+        .expect_err("wrong batch result schema should fail");
+    assert!(
+        wrong_schema_report
+            .errors()
+            .iter()
+            .any(|error| error.message.contains("expected schema"))
+    );
+
+    let mut wrong_version = batch_result.clone();
+    wrong_version.schema_version = "0.2.0".to_owned();
+    let wrong_version_report =
+        validate_runtime_collaboration_operation_batch_result(&wrong_version)
+            .expect_err("wrong batch result schemaVersion should fail");
+    assert!(
+        wrong_version_report
+            .errors()
+            .iter()
+            .any(|error| error.message.contains("expected schemaVersion 0.1.0"))
+    );
+
+    let mut empty_results = batch_result.clone();
+    empty_results.results.clear();
+    let empty_results_report =
+        validate_runtime_collaboration_operation_batch_result(&empty_results)
+            .expect_err("empty batch result should fail");
+    assert!(
+        empty_results_report
+            .errors()
+            .iter()
+            .any(|error| error.message.contains("at least one operation result"))
+    );
+
+    let mut nested_invalid = batch_result.clone();
+    nested_invalid.results[0].schema = "skenion.runtime.collaboration.operation".to_owned();
+    let nested_invalid_report =
+        validate_runtime_collaboration_operation_batch_result(&nested_invalid)
+            .expect_err("invalid nested operation result should fail");
+    assert!(
+        nested_invalid_report
+            .errors()
+            .iter()
+            .any(|error| error.message.contains("expected schema"))
+    );
+
+    let rebased: RuntimeCollaborationOperationResult = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-collaboration/v0/valid/rebased-mixed-change-set.operation-result.json"
+    ))
+    .expect("rebased result should parse");
+    validate_runtime_collaboration_operation_result(&rebased)
+        .expect("rebased result should validate");
+    assert_eq!(
+        rebased
+            .rebase
+            .as_ref()
+            .expect("rebased result should include rebase metadata")
+            .strategy,
+        RuntimeCollaborationRebaseStrategy::OtTransform
+    );
+
+    let invalid_strategy = serde_json::from_str::<RuntimeCollaborationOperationResult>(
+        include_str!(
+            "../../../fixtures/runtime-collaboration/v0/invalid/rebase-unknown-strategy.operation-result.json"
+        ),
+    );
+    assert!(invalid_strategy.is_err());
 }
 
 #[test]
@@ -419,6 +504,65 @@ fn validates_public_remaining_collaboration_coverage_paths() {
     .expect("valid gap event should parse");
     validate_runtime_collaboration_event_envelope(&valid_gap_event)
         .expect("valid collaboration replay gap should validate");
+    assert_eq!(
+        valid_gap_event.kind,
+        RuntimeCollaborationEventKind::OperationResult
+    );
+
+    let selection_event: RuntimeCollaborationEventEnvelope = serde_json::from_str(
+        r#"{
+          "schema": "skenion.runtime.collaboration.event",
+          "schemaVersion": "0.1.0",
+          "eventId": "event-selection",
+          "sessionId": "session-collab-a",
+          "sequence": 10,
+          "causal": {
+            "baseRevision": "root-rev-10",
+            "baseSequence": 10,
+            "vector": { "participant-a": 10 }
+          },
+          "kind": "selection",
+          "payload": {
+            "kind": "selection",
+            "selection": {
+              "schema": "skenion.runtime.collaboration.selection",
+              "schemaVersion": "0.1.0",
+              "sessionId": "session-collab-a",
+              "participantId": "participant-a",
+              "target": { "path": { "kind": "root" }, "baseRevision": "root-rev-10" },
+              "selection": {
+                "ranges": [
+                  { "kind": "nodes", "nodeIds": ["gain"] }
+                ],
+                "activeRangeIndex": 0
+              },
+              "cursor": {
+                "kind": "canvas",
+                "x": 120.0,
+                "y": 80.0,
+                "clientWindowId": "window-a"
+              },
+              "updatedAt": "2026-06-22T00:00:00.050Z",
+              "expiresAt": "2026-06-22T00:00:05.050Z"
+            }
+          },
+          "replay": {
+            "cursor": "10",
+            "previousCursor": "9",
+            "replayed": false,
+            "gap": null,
+            "overflow": false
+          },
+          "createdAt": "2026-06-22T00:00:00.050Z"
+        }"#,
+    )
+    .expect("selection event should parse");
+    validate_runtime_collaboration_event_envelope(&selection_event)
+        .expect("selection event should validate");
+    assert_eq!(
+        selection_event.kind,
+        RuntimeCollaborationEventKind::Selection
+    );
 
     let outside_operation: RuntimeOperationEnvelope = serde_json::from_str(
         r#"{
