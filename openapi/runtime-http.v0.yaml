@@ -1136,7 +1136,9 @@ components:
             $ref: "#/components/schemas/RuntimeDiagnostic"
         plan:
           anyOf:
-            - $ref: "#/components/schemas/ExecutionPlan"
+            - type: object
+              additionalProperties: true
+              description: Opaque Runtime plan snapshot for the loaded session. Use dedicated plan endpoints for the full ExecutionPlan contract.
             - type: "null"
       additionalProperties: false
     RuntimeProjectSnapshot:
@@ -1276,6 +1278,7 @@ components:
         - redo
     RuntimeEventReplayGap:
       type: object
+      description: Gap metadata reports a missed retained range. expectedSequence must be less than actualSequence.
       required:
         - expectedSequence
         - actualSequence
@@ -1344,6 +1347,7 @@ components:
           const: 0.1.0
         id:
           type: string
+          minLength: 1
         sessionId:
           type: string
           minLength: 1
@@ -1370,6 +1374,7 @@ components:
             $ref: "#/components/schemas/RuntimeDiagnostic"
         createdAt:
           type: string
+          minLength: 1
       additionalProperties: false
     RuntimeControlValue:
       oneOf:
@@ -2483,6 +2488,7 @@ components:
       properties:
         id:
           type: string
+          minLength: 1
         sequence:
           type: integer
           minimum: 1
@@ -2506,6 +2512,7 @@ components:
           type: string
         createdAt:
           type: string
+          minLength: 1
       additionalProperties: false
     GraphPatchHistoryV01:
       type: object

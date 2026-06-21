@@ -355,6 +355,7 @@ function isRuntimeEventReplayGap(value: unknown): value is RuntimeEventReplayGap
     value.expectedSequence >= 1 &&
     isNonNegativeInteger(value.actualSequence) &&
     value.actualSequence >= 1 &&
+    value.expectedSequence < value.actualSequence &&
     typeof value.reason === "string" &&
     RUNTIME_EVENT_REPLAY_GAP_REASONS.has(value.reason)
   );

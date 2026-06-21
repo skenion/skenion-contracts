@@ -880,6 +880,16 @@ function validateNodeDefinitionV02Semantics(file, definition) {
   }
 }
 
+function validateRuntimeSessionEventSemantics(file, event) {
+  const gap = event.replay?.gap;
+  if (gap && gap.expectedSequence >= gap.actualSequence) {
+    fail(file, "replay gap expectedSequence must be less than actualSequence");
+  }
+  if (event.sessionRevision !== event.snapshot?.sessionRevision) {
+    fail(file, "sessionRevision must match snapshot.sessionRevision");
+  }
+}
+
 function selectValidator(file, document, validators) {
   if (document.schema === "skenion.graph" && document.schemaVersion === "0.0.0") {
     return validators.graphV0;
@@ -962,6 +972,9 @@ function validateDocument(file, document, validators) {
   }
   if (document.schema === "skenion.runtime.operation" && document.schemaVersion === "0.1.0") {
     validateGraphFragmentV02Semantics(file, document.request.fragment);
+  }
+  if (document.schema === "skenion.runtime.session.event" && document.schemaVersion === "0.1.0") {
+    validateRuntimeSessionEventSemantics(file, document);
   }
   if (document.schema === "skenion.project" && document.schemaVersion === "0.1.0") {
     validateProjectV01Semantics(file, document);

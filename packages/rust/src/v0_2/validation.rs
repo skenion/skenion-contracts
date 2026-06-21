@@ -10,8 +10,8 @@ use super::{
     GraphFragmentV02, GraphFragmentValidationResultV02, GraphValidationDiagnosticV02,
     GraphValidationResultV02, MergePolicyV02, NodeDefinitionManifestV02, PasteGraphFragmentRequest,
     PasteGraphFragmentResponse, PatchDefinitionV02, PortDirectionV02, PortSpecV02,
-    ProjectDocumentV02, RuntimeConnectionProfileMode, RuntimeHistory, RuntimeHistoryEntry,
-    RuntimeOperationEnvelope, RuntimeOwnershipMode, RuntimeSessionEvent,
+    ProjectDocumentV02, RuntimeConnectionProfile, RuntimeConnectionProfileMode, RuntimeHistory,
+    RuntimeHistoryEntry, RuntimeOperationEnvelope, RuntimeOwnershipMode, RuntimeSessionEvent,
     RuntimeSessionInfoResponse, RuntimeSessionSnapshot, derive_patch_contract_v02,
 };
 use crate::v0_1::ViewStateV01;
@@ -928,6 +928,7 @@ pub fn validate_runtime_session_info_response(
         errors.push(ValidationErrorV02::new("sessionId must not be empty"));
     }
     errors.extend(runtime_session_snapshot_errors(&response.snapshot));
+    errors.extend(runtime_profile_errors(&response.profile));
     if response.capabilities.auth_policy != "deferred" {
         errors.push(ValidationErrorV02::new(
             "runtime session authPolicy must be deferred",
@@ -972,6 +973,64 @@ pub fn validate_runtime_session_info_response(
     } else {
         Err(ValidationReportV02::new(errors))
     }
+}
+
+fn runtime_profile_errors(profile: &RuntimeConnectionProfile) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if profile.endpoint.url.is_empty() {
+        errors.push(ValidationErrorV02::new("endpoint url must not be empty"));
+    }
+    if profile
+        .endpoint
+        .canonical_url
+        .as_ref()
+        .is_some_and(String::is_empty)
+    {
+        errors.push(ValidationErrorV02::new(
+            "endpoint canonicalUrl must not be empty",
+        ));
+    }
+    if profile.endpoint.host.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new("endpoint host must not be empty"));
+    }
+    if let Some(process) = &profile.process {
+        if process
+            .executable_path
+            .as_ref()
+            .is_some_and(String::is_empty)
+        {
+            errors.push(ValidationErrorV02::new(
+                "process executablePath must not be empty",
+            ));
+        }
+        if process
+            .working_directory
+            .as_ref()
+            .is_some_and(String::is_empty)
+        {
+            errors.push(ValidationErrorV02::new(
+                "process workingDirectory must not be empty",
+            ));
+        }
+        if process
+            .owner_window_id
+            .as_ref()
+            .is_some_and(String::is_empty)
+        {
+            errors.push(ValidationErrorV02::new(
+                "process ownerWindowId must not be empty",
+            ));
+        }
+        if process.platform.as_ref().is_some_and(String::is_empty) {
+            errors.push(ValidationErrorV02::new(
+                "process platform must not be empty",
+            ));
+        }
+        if process.arch.as_ref().is_some_and(String::is_empty) {
+            errors.push(ValidationErrorV02::new("process arch must not be empty"));
+        }
+    }
+    errors
 }
 
 pub fn validate_runtime_session_event(
@@ -2179,6 +2238,16 @@ mod tests {
         invalid_info.event_replay.cursor_kind = "timestamp".to_owned();
         invalid_info.event_replay.current_cursor.clear();
         invalid_info.event_replay.earliest_sequence = 0;
+        invalid_info.profile.endpoint.url.clear();
+        invalid_info.profile.endpoint.canonical_url = Some(String::new());
+        invalid_info.profile.endpoint.host = Some(String::new());
+        if let Some(process) = &mut invalid_info.profile.process {
+            process.executable_path = Some(String::new());
+            process.working_directory = Some(String::new());
+            process.owner_window_id = Some(String::new());
+            process.platform = Some(String::new());
+            process.arch = Some(String::new());
+        }
         invalid_info.profile.ownership = RuntimeOwnershipMode::Remote;
         let info_error = validate_runtime_session_info_response(&invalid_info)
             .expect_err("invalid session info should fail")
@@ -2190,6 +2259,14 @@ mod tests {
         assert!(info_error.contains("cursorKind must be sequence"));
         assert!(info_error.contains("currentCursor must not be empty"));
         assert!(info_error.contains("earliestSequence must be at least 1"));
+        assert!(info_error.contains("endpoint url must not be empty"));
+        assert!(info_error.contains("endpoint canonicalUrl must not be empty"));
+        assert!(info_error.contains("endpoint host must not be empty"));
+        assert!(info_error.contains("process executablePath must not be empty"));
+        assert!(info_error.contains("process workingDirectory must not be empty"));
+        assert!(info_error.contains("process ownerWindowId must not be empty"));
+        assert!(info_error.contains("process platform must not be empty"));
+        assert!(info_error.contains("process arch must not be empty"));
         assert!(info_error.contains("profile ownership must match"));
 
         let shared = serde_json::from_value(json!({

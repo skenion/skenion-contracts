@@ -143,7 +143,8 @@ test("validates runtime session profile and replay fixtures", async () => {
 
   const invalidInfoFixtures = [
     "fixtures/runtime-session/v0/invalid/invalid-profile-mode.session-info.json",
-    "fixtures/runtime-session/v0/invalid/ownership-mismatch.session-info.json"
+    "fixtures/runtime-session/v0/invalid/ownership-mismatch.session-info.json",
+    "fixtures/runtime-session/v0/invalid/empty-profile-metadata.session-info.json"
   ];
 
   for (const fixture of invalidInfoFixtures) {
@@ -162,7 +163,8 @@ test("validates runtime session profile and replay fixtures", async () => {
   const invalidEventFixtures = [
     "fixtures/runtime-session/v0/invalid/missing-replay.session-event.json",
     "fixtures/runtime-session/v0/invalid/empty-replay-cursor.session-event.json",
-    "fixtures/runtime-session/v0/invalid/replay-additional-property.session-event.json"
+    "fixtures/runtime-session/v0/invalid/replay-additional-property.session-event.json",
+    "fixtures/runtime-session/v0/invalid/replay-gap-order.session-event.json"
   ];
 
   for (const fixture of invalidEventFixtures) {
@@ -177,6 +179,11 @@ test("validates runtime session profile and replay fixtures", async () => {
   extraReplay.replay.extra = true;
   assert.equal(validateRuntimeSessionEvent(extraReplay).ok, false);
   assert.equal(isRuntimeSessionEvent(extraReplay), false);
+
+  const mismatchedRevision = structuredClone(event);
+  mismatchedRevision.sessionRevision = event.snapshot.sessionRevision + 1;
+  assert.equal(validateRuntimeSessionEvent(mismatchedRevision).ok, false);
+  assert.equal(isRuntimeSessionEvent(mismatchedRevision), false);
 });
 
 test("validates extension package manifests with help and tests", async () => {

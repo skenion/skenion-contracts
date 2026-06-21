@@ -999,7 +999,24 @@ export function validateRuntimeSessionEvent(
     return { ok: false, errors: schemaErrors(runtimeSessionEventValidator.errors as ErrorObject[]) };
   }
 
-  return { ok: true, value: document as RuntimeSessionEvent };
+  const event = document as RuntimeSessionEvent;
+  const errors = validateRuntimeSessionEventSemantics(event);
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: event };
+}
+
+function validateRuntimeSessionEventSemantics(event: RuntimeSessionEvent): string[] {
+  const errors: string[] = [];
+  if (event.replay.gap && event.replay.gap.expectedSequence >= event.replay.gap.actualSequence) {
+    errors.push("replay gap expectedSequence must be less than actualSequence");
+  }
+  if (event.sessionRevision !== event.snapshot.sessionRevision) {
+    errors.push("sessionRevision must match snapshot.sessionRevision");
+  }
+  return errors;
 }
 
 export function validatePasteGraphFragmentRequest(

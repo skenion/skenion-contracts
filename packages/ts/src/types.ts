@@ -369,7 +369,7 @@ export interface RuntimeSessionSnapshot {
   controlRevision: number;
   project: RuntimeProjectSnapshot | null;
   diagnostics: RuntimeDiagnosticV01[];
-  plan: RuntimePlan | null;
+  plan: Record<string, unknown> | null;
 }
 
 export interface RuntimeSessionResponse {
