@@ -1,8 +1,8 @@
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-use crate::v0_1::{CanvasNodeViewV01, ViewStateV01};
+use crate::v0_1::{CanvasNodeViewV01, GraphPatchV01, ViewStateV01};
 
 fn deserialize_nullable_u64<'de, D>(deserializer: D) -> Result<Option<Option<u64>>, D::Error>
 where
@@ -506,6 +506,310 @@ pub enum RuntimeSessionEventKind {
     Redo,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeSessionLifecycleState {
+    Initializing,
+    Ready,
+    Closing,
+    Closed,
+    Error,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeConnectionProfileMode {
+    LocalManaged,
+    LocalShared,
+    Remote,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeOwnershipMode {
+    OwnedChild,
+    External,
+    Remote,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeEndpointProtocol {
+    Http,
+    Https,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEndpointMetadata {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub canonical_url: Option<String>,
+    pub protocol: RuntimeEndpointProtocol,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tls: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeProcessMetadata {
+    pub owned_by_host: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executable_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_window_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arch: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeConnectionProfile {
+    pub mode: RuntimeConnectionProfileMode,
+    pub ownership: RuntimeOwnershipMode,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    pub endpoint: RuntimeEndpointMetadata,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process: Option<RuntimeProcessMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeProjectSnapshot {
+    pub graph: Value,
+    pub view_state: Value,
+    pub nodes: Vec<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSessionSnapshot {
+    pub session_revision: u64,
+    pub view_revision: u64,
+    pub control_revision: u64,
+    pub project: Option<RuntimeProjectSnapshot>,
+    pub diagnostics: Vec<Value>,
+    pub plan: Option<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeMutationRequest {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_runtime_graph_patch_v01",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub graph_patch: Option<GraphPatchV01>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub view_patch: Option<RuntimeViewPatch>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+fn deserialize_runtime_graph_patch_v01<'de, D>(
+    deserializer: D,
+) -> Result<Option<GraphPatchV01>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Value::deserialize(deserializer)?;
+    if value.is_null() {
+        return Err(de::Error::custom("graphPatch must be an object"));
+    }
+    validate_runtime_graph_patch_operation_keys(&value).map_err(de::Error::custom)?;
+    serde_json::from_value(value)
+        .map(Some)
+        .map_err(de::Error::custom)
+}
+
+fn validate_runtime_graph_patch_operation_keys(value: &Value) -> Result<(), String> {
+    let Some(ops) = value.get("ops").and_then(Value::as_array) else {
+        return Ok(());
+    };
+    for (index, operation) in ops.iter().enumerate() {
+        let Some(operation) = operation.as_object() else {
+            continue;
+        };
+        let Some(op) = operation.get("op").and_then(Value::as_str) else {
+            continue;
+        };
+        let allowed_keys: &[&str] = match op {
+            "addNode" => &["op", "node"],
+            "removeNode" => &["op", "nodeId"],
+            "replaceNode" => &["op", "nodeId", "node", "edgePolicy"],
+            "setNodeParams" => &["op", "nodeId", "params"],
+            "setNodeParam" => &["op", "nodeId", "key", "value"],
+            "addEdge" | "removeEdge" => &["op", "edge"],
+            "replaceNodeInterface" => &["op", "nodeId", "ports", "edgePolicy"],
+            _ => continue,
+        };
+        for key in operation.keys() {
+            if !allowed_keys.contains(&key.as_str()) {
+                return Err(format!(
+                    "graphPatch ops[{index}] contains unknown field {key}"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RuntimeViewPatch {
+    pub base_view_revision: u64,
+    pub ops: Vec<RuntimeViewPatchOperation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, tag = "op")]
+pub enum RuntimeViewPatchOperation {
+    #[serde(rename = "setNodeView")]
+    SetNodeView {
+        #[serde(rename = "nodeId")]
+        node_id: String,
+        view: CanvasNodeViewV01,
+    },
+    #[serde(rename = "moveNodeView")]
+    MoveNodeView {
+        #[serde(rename = "nodeId")]
+        node_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        from: Option<CanvasNodeViewV01>,
+        to: CanvasNodeViewV01,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeHistoryEntryKind {
+    Apply,
+    Undo,
+    Redo,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeHistoryEntry {
+    pub id: String,
+    pub sequence: u64,
+    pub kind: RuntimeHistoryEntryKind,
+    pub mutation: RuntimeMutationRequest,
+    pub inverse_mutation: RuntimeMutationRequest,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_event_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeHistory {
+    pub schema: String,
+    pub schema_version: String,
+    pub entries: Vec<RuntimeHistoryEntry>,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    pub undo_depth: u64,
+    pub redo_depth: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEventReplayWindow {
+    pub cursor_kind: String,
+    pub current_cursor: String,
+    pub earliest_sequence: u64,
+    pub latest_sequence: u64,
+    pub replay_limit: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overflow: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSessionCapabilitySet {
+    pub session_addressing: bool,
+    pub default_session_alias: bool,
+    pub event_replay: bool,
+    pub multi_window: bool,
+    pub profiles: Vec<RuntimeConnectionProfileMode>,
+    pub auth_policy: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSessionInfoResponse {
+    pub schema: String,
+    pub schema_version: String,
+    pub ok: bool,
+    pub session_id: String,
+    pub lifecycle: RuntimeSessionLifecycleState,
+    pub snapshot: RuntimeSessionSnapshot,
+    pub profile: RuntimeConnectionProfile,
+    pub capabilities: RuntimeSessionCapabilitySet,
+    pub event_replay: RuntimeEventReplayWindow,
+    pub diagnostics: Vec<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeEventReplayGapReason {
+    RetentionOverflow,
+    StreamReset,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEventReplayGap {
+    pub expected_sequence: u64,
+    pub actual_sequence: u64,
+    pub reason: RuntimeEventReplayGapReason,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEventReplayMetadata {
+    pub cursor: String,
+    pub previous_cursor: Option<String>,
+    pub replayed: bool,
+    pub gap: Option<RuntimeEventReplayGap>,
+    pub overflow: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -515,11 +819,13 @@ pub struct RuntimeSessionEvent {
     pub id: String,
     pub session_id: String,
     pub sequence: u64,
+    pub session_revision: u64,
     pub kind: RuntimeSessionEventKind,
-    pub snapshot: Value,
-    pub history: Value,
+    pub snapshot: RuntimeSessionSnapshot,
+    pub history: RuntimeHistory,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mutation: Option<Value>,
+    pub mutation: Option<RuntimeHistoryEntry>,
+    pub replay: RuntimeEventReplayMetadata,
     pub diagnostics: Vec<Value>,
     pub created_at: String,
 }

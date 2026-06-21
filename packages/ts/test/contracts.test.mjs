@@ -31,6 +31,7 @@ import {
   projectV01Schema,
   projectV02Schema,
   runtimeOperationV0Schema,
+  runtimeSessionV0Schema,
   parseObjectTextV01,
   representationForDataType,
   representationRegistryV01,
@@ -62,12 +63,15 @@ import {
   validateProjectDocument,
   validateProjectDocumentV02,
   validateRuntimeOperationEnvelope,
+  validateRuntimeSessionEvent,
+  validateRuntimeSessionInfoResponse,
   validateViewState,
   validateShaderInterface,
   isPasteGraphFragmentRequest,
   isPasteGraphFragmentResponse,
   isRuntimeOperationEnvelope,
-  isRuntimeSessionEvent
+  isRuntimeSessionEvent,
+  isRuntimeSessionInfoResponse
 } from "../dist/index.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
@@ -95,6 +99,7 @@ test("exports v0.1 graph and node definition schemas", () => {
   assert.equal(objectTextParseResultV01Schema.properties.schema.const, "skenion.object-text.parse-result");
   assert.equal(extensionManifestV01Schema.properties.schema.const, "skenion.extension.manifest");
   assert.equal(shaderInterfaceV01Schema.properties.schema.const, "skenion.shader.interface");
+  assert.equal(runtimeSessionV0Schema.properties.schema.const, "skenion.runtime.session.info");
   assert.equal(controlMessageV01Schema.properties.selector.type, "string");
   assert.deepEqual(shaderDiagnosticV01Schema.properties.phase.enum, [
     "interface-analysis",
@@ -104,6 +109,123 @@ test("exports v0.1 graph and node definition schemas", () => {
     "render-pipeline",
     "render-frame"
   ]);
+});
+
+test("validates runtime session profile and replay fixtures", async () => {
+  const infoFixtures = [
+    "fixtures/runtime-session/v0/valid/local-managed-session-info.json",
+    "fixtures/runtime-session/v0/valid/local-shared-session-info.json",
+    "fixtures/runtime-session/v0/valid/remote-session-info.json"
+  ];
+
+  for (const fixture of infoFixtures) {
+    const info = await readJson(fixture);
+    const infoResult = validateRuntimeSessionInfoResponse(info);
+
+    assert.equal(infoResult.ok, true, fixture);
+    assert.equal(isRuntimeSessionInfoResponse(info), true, fixture);
+    assert.equal(info.capabilities.authPolicy, "deferred");
+  }
+
+  const localManaged = await readJson("fixtures/runtime-session/v0/valid/local-managed-session-info.json");
+  assert.equal(localManaged.profile.mode, "local-managed");
+  assert.equal(localManaged.profile.ownership, "owned-child");
+  assert.deepEqual(localManaged.capabilities.profiles, ["local-managed", "local-shared", "remote"]);
+
+  const event = await readJson("fixtures/runtime-session/v0/valid/replayed-session-event.json");
+  const eventResult = validateRuntimeSessionEvent(event);
+
+  assert.equal(eventResult.ok, true);
+  assert.equal(isRuntimeSessionEvent(event), true);
+  assert.equal(event.sessionId, "session-a");
+  assert.equal(event.sessionRevision, event.snapshot.sessionRevision);
+  assert.equal(event.replay.gap.reason, "retention-overflow");
+
+  const invalidInfoFixtures = [
+    "fixtures/runtime-session/v0/invalid/invalid-profile-mode.session-info.json",
+    "fixtures/runtime-session/v0/invalid/ownership-mismatch.session-info.json",
+    "fixtures/runtime-session/v0/invalid/empty-profile-metadata.session-info.json"
+  ];
+
+  for (const fixture of invalidInfoFixtures) {
+    const invalidInfo = await readJson(fixture);
+    const invalidInfoResult = validateRuntimeSessionInfoResponse(invalidInfo);
+
+    assert.equal(invalidInfoResult.ok, false, fixture);
+    assert.equal(isRuntimeSessionInfoResponse(invalidInfo), false, fixture);
+  }
+
+  const extraProfile = structuredClone(localManaged);
+  extraProfile.profile.endpoint.extra = true;
+  assert.equal(validateRuntimeSessionInfoResponse(extraProfile).ok, false);
+  assert.equal(isRuntimeSessionInfoResponse(extraProfile), false);
+
+  const invalidEventFixtures = [
+    "fixtures/runtime-session/v0/invalid/missing-replay.session-event.json",
+    "fixtures/runtime-session/v0/invalid/extra-operation-keys.session-event.json",
+    "fixtures/runtime-session/v0/invalid/empty-replay-cursor.session-event.json",
+    "fixtures/runtime-session/v0/invalid/replay-additional-property.session-event.json",
+    "fixtures/runtime-session/v0/invalid/replay-gap-order.session-event.json",
+    "fixtures/runtime-session/v0/invalid/scalar-plan.session-event.json",
+    "fixtures/runtime-session/v0/invalid/nested-mutation-client-id.session-event.json",
+    "fixtures/runtime-session/v0/invalid/malformed-nested-patches.session-event.json"
+  ];
+
+  for (const fixture of invalidEventFixtures) {
+    const invalidEvent = await readJson(fixture);
+    const invalidEventResult = validateRuntimeSessionEvent(invalidEvent);
+
+    assert.equal(invalidEventResult.ok, false, fixture);
+    assert.equal(isRuntimeSessionEvent(invalidEvent), false, fixture);
+  }
+
+  const extraViewPatchView = structuredClone(event);
+  extraViewPatchView.kind = "mutate";
+  extraViewPatchView.history.entries = [
+    {
+      id: "history-extra-view",
+      sequence: 8,
+      kind: "apply",
+      mutation: {
+        viewPatch: {
+          baseViewRevision: 2,
+          ops: [
+            {
+              op: "setNodeView",
+              nodeId: "node-a",
+              view: { x: 0, y: 0, extra: true }
+            }
+          ]
+        }
+      },
+      inverseMutation: {
+        viewPatch: {
+          baseViewRevision: 3,
+          ops: [
+            {
+              op: "moveNodeView",
+              nodeId: "node-a",
+              to: { x: 1, y: 1 }
+            }
+          ]
+        }
+      },
+      clientId: "studio-main",
+      createdAt: "2026-06-22T00:00:05.000Z"
+    }
+  ];
+  assert.equal(validateRuntimeSessionEvent(extraViewPatchView).ok, false);
+  assert.equal(isRuntimeSessionEvent(extraViewPatchView), false);
+
+  const extraReplay = structuredClone(event);
+  extraReplay.replay.extra = true;
+  assert.equal(validateRuntimeSessionEvent(extraReplay).ok, false);
+  assert.equal(isRuntimeSessionEvent(extraReplay), false);
+
+  const mismatchedRevision = structuredClone(event);
+  mismatchedRevision.sessionRevision = event.snapshot.sessionRevision + 1;
+  assert.equal(validateRuntimeSessionEvent(mismatchedRevision).ok, false);
+  assert.equal(isRuntimeSessionEvent(mismatchedRevision), false);
 });
 
 test("validates extension package manifests with help and tests", async () => {
@@ -146,6 +268,10 @@ test("documents runtime IO discovery HTTP API", async () => {
     "RuntimeIoDeviceDescriptor",
     "RuntimeIoBindingConfig",
     "RuntimeIoDiagnostic",
+    "RuntimeSessionInfoResponse",
+    "RuntimeConnectionProfile",
+    "RuntimeSessionCapabilitySet",
+    "RuntimeEventReplayMetadata",
     "RuntimeOperationEnvelope",
     "PasteGraphFragmentRequest",
     "PasteGraphFragmentResponse",
@@ -157,11 +283,17 @@ test("documents runtime IO discovery HTTP API", async () => {
     assert.match(openApi, new RegExp(`\\b${schemaName}:`));
   }
 
+  assert.match(openApi, /\/v0\/sessions\/\{sessionId\}:/);
   assert.match(openApi, /\/v0\/sessions\/\{sessionId\}\/operations:/);
   assert.match(openApi, /\/v0\/sessions\/\{sessionId\}\/events\/stream:/);
   assert.match(openApi, /Compatibility\/default-session alias/);
+  assert.match(openApi, /name: since/);
+  assert.match(openApi, /authPolicy:/);
   assert.match(openApi, /sessions\.events\.stream/);
   assert.match(openApi, /sessionId:/);
+  assert.match(openApi, /RuntimeMutationRequest:[\s\S]*?graphPatch:\n\s+\$ref: "#\/components\/schemas\/RuntimeMutationGraphPatch"/);
+  assert.match(openApi, /RuntimeMutationGraphPatch:\n\s+\$ref: "\.\.\/json-schema\/graph\/v0\.1\/patch\.schema\.json"/);
+  assert.match(openApi, /GraphPatchV01:[\s\S]*?ops:[\s\S]*?additionalProperties: true/);
 });
 
 test("validates object text parse result fixtures", async () => {
@@ -1315,6 +1447,7 @@ test("runtime session events are session-addressed", () => {
     id: "event-1",
     sessionId: "session-a",
     sequence: 1,
+    sessionRevision: 1,
     kind: "snapshot",
     snapshot: {
       sessionRevision: 1,
@@ -1332,6 +1465,13 @@ test("runtime session events are session-addressed", () => {
       canRedo: false,
       undoDepth: 0,
       redoDepth: 0
+    },
+    replay: {
+      cursor: "1",
+      previousCursor: null,
+      replayed: false,
+      gap: null,
+      overflow: false
     },
     diagnostics: [],
     createdAt: "2026-06-21T00:00:00.000Z"

@@ -32,6 +32,12 @@ import type {
   RuntimeDiagnosticSeverity,
   RuntimeExtensionDescriptor,
   RuntimeExtensionListResponse,
+  RuntimeConnectionProfile,
+  RuntimeConnectionProfileMode,
+  RuntimeEndpointMetadata,
+  RuntimeEventReplayGap,
+  RuntimeEventReplayMetadata,
+  RuntimeEventReplayWindow,
   RuntimeGeneratedShaderResponse,
   RuntimeHealth,
   RuntimeHistory,
@@ -43,10 +49,15 @@ import type {
   RuntimeOperationAttribution,
   RuntimeOperationDiagnostic,
   RuntimeOperationEnvelope,
+  RuntimeOwnershipMode,
   RuntimePatchResponse,
+  RuntimeProcessMetadata,
   RuntimePreviewStatus,
+  RuntimeSessionCapabilitySet,
   RuntimeSessionEvent,
   RuntimeSessionEventKind,
+  RuntimeSessionInfoResponse,
+  RuntimeSessionLifecycleState,
   RuntimeSessionResponse,
   RuntimeSessionSnapshot,
   RuntimeTelemetrySnapshot
@@ -74,6 +85,10 @@ const RUNTIME_OPERATION_DIAGNOSTIC_CODES = new Set([
   "target-not-found",
   "unsupported-operation"
 ]);
+const RUNTIME_SESSION_LIFECYCLE_STATES = new Set(["initializing", "ready", "closing", "closed", "error"]);
+const RUNTIME_CONNECTION_PROFILE_MODES = new Set(["local-managed", "local-shared", "remote"]);
+const RUNTIME_OWNERSHIP_MODES = new Set(["owned-child", "external", "remote"]);
+const RUNTIME_EVENT_REPLAY_GAP_REASONS = new Set(["retention-overflow", "stream-reset", "unknown"]);
 
 export function isRuntimeHealth(value: unknown): value is RuntimeHealth {
   return isRecord(value) && typeof value.ok === "boolean" && typeof value.service === "string" && typeof value.version === "string";
@@ -133,6 +148,7 @@ export function isRuntimeApiResponse(value: unknown): value is RuntimeApiRespons
 export function isRuntimeSessionResponse(value: unknown): value is RuntimeSessionResponse {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["ok", "snapshot", "diagnostics", "report"]) &&
     typeof value.ok === "boolean" &&
     !("loaded" in value) &&
     !("graphId" in value) &&
@@ -142,6 +158,24 @@ export function isRuntimeSessionResponse(value: unknown): value is RuntimeSessio
     Array.isArray(value.diagnostics) &&
     value.diagnostics.every(isRuntimeDiagnostic) &&
     (value.report === null || isRecord(value.report))
+  );
+}
+
+export function isRuntimeSessionInfoResponse(value: unknown): value is RuntimeSessionInfoResponse {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["schema", "schemaVersion", "ok", "sessionId", "lifecycle", "snapshot", "profile", "capabilities", "eventReplay", "diagnostics"]) &&
+    value.schema === "skenion.runtime.session.info" &&
+    value.schemaVersion === "0.1.0" &&
+    typeof value.ok === "boolean" &&
+    isNonEmptyString(value.sessionId) &&
+    isRuntimeSessionLifecycleState(value.lifecycle) &&
+    isRuntimeSessionSnapshot(value.snapshot) &&
+    isRuntimeConnectionProfile(value.profile) &&
+    isRuntimeSessionCapabilitySet(value.capabilities) &&
+    isRuntimeEventReplayWindow(value.eventReplay) &&
+    Array.isArray(value.diagnostics) &&
+    value.diagnostics.every(isRuntimeDiagnostic)
   );
 }
 
@@ -208,36 +242,149 @@ export function isPasteGraphFragmentResponse(value: unknown): value is PasteGrap
 export function isRuntimeSessionEvent(value: unknown): value is RuntimeSessionEvent {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["schema", "schemaVersion", "id", "sessionId", "sequence", "sessionRevision", "kind", "snapshot", "history", "mutation", "replay", "diagnostics", "createdAt"]) &&
     value.schema === "skenion.runtime.session.event" &&
-    typeof value.schemaVersion === "string" &&
-    typeof value.id === "string" &&
-    typeof value.sessionId === "string" &&
-    typeof value.sequence === "number" &&
+    value.schemaVersion === "0.1.0" &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.sessionId) &&
+    isNonNegativeInteger(value.sequence) &&
+    value.sequence >= 1 &&
+    isNonNegativeInteger(value.sessionRevision) &&
     isRuntimeSessionEventKind(value.kind) &&
     isRuntimeSessionSnapshot(value.snapshot) &&
+    value.sessionRevision === value.snapshot.sessionRevision &&
     !("session" in value) &&
     !("graph" in value) &&
     !("viewState" in value) &&
     !("graphEvent" in value) &&
     isRuntimeHistory(value.history) &&
     (value.mutation === undefined || isRuntimeHistoryEntry(value.mutation)) &&
+    isRuntimeEventReplayMetadata(value.replay) &&
     Array.isArray(value.diagnostics) &&
     value.diagnostics.every(isRuntimeDiagnostic) &&
-    typeof value.createdAt === "string"
+    isNonEmptyString(value.createdAt)
+  );
+}
+
+function isRuntimeSessionLifecycleState(value: unknown): value is RuntimeSessionLifecycleState {
+  return typeof value === "string" && RUNTIME_SESSION_LIFECYCLE_STATES.has(value);
+}
+
+function isRuntimeConnectionProfileMode(value: unknown): value is RuntimeConnectionProfileMode {
+  return typeof value === "string" && RUNTIME_CONNECTION_PROFILE_MODES.has(value);
+}
+
+function isRuntimeOwnershipMode(value: unknown): value is RuntimeOwnershipMode {
+  return typeof value === "string" && RUNTIME_OWNERSHIP_MODES.has(value);
+}
+
+function isRuntimeEndpointMetadata(value: unknown): value is RuntimeEndpointMetadata {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["url", "canonicalUrl", "protocol", "host", "port", "tls"]) &&
+    isNonEmptyString(value.url) &&
+    (value.canonicalUrl === undefined || isNonEmptyString(value.canonicalUrl)) &&
+    (value.protocol === "http" || value.protocol === "https") &&
+    (value.host === undefined || isNonEmptyString(value.host)) &&
+    (value.port === undefined || (typeof value.port === "number" && Number.isInteger(value.port) && value.port >= 0 && value.port <= 65535)) &&
+    (value.tls === undefined || typeof value.tls === "boolean")
+  );
+}
+
+function isRuntimeProcessMetadata(value: unknown): value is RuntimeProcessMetadata {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["ownedByHost", "pid", "executablePath", "workingDirectory", "startedAt", "ownerWindowId", "platform", "arch"]) &&
+    typeof value.ownedByHost === "boolean" &&
+    (value.pid === undefined || (typeof value.pid === "number" && Number.isInteger(value.pid) && value.pid >= 1)) &&
+    (value.executablePath === undefined || isNonEmptyString(value.executablePath)) &&
+    (value.workingDirectory === undefined || isNonEmptyString(value.workingDirectory)) &&
+    (value.startedAt === undefined || typeof value.startedAt === "string") &&
+    (value.ownerWindowId === undefined || isNonEmptyString(value.ownerWindowId)) &&
+    (value.platform === undefined || isNonEmptyString(value.platform)) &&
+    (value.arch === undefined || isNonEmptyString(value.arch))
+  );
+}
+
+function isRuntimeConnectionProfile(value: unknown): value is RuntimeConnectionProfile {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["mode", "ownership", "displayName", "endpoint", "process"]) &&
+    isRuntimeConnectionProfileMode(value.mode) &&
+    isRuntimeOwnershipMode(value.ownership) &&
+    runtimeProfileOwnershipMatches(value.mode, value.ownership) &&
+    (value.displayName === undefined || typeof value.displayName === "string") &&
+    isRuntimeEndpointMetadata(value.endpoint) &&
+    (value.process === undefined || value.process === null || isRuntimeProcessMetadata(value.process))
+  );
+}
+
+function isRuntimeEventReplayWindow(value: unknown): value is RuntimeEventReplayWindow {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["cursorKind", "currentCursor", "earliestSequence", "latestSequence", "replayLimit", "overflow"]) &&
+    value.cursorKind === "sequence" &&
+    isNonEmptyString(value.currentCursor) &&
+    isNonNegativeInteger(value.earliestSequence) &&
+    value.earliestSequence >= 1 &&
+    isNonNegativeInteger(value.latestSequence) &&
+    (value.replayLimit === null || (typeof value.replayLimit === "number" && Number.isInteger(value.replayLimit) && value.replayLimit >= 0)) &&
+    (value.overflow === undefined || typeof value.overflow === "boolean")
+  );
+}
+
+function isRuntimeSessionCapabilitySet(value: unknown): value is RuntimeSessionCapabilitySet {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["sessionAddressing", "defaultSessionAlias", "eventReplay", "multiWindow", "profiles", "authPolicy"]) &&
+    typeof value.sessionAddressing === "boolean" &&
+    typeof value.defaultSessionAlias === "boolean" &&
+    typeof value.eventReplay === "boolean" &&
+    typeof value.multiWindow === "boolean" &&
+    Array.isArray(value.profiles) &&
+    value.profiles.every(isRuntimeConnectionProfileMode) &&
+    value.authPolicy === "deferred"
+  );
+}
+
+function isRuntimeEventReplayGap(value: unknown): value is RuntimeEventReplayGap {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["expectedSequence", "actualSequence", "reason"]) &&
+    isNonNegativeInteger(value.expectedSequence) &&
+    value.expectedSequence >= 1 &&
+    isNonNegativeInteger(value.actualSequence) &&
+    value.actualSequence >= 1 &&
+    value.expectedSequence < value.actualSequence &&
+    typeof value.reason === "string" &&
+    RUNTIME_EVENT_REPLAY_GAP_REASONS.has(value.reason)
+  );
+}
+
+function isRuntimeEventReplayMetadata(value: unknown): value is RuntimeEventReplayMetadata {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["cursor", "previousCursor", "replayed", "gap", "overflow"]) &&
+    isNonEmptyString(value.cursor) &&
+    (value.previousCursor === null || isNonEmptyString(value.previousCursor)) &&
+    typeof value.replayed === "boolean" &&
+    (value.gap === null || isRuntimeEventReplayGap(value.gap)) &&
+    typeof value.overflow === "boolean"
   );
 }
 
 export function isRuntimeHistory(value: unknown): value is RuntimeHistory {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["schema", "schemaVersion", "entries", "canUndo", "canRedo", "undoDepth", "redoDepth"]) &&
     value.schema === "skenion.runtime.history" &&
-    typeof value.schemaVersion === "string" &&
+    value.schemaVersion === "0.1.0" &&
     Array.isArray(value.entries) &&
     value.entries.every(isRuntimeHistoryEntry) &&
     typeof value.canUndo === "boolean" &&
     typeof value.canRedo === "boolean" &&
-    typeof value.undoDepth === "number" &&
-    typeof value.redoDepth === "number"
+    isNonNegativeInteger(value.undoDepth) &&
+    isNonNegativeInteger(value.redoDepth)
   );
 }
 
@@ -392,9 +539,10 @@ export function isExtensionManifestV01(value: unknown): value is ExtensionManife
 function isRuntimeSessionSnapshot(value: unknown): value is RuntimeSessionSnapshot {
   return (
     isRecord(value) &&
-    typeof value.sessionRevision === "number" &&
-    typeof value.viewRevision === "number" &&
-    typeof value.controlRevision === "number" &&
+    hasOnlyKeys(value, ["sessionRevision", "viewRevision", "controlRevision", "project", "diagnostics", "plan"]) &&
+    isNonNegativeInteger(value.sessionRevision) &&
+    isNonNegativeInteger(value.viewRevision) &&
+    isNonNegativeInteger(value.controlRevision) &&
     (value.project === null || isRuntimeProjectSnapshot(value.project)) &&
     Array.isArray(value.diagnostics) &&
     value.diagnostics.every(isRuntimeDiagnostic) &&
@@ -405,6 +553,7 @@ function isRuntimeSessionSnapshot(value: unknown): value is RuntimeSessionSnapsh
 function isRuntimeProjectSnapshot(value: unknown): boolean {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["graph", "viewState", "nodes"]) &&
     validateGraphDocument(value.graph).ok &&
     validateViewState(value.viewState).ok &&
     Array.isArray(value.nodes) &&
@@ -722,24 +871,27 @@ function isGeneratedShaderSourceMap(value: unknown): value is GeneratedShaderSou
 function isRuntimeHistoryEntry(value: unknown): boolean {
   return (
     isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.sequence === "number" &&
+    hasOnlyKeys(value, ["id", "sequence", "kind", "mutation", "inverseMutation", "subjectEventId", "clientId", "description", "createdAt"]) &&
+    isNonEmptyString(value.id) &&
+    isNonNegativeInteger(value.sequence) &&
+    value.sequence >= 1 &&
     (value.kind === "apply" || value.kind === "undo" || value.kind === "redo") &&
     isRuntimeMutationRequest(value.mutation) &&
     isRuntimeMutationRequest(value.inverseMutation) &&
-    (value.subjectEventId === undefined || typeof value.subjectEventId === "string") &&
-    (value.clientId === undefined || typeof value.clientId === "string") &&
+    (value.subjectEventId === undefined || isNonEmptyString(value.subjectEventId)) &&
+    (value.clientId === undefined || isNonEmptyString(value.clientId)) &&
     (value.description === undefined || typeof value.description === "string") &&
-    typeof value.createdAt === "string"
+    isNonEmptyString(value.createdAt)
   );
 }
 
 function isRuntimeMutationRequest(value: unknown): value is RuntimeMutationRequest {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["graphPatch", "viewPatch", "clientId", "description"]) &&
     (value.graphPatch === undefined || validateGraphPatch(value.graphPatch).ok) &&
     (value.viewPatch === undefined || isRuntimeViewPatch(value.viewPatch)) &&
-    (value.clientId === undefined || typeof value.clientId === "string") &&
+    (value.clientId === undefined || isNonEmptyString(value.clientId)) &&
     (value.description === undefined || typeof value.description === "string")
   );
 }
@@ -747,21 +899,22 @@ function isRuntimeMutationRequest(value: unknown): value is RuntimeMutationReque
 function isRuntimeViewPatch(value: unknown): boolean {
   return (
     isRecord(value) &&
-    typeof value.baseViewRevision === "number" &&
+    hasOnlyKeys(value, ["baseViewRevision", "ops"]) &&
+    isNonNegativeInteger(value.baseViewRevision) &&
     Array.isArray(value.ops) &&
     value.ops.every(isRuntimeViewPatchOperation)
   );
 }
 
 function isRuntimeViewPatchOperation(value: unknown): boolean {
-  if (!isRecord(value) || typeof value.nodeId !== "string") {
+  if (!isRecord(value) || !isNonEmptyString(value.nodeId)) {
     return false;
   }
   if (value.op === "setNodeView") {
-    return isCanvasNodeView(value.view);
+    return hasOnlyKeys(value, ["op", "nodeId", "view"]) && isCanvasNodeView(value.view);
   }
   if (value.op === "moveNodeView") {
-    return (value.from === undefined || isCanvasNodeView(value.from)) && isCanvasNodeView(value.to);
+    return hasOnlyKeys(value, ["op", "nodeId", "from", "to"]) && (value.from === undefined || isCanvasNodeView(value.from)) && isCanvasNodeView(value.to);
   }
   return false;
 }
@@ -769,6 +922,7 @@ function isRuntimeViewPatchOperation(value: unknown): boolean {
 function isCanvasNodeView(value: unknown): value is CanvasNodeViewV01 {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["x", "y", "width", "height", "collapsed"]) &&
     typeof value.x === "number" &&
     Number.isFinite(value.x) &&
     typeof value.y === "number" &&
@@ -808,6 +962,27 @@ function isShaderDiagnostic(value: unknown): boolean {
 
 function isRuntimePreviewState(value: unknown): boolean {
   return value === "stopped" || value === "starting" || value === "running" || value === "exited" || value === "error";
+}
+
+function runtimeProfileOwnershipMatches(mode: RuntimeConnectionProfileMode, ownership: RuntimeOwnershipMode): boolean {
+  return (
+    (mode === "local-managed" && ownership === "owned-child") ||
+    (mode === "local-shared" && ownership === "external") ||
+    (mode === "remote" && ownership === "remote")
+  );
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
+  const allowed = new Set(keys);
+  return Object.keys(value).every((key) => allowed.has(key));
 }
 
 function optionalPositiveInteger(value: unknown): boolean {

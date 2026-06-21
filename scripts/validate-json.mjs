@@ -880,6 +880,16 @@ function validateNodeDefinitionV02Semantics(file, definition) {
   }
 }
 
+function validateRuntimeSessionEventSemantics(file, event) {
+  const gap = event.replay?.gap;
+  if (gap && gap.expectedSequence >= gap.actualSequence) {
+    fail(file, "replay gap expectedSequence must be less than actualSequence");
+  }
+  if (event.sessionRevision !== event.snapshot?.sessionRevision) {
+    fail(file, "sessionRevision must match snapshot.sessionRevision");
+  }
+}
+
 function selectValidator(file, document, validators) {
   if (document.schema === "skenion.graph" && document.schemaVersion === "0.0.0") {
     return validators.graphV0;
@@ -895,6 +905,12 @@ function selectValidator(file, document, validators) {
   }
   if (document.schema === "skenion.runtime.operation" && document.schemaVersion === "0.1.0") {
     return validators.runtimeOperationV0;
+  }
+  if (document.schema === "skenion.runtime.session.info" && document.schemaVersion === "0.1.0") {
+    return validators.runtimeSessionInfo;
+  }
+  if (document.schema === "skenion.runtime.session.event" && document.schemaVersion === "0.1.0") {
+    return validators.runtimeSessionEvent;
   }
   if (document.schema === "skenion.runtime.paste-graph-fragment.response" && document.schemaVersion === "0.1.0") {
     return validators.pasteGraphFragmentResponse;
@@ -957,6 +973,9 @@ function validateDocument(file, document, validators) {
   if (document.schema === "skenion.runtime.operation" && document.schemaVersion === "0.1.0") {
     validateGraphFragmentV02Semantics(file, document.request.fragment);
   }
+  if (document.schema === "skenion.runtime.session.event" && document.schemaVersion === "0.1.0") {
+    validateRuntimeSessionEventSemantics(file, document);
+  }
   if (document.schema === "skenion.project" && document.schemaVersion === "0.1.0") {
     validateProjectV01Semantics(file, document);
   }
@@ -983,18 +1002,22 @@ const graphV01Schema = await readJson("json-schema/graph/v0.1/graph.schema.json"
 const graphV02Schema = await readJson("json-schema/graph/v0.2/graph.schema.json");
 const graphFragmentV02Schema = await readJson("json-schema/graph/v0.2/fragment.schema.json");
 const runtimeOperationV0Schema = await readJson("json-schema/runtime/v0/operation.schema.json");
+const runtimeSessionV0Schema = await readJson("json-schema/runtime/v0/session.schema.json");
 const viewStateV01Schema = await readJson("json-schema/view/v0.1/view-state.schema.json");
 const projectV01Schema = await readJson("json-schema/project/v0.1/project.schema.json");
 const projectV02Schema = await readJson("json-schema/project/v0.2/project.schema.json");
 const graphPatchV01Schema = await readJson("json-schema/graph/v0.1/patch.schema.json");
 const graphPatchEventV01Schema = await readJson("json-schema/graph/v0.1/patch-event.schema.json");
 const nodeDefinitionV01Schema = await readJson("json-schema/node/v0.1/node-definition.schema.json");
+ajv.addSchema(graphV01Schema);
 ajv.addSchema(graphV02Schema);
 ajv.addSchema(graphFragmentV02Schema);
 ajv.addSchema(runtimeOperationV0Schema);
+ajv.addSchema(viewStateV01Schema);
+ajv.addSchema(nodeDefinitionV01Schema);
+ajv.addSchema(runtimeSessionV0Schema);
 ajv.addSchema(graphPatchV01Schema);
 ajv.addSchema(graphPatchEventV01Schema);
-ajv.addSchema(nodeDefinitionV01Schema);
 const validators = {
   graphV0: ajv.compile(await readJson("json-schema/graph/v0/graph.schema.json")),
   patchV0: ajv.compile(await readJson("json-schema/graph/v0/patch.schema.json")),
@@ -1002,6 +1025,12 @@ const validators = {
   graphV02: ajv.compile(graphV02Schema),
   graphFragmentV02: ajv.compile(graphFragmentV02Schema),
   runtimeOperationV0: ajv.compile(runtimeOperationV0Schema),
+  runtimeSessionInfo: ajv.compile(runtimeSessionV0Schema),
+  runtimeSessionEvent: ajv.compile({
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: "https://skenion.dev/schemas/runtime/v0/session-event.schema.json",
+    $ref: "https://skenion.dev/schemas/runtime/v0/session.schema.json#/$defs/runtimeSessionEvent"
+  }),
   pasteGraphFragmentResponse: ajv.compile({
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: "https://skenion.dev/schemas/runtime/v0/paste-graph-fragment-response.schema.json",

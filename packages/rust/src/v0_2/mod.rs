@@ -13,9 +13,16 @@ pub use types::{
     PasteGraphFragmentOptions, PasteGraphFragmentRequest, PasteGraphFragmentResponse,
     PastePlacement, PatchContractPortV02, PatchContractV02, PatchDefinitionV02, PatchPath,
     PortDirectionV02, PortGroupSpecV02, PortRateV02, PortSpecV02, ProjectDocumentV02,
-    ProjectMetadataV02, RuntimeOperationAttribution, RuntimeOperationDiagnostic,
-    RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionEventKind, TriggerModeV02,
-    derive_patch_contract_v02, derive_patch_contracts_v02,
+    ProjectMetadataV02, RuntimeConnectionProfile, RuntimeConnectionProfileMode,
+    RuntimeEndpointMetadata, RuntimeEndpointProtocol, RuntimeEventReplayGap,
+    RuntimeEventReplayGapReason, RuntimeEventReplayMetadata, RuntimeEventReplayWindow,
+    RuntimeHistory, RuntimeHistoryEntry, RuntimeHistoryEntryKind, RuntimeMutationRequest,
+    RuntimeOperationAttribution, RuntimeOperationDiagnostic, RuntimeOperationEnvelope,
+    RuntimeOwnershipMode, RuntimeProcessMetadata, RuntimeProjectSnapshot,
+    RuntimeSessionCapabilitySet, RuntimeSessionEvent, RuntimeSessionEventKind,
+    RuntimeSessionInfoResponse, RuntimeSessionLifecycleState, RuntimeSessionSnapshot,
+    RuntimeViewPatch, RuntimeViewPatchOperation, TriggerModeV02, derive_patch_contract_v02,
+    derive_patch_contracts_v02,
 };
 pub use validation::{
     ValidationErrorV02, ValidationReportV02, analyze_graph_document_v02,
@@ -23,4 +30,5 @@ pub use validation::{
     validate_node_definition_v02, validate_paste_graph_fragment_request,
     validate_paste_graph_fragment_response, validate_patch_definition_v02,
     validate_project_document_v02, validate_runtime_operation_envelope,
+    validate_runtime_session_event, validate_runtime_session_info_response,
 };

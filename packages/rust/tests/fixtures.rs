@@ -4,11 +4,13 @@ use skenion_contracts::{
     GraphDocumentV01, GraphDocumentV02, GraphFragmentOutsideEndpointPolicyV02, GraphFragmentV02,
     GraphPatchEventV01, GraphPatchHistoryV01, GraphPatchV01, NodeDefinitionManifestV01,
     NodeDefinitionManifestV02, ObjectTextParseResultV01, PasteGraphFragmentResponse,
-    ProjectDocumentV02, RuntimeOperationEnvelope, analyze_graph_fragment_v02,
-    parse_object_text_v01, validate_graph_document_v01, validate_graph_document_v02,
-    validate_graph_fragment_v02, validate_node_definition_v01, validate_node_definition_v02,
-    validate_object_text_parse_result_v01, validate_paste_graph_fragment_response,
-    validate_project_document_v02, validate_runtime_operation_envelope,
+    ProjectDocumentV02, RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionInfoResponse,
+    analyze_graph_fragment_v02, parse_object_text_v01, validate_graph_document_v01,
+    validate_graph_document_v02, validate_graph_fragment_v02, validate_node_definition_v01,
+    validate_node_definition_v02, validate_object_text_parse_result_v01,
+    validate_paste_graph_fragment_response, validate_project_document_v02,
+    validate_runtime_operation_envelope, validate_runtime_session_event,
+    validate_runtime_session_info_response,
 };
 
 fn collect_json_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
@@ -124,6 +126,57 @@ fn validates_runtime_operation_fixtures() {
                     .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
                 validate_paste_graph_fragment_response(&response)
                     .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+            }
+            other => panic!("{} has unexpected schema {other:?}", file.display()),
+        }
+    }
+}
+
+#[test]
+fn validates_runtime_session_fixtures() {
+    for file in fixture_files("../../fixtures/runtime-session/v0/valid") {
+        let document = fs::read(&file).expect("fixture should be readable");
+        let value: serde_json::Value =
+            serde_json::from_slice(&document).expect("runtime session fixture should parse");
+        match value.get("schema").and_then(serde_json::Value::as_str) {
+            Some("skenion.runtime.session.info") => {
+                let response: RuntimeSessionInfoResponse = serde_json::from_value(value)
+                    .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
+                validate_runtime_session_info_response(&response)
+                    .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+            }
+            Some("skenion.runtime.session.event") => {
+                let event: RuntimeSessionEvent = serde_json::from_value(value)
+                    .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
+                validate_runtime_session_event(&event)
+                    .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+            }
+            other => panic!("{} has unexpected schema {other:?}", file.display()),
+        }
+    }
+
+    for file in fixture_files("../../fixtures/runtime-session/v0/invalid") {
+        let document = fs::read(&file).expect("fixture should be readable");
+        let value: serde_json::Value = serde_json::from_slice(&document)
+            .expect("invalid runtime session fixture should parse");
+        match value.get("schema").and_then(serde_json::Value::as_str) {
+            Some("skenion.runtime.session.info") => {
+                if let Ok(response) = serde_json::from_value::<RuntimeSessionInfoResponse>(value) {
+                    assert!(
+                        validate_runtime_session_info_response(&response).is_err(),
+                        "{} should fail validation",
+                        file.display()
+                    );
+                }
+            }
+            Some("skenion.runtime.session.event") => {
+                if let Ok(event) = serde_json::from_value::<RuntimeSessionEvent>(value) {
+                    assert!(
+                        validate_runtime_session_event(&event).is_err(),
+                        "{} should fail validation",
+                        file.display()
+                    );
+                }
             }
             other => panic!("{} has unexpected schema {other:?}", file.display()),
         }

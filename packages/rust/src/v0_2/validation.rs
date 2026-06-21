@@ -10,9 +10,15 @@ use super::{
     GraphFragmentV02, GraphFragmentValidationResultV02, GraphValidationDiagnosticV02,
     GraphValidationResultV02, MergePolicyV02, NodeDefinitionManifestV02, PasteGraphFragmentRequest,
     PasteGraphFragmentResponse, PatchDefinitionV02, PortDirectionV02, PortSpecV02,
-    ProjectDocumentV02, RuntimeOperationEnvelope, derive_patch_contract_v02,
+    ProjectDocumentV02, RuntimeConnectionProfile, RuntimeConnectionProfileMode, RuntimeHistory,
+    RuntimeHistoryEntry, RuntimeMutationRequest, RuntimeOperationEnvelope, RuntimeOwnershipMode,
+    RuntimeSessionEvent, RuntimeSessionInfoResponse, RuntimeSessionSnapshot,
+    RuntimeViewPatchOperation, derive_patch_contract_v02,
 };
-use crate::v0_1::ViewStateV01;
+use crate::v0_1::{
+    DataTypeV01, EdgeV01, GraphNodeV01, GraphPatchOperationV01, GraphPatchV01, PortV01,
+    StringOrStringsV01, ViewStateV01,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationErrorV02 {
@@ -906,6 +912,555 @@ pub fn validate_paste_graph_fragment_response(
     }
 }
 
+pub fn validate_runtime_session_info_response(
+    response: &RuntimeSessionInfoResponse,
+) -> Result<(), ValidationReportV02> {
+    let mut errors = Vec::new();
+    if response.schema != "skenion.runtime.session.info" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schema skenion.runtime.session.info, found {}",
+            response.schema
+        )));
+    }
+    if response.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schemaVersion 0.1.0, found {}",
+            response.schema_version
+        )));
+    }
+    if response.session_id.is_empty() {
+        errors.push(ValidationErrorV02::new("sessionId must not be empty"));
+    }
+    errors.extend(runtime_session_snapshot_errors(&response.snapshot));
+    errors.extend(runtime_profile_errors(&response.profile));
+    if response.capabilities.auth_policy != "deferred" {
+        errors.push(ValidationErrorV02::new(
+            "runtime session authPolicy must be deferred",
+        ));
+    }
+    if response.event_replay.cursor_kind != "sequence" {
+        errors.push(ValidationErrorV02::new(
+            "runtime eventReplay cursorKind must be sequence",
+        ));
+    }
+    if response.event_replay.current_cursor.is_empty() {
+        errors.push(ValidationErrorV02::new(
+            "runtime eventReplay currentCursor must not be empty",
+        ));
+    }
+    if response.event_replay.earliest_sequence == 0 {
+        errors.push(ValidationErrorV02::new(
+            "runtime eventReplay earliestSequence must be at least 1",
+        ));
+    }
+    if matches!(
+        (&response.profile.mode, &response.profile.ownership),
+        (
+            RuntimeConnectionProfileMode::LocalManaged,
+            RuntimeOwnershipMode::OwnedChild
+        ) | (
+            RuntimeConnectionProfileMode::LocalShared,
+            RuntimeOwnershipMode::External
+        ) | (
+            RuntimeConnectionProfileMode::Remote,
+            RuntimeOwnershipMode::Remote
+        )
+    ) {
+    } else {
+        errors.push(ValidationErrorV02::new(
+            "runtime profile ownership must match local-managed, local-shared, or remote mode",
+        ));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV02::new(errors))
+    }
+}
+
+fn runtime_profile_errors(profile: &RuntimeConnectionProfile) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if profile.endpoint.url.is_empty() {
+        errors.push(ValidationErrorV02::new("endpoint url must not be empty"));
+    }
+    if profile
+        .endpoint
+        .canonical_url
+        .as_ref()
+        .is_some_and(String::is_empty)
+    {
+        errors.push(ValidationErrorV02::new(
+            "endpoint canonicalUrl must not be empty",
+        ));
+    }
+    if profile.endpoint.host.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new("endpoint host must not be empty"));
+    }
+    if let Some(process) = &profile.process {
+        if process.pid == Some(0) {
+            errors.push(ValidationErrorV02::new("process pid must be at least 1"));
+        }
+        if process
+            .executable_path
+            .as_ref()
+            .is_some_and(String::is_empty)
+        {
+            errors.push(ValidationErrorV02::new(
+                "process executablePath must not be empty",
+            ));
+        }
+        if process
+            .working_directory
+            .as_ref()
+            .is_some_and(String::is_empty)
+        {
+            errors.push(ValidationErrorV02::new(
+                "process workingDirectory must not be empty",
+            ));
+        }
+        if process
+            .owner_window_id
+            .as_ref()
+            .is_some_and(String::is_empty)
+        {
+            errors.push(ValidationErrorV02::new(
+                "process ownerWindowId must not be empty",
+            ));
+        }
+        if process.platform.as_ref().is_some_and(String::is_empty) {
+            errors.push(ValidationErrorV02::new(
+                "process platform must not be empty",
+            ));
+        }
+        if process.arch.as_ref().is_some_and(String::is_empty) {
+            errors.push(ValidationErrorV02::new("process arch must not be empty"));
+        }
+    }
+    errors
+}
+
+pub fn validate_runtime_session_event(
+    event: &RuntimeSessionEvent,
+) -> Result<(), ValidationReportV02> {
+    let mut errors = Vec::new();
+    if event.schema != "skenion.runtime.session.event" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schema skenion.runtime.session.event, found {}",
+            event.schema
+        )));
+    }
+    if event.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected schemaVersion 0.1.0, found {}",
+            event.schema_version
+        )));
+    }
+    if event.session_id.is_empty() {
+        errors.push(ValidationErrorV02::new("sessionId must not be empty"));
+    }
+    if event.id.is_empty() {
+        errors.push(ValidationErrorV02::new("event id must not be empty"));
+    }
+    if event.sequence == 0 {
+        errors.push(ValidationErrorV02::new("sequence must be at least 1"));
+    }
+    if event.created_at.is_empty() {
+        errors.push(ValidationErrorV02::new("createdAt must not be empty"));
+    }
+    errors.extend(runtime_session_snapshot_errors(&event.snapshot));
+    errors.extend(runtime_history_errors(&event.history));
+    if let Some(mutation) = &event.mutation {
+        errors.extend(runtime_history_entry_errors(mutation, "mutation"));
+    }
+    if event.replay.cursor.is_empty() {
+        errors.push(ValidationErrorV02::new("replay cursor must not be empty"));
+    }
+    if event
+        .replay
+        .previous_cursor
+        .as_ref()
+        .is_some_and(String::is_empty)
+    {
+        errors.push(ValidationErrorV02::new(
+            "replay previousCursor must not be empty",
+        ));
+    }
+    if let Some(gap) = &event.replay.gap {
+        if gap.expected_sequence == 0 || gap.actual_sequence == 0 {
+            errors.push(ValidationErrorV02::new(
+                "replay gap sequences must be at least 1",
+            ));
+        }
+        if gap.expected_sequence >= gap.actual_sequence {
+            errors.push(ValidationErrorV02::new(
+                "replay gap expectedSequence must be less than actualSequence",
+            ));
+        }
+    }
+    if event.session_revision != event.snapshot.session_revision {
+        errors.push(ValidationErrorV02::new(
+            "event sessionRevision must match snapshot.sessionRevision",
+        ));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV02::new(errors))
+    }
+}
+
+fn runtime_session_snapshot_errors(snapshot: &RuntimeSessionSnapshot) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if snapshot.diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .get("message")
+            .and_then(serde_json::Value::as_str)
+            .is_none_or(str::is_empty)
+    }) {
+        errors.push(ValidationErrorV02::new(
+            "snapshot diagnostics must include non-empty message",
+        ));
+    }
+    if snapshot.plan.as_ref().is_some_and(|plan| !plan.is_object()) {
+        errors.push(ValidationErrorV02::new(
+            "snapshot plan must be an object or null",
+        ));
+    }
+    errors
+}
+
+fn runtime_history_errors(history: &RuntimeHistory) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if history.schema != "skenion.runtime.history" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected history schema skenion.runtime.history, found {}",
+            history.schema
+        )));
+    }
+    if history.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "expected history schemaVersion 0.1.0, found {}",
+            history.schema_version
+        )));
+    }
+    for entry in &history.entries {
+        errors.extend(runtime_history_entry_errors(entry, "history entry"));
+    }
+    errors
+}
+
+fn runtime_history_entry_errors(
+    entry: &RuntimeHistoryEntry,
+    label: &str,
+) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if entry.id.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} id must not be empty"
+        )));
+    }
+    if entry.sequence == 0 {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} sequence must be at least 1"
+        )));
+    }
+    if entry.created_at.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} createdAt must not be empty"
+        )));
+    }
+    if entry
+        .subject_event_id
+        .as_ref()
+        .is_some_and(String::is_empty)
+    {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} subjectEventId must not be empty"
+        )));
+    }
+    if entry.client_id.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} clientId must not be empty"
+        )));
+    }
+    errors.extend(runtime_mutation_request_errors(
+        &entry.mutation,
+        &format!("{label} mutation"),
+    ));
+    errors.extend(runtime_mutation_request_errors(
+        &entry.inverse_mutation,
+        &format!("{label} inverseMutation"),
+    ));
+    errors
+}
+
+fn runtime_mutation_request_errors(
+    mutation: &RuntimeMutationRequest,
+    label: &str,
+) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if let Some(graph_patch) = &mutation.graph_patch {
+        errors.extend(runtime_graph_patch_errors(graph_patch, label));
+    }
+    if let Some(view_patch) = &mutation.view_patch {
+        for operation in &view_patch.ops {
+            match operation {
+                RuntimeViewPatchOperation::SetNodeView { node_id, .. }
+                | RuntimeViewPatchOperation::MoveNodeView { node_id, .. } => {
+                    if node_id.is_empty() {
+                        errors.push(ValidationErrorV02::new(format!(
+                            "{label} viewPatch operation nodeId must not be empty"
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    if mutation.client_id.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} clientId must not be empty"
+        )));
+    }
+    errors
+}
+
+#[allow(clippy::collapsible_match)]
+fn runtime_graph_patch_errors(patch: &GraphPatchV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if patch.schema != "skenion.graph.patch" {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch schema must be skenion.graph.patch"
+        )));
+    }
+    if patch.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch schemaVersion must be 0.1.0"
+        )));
+    }
+    if patch.id.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch id must not be empty"
+        )));
+    }
+    if patch.base_revision.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch baseRevision must not be empty"
+        )));
+    }
+    if patch.client_id.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch clientId must not be empty"
+        )));
+    }
+    if patch.created_at.as_ref().is_some_and(String::is_empty) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch createdAt must not be empty"
+        )));
+    }
+    for operation in &patch.ops {
+        match operation {
+            GraphPatchOperationV01::AddNode { node } => {
+                errors.extend(runtime_graph_patch_node_errors(node, label));
+            }
+            GraphPatchOperationV01::RemoveNode { node_id } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::ReplaceNode { node_id, node, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+                errors.extend(runtime_graph_patch_node_errors(node, label));
+            }
+            GraphPatchOperationV01::SetNodeParams { node_id, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::SetNodeParam { node_id, key, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+                if key.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation key must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::ReplaceNodeInterface { node_id, .. } => {
+                if node_id.is_empty() {
+                    errors.push(ValidationErrorV02::new(format!(
+                        "{label} graphPatch operation nodeId must not be empty"
+                    )));
+                }
+            }
+            GraphPatchOperationV01::AddEdge { edge }
+            | GraphPatchOperationV01::RemoveEdge { edge } => {
+                errors.extend(runtime_graph_patch_edge_errors(edge, label));
+            }
+        }
+    }
+    errors
+}
+
+fn runtime_graph_patch_node_errors(node: &GraphNodeV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if node.id.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch node id must not be empty"
+        )));
+    }
+    if node.kind.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch node kind must not be empty"
+        )));
+    }
+    if node.kind_version.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch node kindVersion must not be empty"
+        )));
+    }
+    for port in &node.ports {
+        errors.extend(runtime_graph_patch_port_errors(port, label));
+    }
+    errors
+}
+
+fn runtime_graph_patch_port_errors(port: &PortV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if port.id.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port id must not be empty"
+        )));
+    }
+    errors.extend(runtime_graph_patch_data_type_errors(&port.data_type, label));
+    errors
+}
+
+fn runtime_graph_patch_data_type_errors(
+    data_type: &DataTypeV01,
+    label: &str,
+) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if data_type.data_kind.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port dataKind must not be empty"
+        )));
+    }
+    let invalid_range_step = match &data_type.range {
+        Some(range) => matches!(range.step, Some(step) if step <= 0.0),
+        None => false,
+    };
+    if invalid_range_step {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port range step must be greater than 0"
+        )));
+    }
+    let invalid_shape = match &data_type.shape {
+        Some(shape) => {
+            let mut has_invalid_shape_entry = false;
+            for entry in shape {
+                if *entry == 0 {
+                    has_invalid_shape_entry = true;
+                }
+            }
+            has_invalid_shape_entry
+        }
+        None => false,
+    };
+    if invalid_shape {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port shape entries must be at least 1"
+        )));
+    }
+    if data_type.channels == Some(0) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port channels must be at least 1"
+        )));
+    }
+    if matches!(data_type.sample_rate, Some(sample_rate) if sample_rate <= 0.0) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port sampleRate must be greater than 0"
+        )));
+    }
+    if matches!(data_type.frame_rate, Some(frame_rate) if frame_rate <= 0.0) {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port frameRate must be greater than 0"
+        )));
+    }
+    let invalid_format = match &data_type.format {
+        Some(StringOrStringsV01::One(value)) => value.is_empty(),
+        Some(StringOrStringsV01::Many(values)) => {
+            let mut has_empty_format = false;
+            for value in values {
+                if value.is_empty() {
+                    has_empty_format = true;
+                }
+            }
+            has_empty_format
+        }
+        None => false,
+    };
+    if invalid_format {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port format must not be empty"
+        )));
+    }
+    let invalid_alpha_policy = match &data_type.alpha_policy {
+        Some(policy) => !matches!(policy.as_str(), "error" | "white" | "black" | "luminance"),
+        None => false,
+    };
+    if invalid_alpha_policy {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port alphaPolicy must be supported"
+        )));
+    }
+    let invalid_values = match &data_type.values {
+        Some(values) => {
+            let mut has_invalid_value = false;
+            for value in values {
+                if !(value.is_string() || value.is_number() || value.is_boolean()) {
+                    has_invalid_value = true;
+                }
+            }
+            has_invalid_value
+        }
+        None => false,
+    };
+    if invalid_values {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch port values must be scalar strings, numbers, or booleans"
+        )));
+    }
+    errors
+}
+
+fn runtime_graph_patch_edge_errors(edge: &EdgeV01, label: &str) -> Vec<ValidationErrorV02> {
+    let mut errors = Vec::new();
+    if edge.from.node.is_empty() || edge.from.port.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch edge source must not be empty"
+        )));
+    }
+    if edge.to.node.is_empty() || edge.to.port.is_empty() {
+        errors.push(ValidationErrorV02::new(format!(
+            "{label} graphPatch edge target must not be empty"
+        )));
+    }
+    errors
+}
+
 pub fn validate_node_definition_v02(
     definition: &NodeDefinitionManifestV02,
 ) -> Result<(), ValidationReportV02> {
@@ -1095,8 +1650,9 @@ mod tests {
     use crate::v0_2::{
         EdgeEndpointV02, FeedbackPolicyV02, GraphFragmentV02, GraphNodeV02, GraphTargetRef,
         IdConflictPolicy, IdRemapResult, PasteGraphFragmentOptions, PasteGraphFragmentRequest,
-        PasteGraphFragmentResponse, PatchPath, RuntimeOperationDiagnostic,
-        RuntimeOperationEnvelope,
+        PasteGraphFragmentResponse, PatchPath, RuntimeEventReplayGap, RuntimeEventReplayGapReason,
+        RuntimeHistoryEntry, RuntimeOperationDiagnostic, RuntimeOperationEnvelope,
+        RuntimeSessionEvent, RuntimeSessionInfoResponse,
     };
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -1189,6 +1745,264 @@ mod tests {
             correlation_id: None,
             created_at: None,
         }
+    }
+
+    fn runtime_session_info() -> RuntimeSessionInfoResponse {
+        serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.info",
+            "schemaVersion": "0.1.0",
+            "ok": true,
+            "sessionId": "session-a",
+            "lifecycle": "ready",
+            "snapshot": { "sessionRevision": 1, "viewRevision": 1, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
+            "profile": {
+                "mode": "local-managed",
+                "ownership": "owned-child",
+                "endpoint": { "url": "http://127.0.0.1:49231", "protocol": "http" },
+                "process": { "ownedByHost": true }
+            },
+            "capabilities": {
+                "sessionAddressing": true,
+                "defaultSessionAlias": true,
+                "eventReplay": true,
+                "multiWindow": true,
+                "profiles": ["local-managed", "local-shared", "remote"],
+                "authPolicy": "deferred"
+            },
+            "eventReplay": {
+                "cursorKind": "sequence",
+                "currentCursor": "1",
+                "earliestSequence": 1,
+                "latestSequence": 1,
+                "replayLimit": 512
+            },
+            "diagnostics": []
+        }))
+        .expect("session info should parse")
+    }
+
+    fn runtime_session_event() -> RuntimeSessionEvent {
+        serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.event",
+            "schemaVersion": "0.1.0",
+            "id": "event-1",
+            "sessionId": "session-a",
+            "sequence": 1,
+            "sessionRevision": 1,
+            "kind": "snapshot",
+            "snapshot": { "sessionRevision": 1, "viewRevision": 1, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
+            "history": {
+                "schema": "skenion.runtime.history",
+                "schemaVersion": "0.1.0",
+                "entries": [],
+                "canUndo": false,
+                "canRedo": false,
+                "undoDepth": 0,
+                "redoDepth": 0
+            },
+            "replay": {
+                "cursor": "1",
+                "previousCursor": null,
+                "replayed": false,
+                "gap": null,
+                "overflow": false
+            },
+            "diagnostics": [],
+            "createdAt": "2026-06-22T00:00:00.000Z"
+        }))
+        .expect("session event should parse")
+    }
+
+    fn runtime_session_mutation_event(
+        mutation: serde_json::Value,
+        inverse_mutation: serde_json::Value,
+    ) -> serde_json::Value {
+        json!({
+            "schema": "skenion.runtime.session.event",
+            "schemaVersion": "0.1.0",
+            "id": "event-mutate",
+            "sessionId": "session-a",
+            "sequence": 2,
+            "sessionRevision": 2,
+            "kind": "mutate",
+            "snapshot": { "sessionRevision": 2, "viewRevision": 2, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
+            "history": {
+                "schema": "skenion.runtime.history",
+                "schemaVersion": "0.1.0",
+                "entries": [
+                    {
+                        "id": "history-2",
+                        "sequence": 2,
+                        "kind": "apply",
+                        "mutation": mutation,
+                        "inverseMutation": inverse_mutation,
+                        "clientId": "studio-main",
+                        "createdAt": "2026-06-22T00:00:02.000Z"
+                    }
+                ],
+                "canUndo": true,
+                "canRedo": false,
+                "undoDepth": 1,
+                "redoDepth": 0
+            },
+            "replay": {
+                "cursor": "2",
+                "previousCursor": "1",
+                "replayed": false,
+                "gap": null,
+                "overflow": false
+            },
+            "diagnostics": [],
+            "createdAt": "2026-06-22T00:00:02.000Z"
+        })
+    }
+
+    fn runtime_graph_patch_mutation(extra_operation_key: bool) -> serde_json::Value {
+        let mut operation = json!({
+            "op": "setNodeParam",
+            "nodeId": "value_1",
+            "key": "value",
+            "value": 0.5
+        });
+        if extra_operation_key {
+            operation["unexpected"] = json!(true);
+        }
+        json!({
+            "graphPatch": {
+                "schema": "skenion.graph.patch",
+                "schemaVersion": "0.1.0",
+                "id": "patch-runtime",
+                "baseRevision": "1",
+                "ops": [operation]
+            }
+        })
+    }
+
+    fn runtime_view_patch_mutation(extra_operation_key: bool) -> serde_json::Value {
+        let mut operation = json!({
+            "op": "setNodeView",
+            "nodeId": "value_1",
+            "view": { "x": 0, "y": 0 }
+        });
+        if extra_operation_key {
+            operation["unexpected"] = json!(true);
+        }
+        json!({
+            "viewPatch": {
+                "baseViewRevision": 1,
+                "ops": [operation]
+            }
+        })
+    }
+
+    #[test]
+    fn rejects_extra_nested_runtime_patch_operation_keys_at_parse_boundary() {
+        serde_json::from_value::<RuntimeSessionEvent>(runtime_session_mutation_event(
+            json!({}),
+            json!({}),
+        ))
+        .expect("empty mutation requests should parse");
+
+        let graph_null = runtime_session_mutation_event(
+            json!({ "graphPatch": null }),
+            runtime_view_patch_mutation(false),
+        );
+        let graph_null_error = serde_json::from_value::<RuntimeSessionEvent>(graph_null)
+            .expect_err("explicit null graphPatch should fail");
+        assert!(
+            graph_null_error
+                .to_string()
+                .contains("graphPatch must be an object")
+        );
+
+        let graph_without_ops = runtime_session_mutation_event(
+            json!({
+                "graphPatch": {
+                    "schema": "skenion.graph.patch",
+                    "schemaVersion": "0.1.0",
+                    "id": "patch-without-ops",
+                    "baseRevision": "1"
+                }
+            }),
+            runtime_view_patch_mutation(false),
+        );
+        let graph_without_ops_error =
+            serde_json::from_value::<RuntimeSessionEvent>(graph_without_ops)
+                .expect_err("graphPatch without ops should fail after strict key scan");
+        assert!(
+            graph_without_ops_error
+                .to_string()
+                .contains("missing field `ops`")
+        );
+
+        let graph_non_object_op = runtime_session_mutation_event(
+            json!({
+                "graphPatch": {
+                    "schema": "skenion.graph.patch",
+                    "schemaVersion": "0.1.0",
+                    "id": "patch-non-object-op",
+                    "baseRevision": "1",
+                    "ops": [null]
+                }
+            }),
+            runtime_view_patch_mutation(false),
+        );
+        serde_json::from_value::<RuntimeSessionEvent>(graph_non_object_op)
+            .expect_err("non-object graphPatch operation should fail");
+
+        let graph_missing_op = runtime_session_mutation_event(
+            json!({
+                "graphPatch": {
+                    "schema": "skenion.graph.patch",
+                    "schemaVersion": "0.1.0",
+                    "id": "patch-missing-op",
+                    "baseRevision": "1",
+                    "ops": [{ "nodeId": "value_1" }]
+                }
+            }),
+            runtime_view_patch_mutation(false),
+        );
+        serde_json::from_value::<RuntimeSessionEvent>(graph_missing_op)
+            .expect_err("graphPatch operation without op discriminator should fail");
+
+        let graph_unknown_op = runtime_session_mutation_event(
+            json!({
+                "graphPatch": {
+                    "schema": "skenion.graph.patch",
+                    "schemaVersion": "0.1.0",
+                    "id": "patch-unknown-op",
+                    "baseRevision": "1",
+                    "ops": [{ "op": "unsupported" }]
+                }
+            }),
+            runtime_view_patch_mutation(false),
+        );
+        serde_json::from_value::<RuntimeSessionEvent>(graph_unknown_op)
+            .expect_err("unsupported graphPatch operation should fail");
+
+        let graph_extra = runtime_session_mutation_event(
+            runtime_graph_patch_mutation(true),
+            runtime_view_patch_mutation(false),
+        );
+        let graph_error = serde_json::from_value::<RuntimeSessionEvent>(graph_extra)
+            .expect_err("extra nested graphPatch operation key should fail");
+        assert!(
+            graph_error
+                .to_string()
+                .contains("graphPatch ops[0] contains unknown field unexpected")
+        );
+
+        let view_extra = runtime_session_mutation_event(
+            runtime_graph_patch_mutation(false),
+            runtime_view_patch_mutation(true),
+        );
+        let view_error = serde_json::from_value::<RuntimeSessionEvent>(view_extra)
+            .expect_err("extra nested viewPatch operation key should fail");
+        assert!(
+            view_error
+                .to_string()
+                .contains("unknown field `unexpected`")
+        );
     }
 
     #[test]
@@ -1886,6 +2700,376 @@ mod tests {
         assert!(text.contains("unsupported permission"));
         assert!(text.contains("duplicate port id"));
         assert!(text.contains("maxPorts"));
+    }
+
+    #[test]
+    fn validates_runtime_session_profile_and_replay_branches() {
+        let info = runtime_session_info();
+        validate_runtime_session_info_response(&info).expect("session info should validate");
+
+        let mut invalid_info = info.clone();
+        invalid_info.schema = "wrong".to_owned();
+        invalid_info.schema_version = "9.9.9".to_owned();
+        invalid_info.session_id.clear();
+        invalid_info.capabilities.auth_policy = "trusted-local".to_owned();
+        invalid_info.event_replay.cursor_kind = "timestamp".to_owned();
+        invalid_info.event_replay.current_cursor.clear();
+        invalid_info.event_replay.earliest_sequence = 0;
+        invalid_info.profile.endpoint.url.clear();
+        invalid_info.profile.endpoint.canonical_url = Some(String::new());
+        invalid_info.profile.endpoint.host = Some(String::new());
+        if let Some(process) = &mut invalid_info.profile.process {
+            process.pid = Some(0);
+            process.executable_path = Some(String::new());
+            process.working_directory = Some(String::new());
+            process.owner_window_id = Some(String::new());
+            process.platform = Some(String::new());
+            process.arch = Some(String::new());
+        }
+        invalid_info.profile.ownership = RuntimeOwnershipMode::Remote;
+        let info_error = validate_runtime_session_info_response(&invalid_info)
+            .expect_err("invalid session info should fail")
+            .to_string();
+        assert!(info_error.contains("skenion.runtime.session.info"));
+        assert!(info_error.contains("0.1.0"));
+        assert!(info_error.contains("sessionId must not be empty"));
+        assert!(info_error.contains("authPolicy must be deferred"));
+        assert!(info_error.contains("cursorKind must be sequence"));
+        assert!(info_error.contains("currentCursor must not be empty"));
+        assert!(info_error.contains("earliestSequence must be at least 1"));
+        assert!(info_error.contains("endpoint url must not be empty"));
+        assert!(info_error.contains("endpoint canonicalUrl must not be empty"));
+        assert!(info_error.contains("endpoint host must not be empty"));
+        assert!(info_error.contains("process pid must be at least 1"));
+        assert!(info_error.contains("process executablePath must not be empty"));
+        assert!(info_error.contains("process workingDirectory must not be empty"));
+        assert!(info_error.contains("process ownerWindowId must not be empty"));
+        assert!(info_error.contains("process platform must not be empty"));
+        assert!(info_error.contains("process arch must not be empty"));
+        assert!(info_error.contains("profile ownership must match"));
+
+        let shared = serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.info",
+            "schemaVersion": "0.1.0",
+            "ok": true,
+            "sessionId": "session-b",
+            "lifecycle": "ready",
+            "snapshot": { "sessionRevision": 1, "viewRevision": 1, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
+            "profile": {
+                "mode": "local-shared",
+                "ownership": "external",
+                "endpoint": { "url": "http://127.0.0.1:49232", "protocol": "http" },
+                "process": { "ownedByHost": false }
+            },
+            "capabilities": {
+                "sessionAddressing": true,
+                "defaultSessionAlias": true,
+                "eventReplay": true,
+                "multiWindow": true,
+                "profiles": ["local-shared"],
+                "authPolicy": "deferred"
+            },
+            "eventReplay": {
+                "cursorKind": "sequence",
+                "currentCursor": "1",
+                "earliestSequence": 1,
+                "latestSequence": 1,
+                "replayLimit": null
+            },
+            "diagnostics": []
+        }))
+        .expect("shared info should parse");
+        validate_runtime_session_info_response(&shared).expect("shared info should validate");
+
+        let remote = serde_json::from_value(json!({
+            "schema": "skenion.runtime.session.info",
+            "schemaVersion": "0.1.0",
+            "ok": true,
+            "sessionId": "session-c",
+            "lifecycle": "ready",
+            "snapshot": { "sessionRevision": 1, "viewRevision": 1, "controlRevision": 1, "project": null, "diagnostics": [], "plan": null },
+            "profile": {
+                "mode": "remote",
+                "ownership": "remote",
+                "endpoint": { "url": "https://runtime.example.test", "protocol": "https" },
+                "process": null
+            },
+            "capabilities": {
+                "sessionAddressing": true,
+                "defaultSessionAlias": false,
+                "eventReplay": true,
+                "multiWindow": true,
+                "profiles": ["remote"],
+                "authPolicy": "deferred"
+            },
+            "eventReplay": {
+                "cursorKind": "sequence",
+                "currentCursor": "1",
+                "earliestSequence": 1,
+                "latestSequence": 1,
+                "replayLimit": 512
+            },
+            "diagnostics": []
+        }))
+        .expect("remote info should parse");
+        validate_runtime_session_info_response(&remote).expect("remote info should validate");
+
+        let event = runtime_session_event();
+        validate_runtime_session_event(&event).expect("session event should validate");
+
+        let mut invalid_event = event.clone();
+        invalid_event.schema = "wrong".to_owned();
+        invalid_event.schema_version = "9.9.9".to_owned();
+        invalid_event.id.clear();
+        invalid_event.session_id.clear();
+        invalid_event.sequence = 0;
+        invalid_event.created_at.clear();
+        invalid_event.session_revision = 2;
+        invalid_event.snapshot.diagnostics.push(json!({
+            "severity": "warning"
+        }));
+        invalid_event.snapshot.plan = Some(json!("opaque-plan"));
+        invalid_event.history.schema = "wrong".to_owned();
+        invalid_event.history.schema_version = "9.9.9".to_owned();
+        let invalid_graph_patch = json!({
+            "schema": "wrong",
+            "schemaVersion": "9.9.9",
+            "id": "",
+            "baseRevision": "",
+            "clientId": "",
+            "createdAt": "",
+            "ops": [
+                {
+                    "op": "addNode",
+                    "node": {
+                        "id": "",
+                        "kind": "",
+                        "kindVersion": "",
+                        "params": {},
+                        "ports": [
+                            {
+                                "id": "",
+                                "direction": "input",
+                                "type": {
+                                    "flow": "value",
+                                    "dataKind": "",
+                                    "range": { "step": 0 },
+                                    "shape": [0],
+                                    "channels": 0,
+                                    "sampleRate": 0,
+                                    "format": "",
+                                    "frameRate": 0,
+                                    "alphaPolicy": "unsupported",
+                                    "values": [{}]
+                                }
+                            },
+                            {
+                                "id": "format-array",
+                                "direction": "input",
+                                "type": {
+                                    "flow": "value",
+                                    "dataKind": "number.float",
+                                    "format": [""]
+                                }
+                            },
+                            {
+                                "id": "format-absent",
+                                "direction": "input",
+                                "type": {
+                                    "flow": "value",
+                                    "dataKind": "number.float"
+                                }
+                            }
+                        ]
+                    }
+                },
+                { "op": "removeNode", "nodeId": "" },
+                { "op": "setNodeParams", "nodeId": "", "params": {} },
+                {
+                    "op": "replaceNode",
+                    "nodeId": "",
+                    "node": {
+                        "id": "",
+                        "kind": "",
+                        "kindVersion": "",
+                        "params": {},
+                        "ports": []
+                    },
+                    "edgePolicy": "removeInvalidEdges"
+                },
+                { "op": "setNodeParam", "nodeId": "", "key": "", "value": null },
+                {
+                    "op": "replaceNodeInterface",
+                    "nodeId": "",
+                    "ports": [],
+                    "edgePolicy": "removeInvalidEdges"
+                },
+                {
+                    "op": "addEdge",
+                    "edge": {
+                        "from": { "node": "node-a", "port": "out" },
+                        "to": { "node": "node-b", "port": "in" }
+                    }
+                },
+                {
+                    "op": "removeEdge",
+                    "edge": {
+                        "from": { "node": "", "port": "" },
+                        "to": { "node": "", "port": "" }
+                    }
+                }
+            ]
+        });
+        let invalid_view_patch = json!({
+            "baseViewRevision": 0,
+            "ops": [
+                { "op": "setNodeView", "nodeId": "", "view": { "x": 0, "y": 0 } },
+                { "op": "moveNodeView", "nodeId": "", "from": { "x": 0, "y": 0 }, "to": { "x": 1, "y": 1 } }
+            ]
+        });
+        let invalid_entry: RuntimeHistoryEntry = serde_json::from_value(json!({
+            "id": "",
+            "sequence": 0,
+            "kind": "apply",
+            "mutation": {
+                "graphPatch": invalid_graph_patch,
+                "clientId": ""
+            },
+            "inverseMutation": {
+                "viewPatch": invalid_view_patch,
+                "clientId": ""
+            },
+            "subjectEventId": "",
+            "clientId": "",
+            "createdAt": ""
+        }))
+        .expect("invalid history entry should parse structurally");
+        invalid_event.history.entries.push(invalid_entry.clone());
+        invalid_event.mutation = Some(invalid_entry);
+        invalid_event.replay.cursor.clear();
+        invalid_event.replay.previous_cursor = Some(String::new());
+        invalid_event.replay.gap = Some(RuntimeEventReplayGap {
+            expected_sequence: 0,
+            actual_sequence: 0,
+            reason: RuntimeEventReplayGapReason::Unknown,
+        });
+        let event_error = validate_runtime_session_event(&invalid_event)
+            .expect_err("invalid session event should fail")
+            .to_string();
+        assert!(event_error.contains("skenion.runtime.session.event"));
+        assert!(event_error.contains("0.1.0"));
+        assert!(event_error.contains("event id must not be empty"));
+        assert!(event_error.contains("sessionId must not be empty"));
+        assert!(event_error.contains("sequence must be at least 1"));
+        assert!(event_error.contains("createdAt must not be empty"));
+        assert!(event_error.contains("snapshot diagnostics must include non-empty message"));
+        assert!(event_error.contains("snapshot plan must be an object or null"));
+        assert!(event_error.contains("expected history schema skenion.runtime.history"));
+        assert!(event_error.contains("expected history schemaVersion 0.1.0"));
+        assert!(event_error.contains("history entry id must not be empty"));
+        assert!(event_error.contains("history entry sequence must be at least 1"));
+        assert!(event_error.contains("history entry createdAt must not be empty"));
+        assert!(event_error.contains("history entry subjectEventId must not be empty"));
+        assert!(event_error.contains("history entry clientId must not be empty"));
+        assert!(event_error.contains("history entry mutation graphPatch schema must be"));
+        assert!(event_error.contains("history entry mutation graphPatch schemaVersion must be"));
+        assert!(event_error.contains("history entry mutation graphPatch id must not be empty"));
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch baseRevision must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch clientId must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch createdAt must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch operation nodeId must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch operation key must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch node id must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch node kind must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch node kindVersion must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch port id must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch port dataKind must not be empty")
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port range step must be greater than 0"
+            )
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port shape entries must be at least 1"
+            )
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch port channels must be at least 1")
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port sampleRate must be greater than 0"
+            )
+        );
+        assert!(
+            event_error.contains(
+                "history entry mutation graphPatch port frameRate must be greater than 0"
+            )
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch port format must not be empty")
+        );
+        assert!(
+            event_error
+                .contains("history entry mutation graphPatch port alphaPolicy must be supported")
+        );
+        assert!(event_error.contains(
+            "history entry mutation graphPatch port values must be scalar strings, numbers, or booleans"
+        ));
+        assert!(
+            event_error.contains("history entry mutation graphPatch edge source must not be empty")
+        );
+        assert!(
+            event_error.contains("history entry mutation graphPatch edge target must not be empty")
+        );
+        assert!(event_error.contains("history entry mutation clientId must not be empty"));
+        assert!(event_error.contains(
+            "history entry inverseMutation viewPatch operation nodeId must not be empty"
+        ));
+        assert!(event_error.contains("history entry inverseMutation clientId must not be empty"));
+        assert!(event_error.contains("mutation id must not be empty"));
+        assert!(event_error.contains("mutation mutation graphPatch schema must be"));
+        assert!(
+            event_error.contains("mutation mutation graphPatch operation nodeId must not be empty")
+        );
+        assert!(event_error.contains("mutation mutation clientId must not be empty"));
+        assert!(
+            event_error
+                .contains("mutation inverseMutation viewPatch operation nodeId must not be empty")
+        );
+        assert!(event_error.contains("mutation inverseMutation clientId must not be empty"));
+        assert!(event_error.contains("replay cursor must not be empty"));
+        assert!(event_error.contains("replay previousCursor must not be empty"));
+        assert!(event_error.contains("replay gap sequences must be at least 1"));
+        assert!(event_error.contains("expectedSequence must be less than actualSequence"));
+        assert!(event_error.contains("sessionRevision must match"));
     }
 
     #[test]

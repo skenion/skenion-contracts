@@ -205,6 +205,59 @@ export interface RuntimeInfo {
   capabilities: string[];
 }
 
+export type RuntimeSessionLifecycleState = "initializing" | "ready" | "closing" | "closed" | "error";
+export type RuntimeConnectionProfileMode = "local-managed" | "local-shared" | "remote";
+export type RuntimeOwnershipMode = "owned-child" | "external" | "remote";
+
+export interface RuntimeEndpointMetadata {
+  url: string;
+  canonicalUrl?: string;
+  protocol: "http" | "https";
+  host?: string;
+  port?: number;
+  tls?: boolean;
+}
+
+export interface RuntimeProcessMetadata {
+  ownedByHost: boolean;
+  pid?: number;
+  executablePath?: string;
+  workingDirectory?: string;
+  startedAt?: string;
+  ownerWindowId?: string;
+  platform?: string;
+  arch?: string;
+}
+
+export interface RuntimeConnectionProfileBase {
+  displayName?: string;
+  endpoint: RuntimeEndpointMetadata;
+  process?: RuntimeProcessMetadata | null;
+}
+
+export type RuntimeConnectionProfile =
+  | (RuntimeConnectionProfileBase & { mode: "local-managed"; ownership: "owned-child" })
+  | (RuntimeConnectionProfileBase & { mode: "local-shared"; ownership: "external" })
+  | (RuntimeConnectionProfileBase & { mode: "remote"; ownership: "remote" });
+
+export interface RuntimeEventReplayWindow {
+  cursorKind: "sequence";
+  currentCursor: string;
+  earliestSequence: number;
+  latestSequence: number;
+  replayLimit: number | null;
+  overflow?: boolean;
+}
+
+export interface RuntimeSessionCapabilitySet {
+  sessionAddressing: boolean;
+  defaultSessionAlias: boolean;
+  eventReplay: boolean;
+  multiWindow: boolean;
+  profiles: RuntimeConnectionProfileMode[];
+  authPolicy: "deferred";
+}
+
 export interface RuntimeLogEvent {
   id: number;
   timestamp: string;
@@ -316,7 +369,7 @@ export interface RuntimeSessionSnapshot {
   controlRevision: number;
   project: RuntimeProjectSnapshot | null;
   diagnostics: RuntimeDiagnosticV01[];
-  plan: RuntimePlan | null;
+  plan: Record<string, unknown> | null;
 }
 
 export interface RuntimeSessionResponse {
@@ -324,6 +377,19 @@ export interface RuntimeSessionResponse {
   snapshot: RuntimeSessionSnapshot;
   diagnostics: RuntimeDiagnosticV01[];
   report: RuntimeDummyExecutionReport | null;
+}
+
+export interface RuntimeSessionInfoResponse {
+  schema: "skenion.runtime.session.info";
+  schemaVersion: "0.1.0";
+  ok: boolean;
+  sessionId: string;
+  lifecycle: RuntimeSessionLifecycleState;
+  snapshot: RuntimeSessionSnapshot;
+  profile: RuntimeConnectionProfile;
+  capabilities: RuntimeSessionCapabilitySet;
+  eventReplay: RuntimeEventReplayWindow;
+  diagnostics: RuntimeDiagnosticV01[];
 }
 
 export interface RuntimeMutationRequest {
@@ -379,16 +445,32 @@ export type RuntimePatchResponse = RuntimeMutationResponse;
 
 export type RuntimeSessionEventKind = "snapshot" | "load" | "clear" | "mutate" | "undo" | "redo";
 
+export interface RuntimeEventReplayGap {
+  expectedSequence: number;
+  actualSequence: number;
+  reason: "retention-overflow" | "stream-reset" | "unknown";
+}
+
+export interface RuntimeEventReplayMetadata {
+  cursor: string;
+  previousCursor: string | null;
+  replayed: boolean;
+  gap: RuntimeEventReplayGap | null;
+  overflow: boolean;
+}
+
 export interface RuntimeSessionEvent {
   schema: "skenion.runtime.session.event";
   schemaVersion: "0.1.0";
   id: string;
   sessionId: string;
   sequence: number;
+  sessionRevision: number;
   kind: RuntimeSessionEventKind;
   snapshot: RuntimeSessionSnapshot;
   history: RuntimeHistory;
   mutation?: RuntimeHistoryEntry;
+  replay: RuntimeEventReplayMetadata;
   diagnostics: RuntimeDiagnosticV01[];
   createdAt: string;
 }

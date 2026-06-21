@@ -94,6 +94,7 @@ paths:
   /v0/session:
     get:
       summary: Compatibility/default-session alias: return the current local runtime session state.
+      description: Compatibility alias for the default local session. New desktop and multi-window clients should use GET /v0/sessions/{sessionId} for session profile and capability metadata.
       responses:
         "200":
           description: Current session state.
@@ -110,25 +111,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuntimeSessionResponse"
-  /v0/session/events/stream:
+  /v0/sessions/{sessionId}:
     get:
-      summary: Compatibility/default-session alias for Runtime-authoritative session events.
-      description: New clients should stream explicit session events from /v0/sessions/{sessionId}/events/stream.
-      responses:
-        "200":
-          description: Default-session event stream. Each event carries a full canonical snapshot, history, and session id.
-          content:
-            text/event-stream:
-              schema:
-                type: string
-              examples:
-                session:
-                  value: |
-                    event: session
-                    data: {"schema":"skenion.runtime.session.event","schemaVersion":"0.1.0","sessionId":"default","kind":"snapshot"}
-  /v0/sessions/{sessionId}/events/stream:
-    get:
-      summary: Stream Runtime-authoritative events for an explicit session.
+      summary: Return canonical session info, profile, and capabilities for an explicit session.
+      description: Canonical M06.8 session-addressed route for Studio/Tauri multi-window clients. The response reports lifecycle state, runtime connection profile, sidecar/endpoint metadata, session capabilities, and event replay window metadata without defining authentication or permission policy.
       parameters:
         - name: sessionId
           in: path
@@ -138,7 +124,26 @@ paths:
             minLength: 1
       responses:
         "200":
-          description: Session-addressed event stream. Each event carries its target session id, canonical snapshot, history, and diagnostics.
+          description: Explicit Runtime session info and desktop/runtime profile metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeSessionInfoResponse"
+  /v0/session/events/stream:
+    get:
+      summary: Compatibility/default-session alias for Runtime-authoritative session events.
+      description: New clients should stream explicit session events from /v0/sessions/{sessionId}/events/stream.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+          description: Optional replay cursor. For v0 this is a decimal session event sequence encoded as a string.
+      responses:
+        "200":
+          description: Default-session event stream. Each event carries a full canonical snapshot, history, session id, sequence/revision metadata, and replay/gap diagnostics.
           content:
             text/event-stream:
               schema:
@@ -147,7 +152,37 @@ paths:
                 session:
                   value: |
                     event: session
-                    data: {"schema":"skenion.runtime.session.event","schemaVersion":"0.1.0","sessionId":"session-a","kind":"snapshot"}
+                    data: {"schema":"skenion.runtime.session.event","schemaVersion":"0.1.0","id":"event-1","sessionId":"default","sequence":1,"sessionRevision":1,"kind":"snapshot","snapshot":{"sessionRevision":1,"viewRevision":1,"controlRevision":1,"project":null,"diagnostics":[],"plan":null},"history":{"schema":"skenion.runtime.history","schemaVersion":"0.1.0","entries":[],"canUndo":false,"canRedo":false,"undoDepth":0,"redoDepth":0},"replay":{"cursor":"1","previousCursor":null,"replayed":false,"gap":null,"overflow":false},"diagnostics":[],"createdAt":"2026-06-22T00:00:00.000Z"}
+  /v0/sessions/{sessionId}/events/stream:
+    get:
+      summary: Stream Runtime-authoritative events for an explicit session.
+      description: Canonical M06.8 event stream. Clients may pass since to replay retained events from a cursor; each event reports the resulting cursor plus gap/overflow metadata when retained history cannot cover the requested range.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+          description: Optional replay cursor. For v0 this is a decimal session event sequence encoded as a string.
+      responses:
+        "200":
+          description: Session-addressed event stream. Each event carries its target session id, canonical snapshot, history, sequence/revision metadata, replay cursor metadata, and diagnostics.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                session:
+                  value: |
+                    event: session
+                    data: {"schema":"skenion.runtime.session.event","schemaVersion":"0.1.0","id":"event-1","sessionId":"session-a","sequence":1,"sessionRevision":1,"kind":"snapshot","snapshot":{"sessionRevision":1,"viewRevision":1,"controlRevision":1,"project":null,"diagnostics":[],"plan":null},"history":{"schema":"skenion.runtime.history","schemaVersion":"0.1.0","entries":[],"canUndo":false,"canRedo":false,"undoDepth":0,"redoDepth":0},"replay":{"cursor":"1","previousCursor":null,"replayed":false,"gap":null,"overflow":false},"diagnostics":[],"createdAt":"2026-06-22T00:00:00.000Z"}
   /v0/session/load:
     post:
       summary: Compatibility/default-session alias: validate and load a project payload.
@@ -474,7 +509,238 @@ components:
           items:
             type: string
           examples:
-            - ["project.validate", "project.plan", "dummy.run", "sessions.operations", "sessions.events.stream", "session.load", "session.events.stream", "session.validate", "session.plan", "session.run", "session.mutate", "session.history", "session.undo", "session.redo", "session.control.event", "session.control.state", "session.control.read", "session.preview.status", "session.preview.start", "session.preview.stop", "session.preview.restart", "session.preview.controlState", "session.render.generatedShader", "session.telemetry", "session.telemetry.stream", "runtime.logs", "runtime.extensions", "io.devices", "session.clear"]
+            - ["project.validate", "project.plan", "dummy.run", "sessions.info", "sessions.operations", "sessions.events.stream", "sessions.events.replay", "session.load", "session.events.stream", "session.validate", "session.plan", "session.run", "session.mutate", "session.history", "session.undo", "session.redo", "session.control.event", "session.control.state", "session.control.read", "session.preview.status", "session.preview.start", "session.preview.stop", "session.preview.restart", "session.preview.controlState", "session.render.generatedShader", "session.telemetry", "session.telemetry.stream", "runtime.logs", "runtime.extensions", "io.devices", "session.clear"]
+    RuntimeSessionLifecycleState:
+      type: string
+      enum:
+        - initializing
+        - ready
+        - closing
+        - closed
+        - error
+    RuntimeConnectionProfileMode:
+      type: string
+      enum:
+        - local-managed
+        - local-shared
+        - remote
+    RuntimeOwnershipMode:
+      type: string
+      enum:
+        - owned-child
+        - external
+        - remote
+    RuntimeEndpointMetadata:
+      type: object
+      required:
+        - url
+        - protocol
+      properties:
+        url:
+          type: string
+          minLength: 1
+        canonicalUrl:
+          type: string
+          minLength: 1
+        protocol:
+          type: string
+          enum:
+            - http
+            - https
+        host:
+          type: string
+          minLength: 1
+        port:
+          type: integer
+          minimum: 0
+          maximum: 65535
+        tls:
+          type: boolean
+      additionalProperties: false
+    RuntimeProcessMetadata:
+      type: object
+      required:
+        - ownedByHost
+      properties:
+        ownedByHost:
+          type: boolean
+          description: True when a desktop shell owns this exact runtime child process and may terminate it as part of profile switching or window shutdown.
+        pid:
+          type: integer
+          minimum: 1
+        executablePath:
+          type: string
+          minLength: 1
+        workingDirectory:
+          type: string
+          minLength: 1
+        startedAt:
+          type: string
+        ownerWindowId:
+          type: string
+          minLength: 1
+        platform:
+          type: string
+          minLength: 1
+        arch:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    RuntimeConnectionProfile:
+      oneOf:
+        - $ref: "#/components/schemas/RuntimeLocalManagedConnectionProfile"
+        - $ref: "#/components/schemas/RuntimeLocalSharedConnectionProfile"
+        - $ref: "#/components/schemas/RuntimeRemoteConnectionProfile"
+    RuntimeConnectionProfileBase:
+      type: object
+      required:
+        - mode
+        - ownership
+        - endpoint
+      properties:
+        mode:
+          $ref: "#/components/schemas/RuntimeConnectionProfileMode"
+        ownership:
+          $ref: "#/components/schemas/RuntimeOwnershipMode"
+        displayName:
+          type: string
+        endpoint:
+          $ref: "#/components/schemas/RuntimeEndpointMetadata"
+        process:
+          oneOf:
+            - $ref: "#/components/schemas/RuntimeProcessMetadata"
+            - type: "null"
+      additionalProperties: false
+    RuntimeLocalManagedConnectionProfile:
+      allOf:
+        - $ref: "#/components/schemas/RuntimeConnectionProfileBase"
+        - type: object
+          properties:
+            mode:
+              type: string
+              const: local-managed
+            ownership:
+              type: string
+              const: owned-child
+    RuntimeLocalSharedConnectionProfile:
+      allOf:
+        - $ref: "#/components/schemas/RuntimeConnectionProfileBase"
+        - type: object
+          properties:
+            mode:
+              type: string
+              const: local-shared
+            ownership:
+              type: string
+              const: external
+    RuntimeRemoteConnectionProfile:
+      allOf:
+        - $ref: "#/components/schemas/RuntimeConnectionProfileBase"
+        - type: object
+          properties:
+            mode:
+              type: string
+              const: remote
+            ownership:
+              type: string
+              const: remote
+    RuntimeEventReplayWindow:
+      type: object
+      required:
+        - cursorKind
+        - currentCursor
+        - earliestSequence
+        - latestSequence
+        - replayLimit
+      properties:
+        cursorKind:
+          type: string
+          const: sequence
+        currentCursor:
+          type: string
+          minLength: 1
+        earliestSequence:
+          type: integer
+          minimum: 1
+        latestSequence:
+          type: integer
+          minimum: 0
+        replayLimit:
+          oneOf:
+            - type: integer
+              minimum: 0
+            - type: "null"
+        overflow:
+          type: boolean
+      additionalProperties: false
+    RuntimeSessionCapabilitySet:
+      type: object
+      required:
+        - sessionAddressing
+        - defaultSessionAlias
+        - eventReplay
+        - multiWindow
+        - profiles
+        - authPolicy
+      properties:
+        sessionAddressing:
+          type: boolean
+        defaultSessionAlias:
+          type: boolean
+          description: True when /v0/session compatibility routes target the default local session.
+        eventReplay:
+          type: boolean
+        multiWindow:
+          type: boolean
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeConnectionProfileMode"
+        authPolicy:
+          type: string
+          const: deferred
+          description: Auth and permission policy are intentionally deferred in this contract slice.
+      additionalProperties: false
+    RuntimeSessionInfoResponse:
+      type: object
+      required:
+        - schema
+        - schemaVersion
+        - ok
+        - sessionId
+        - lifecycle
+        - snapshot
+        - profile
+        - capabilities
+        - eventReplay
+        - diagnostics
+      properties:
+        schema:
+          type: string
+          const: skenion.runtime.session.info
+        schemaVersion:
+          type: string
+          const: 0.1.0
+        ok:
+          type: boolean
+        sessionId:
+          type: string
+          minLength: 1
+        lifecycle:
+          $ref: "#/components/schemas/RuntimeSessionLifecycleState"
+        snapshot:
+          $ref: "#/components/schemas/RuntimeSessionSnapshot"
+        profile:
+          $ref: "#/components/schemas/RuntimeConnectionProfile"
+        capabilities:
+          $ref: "#/components/schemas/RuntimeSessionCapabilitySet"
+        eventReplay:
+          $ref: "#/components/schemas/RuntimeEventReplayWindow"
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeDiagnostic"
+      additionalProperties: false
     RuntimeExtensionStatus:
       type: string
       enum:
@@ -507,6 +773,7 @@ components:
       properties:
         id:
           type: string
+          minLength: 1
           minLength: 1
         version:
           type: string
@@ -869,7 +1136,9 @@ components:
             $ref: "#/components/schemas/RuntimeDiagnostic"
         plan:
           anyOf:
-            - $ref: "#/components/schemas/ExecutionPlan"
+            - type: object
+              additionalProperties: true
+              description: Opaque Runtime plan snapshot for the loaded session. Use dedicated plan endpoints for the full ExecutionPlan contract.
             - type: "null"
       additionalProperties: false
     RuntimeProjectSnapshot:
@@ -899,14 +1168,17 @@ components:
       type: object
       properties:
         graphPatch:
-          $ref: "#/components/schemas/GraphPatchV01"
+          $ref: "#/components/schemas/RuntimeMutationGraphPatch"
         viewPatch:
           $ref: "#/components/schemas/RuntimeViewPatch"
         clientId:
           type: string
+          minLength: 1
         description:
           type: string
       additionalProperties: false
+    RuntimeMutationGraphPatch:
+      $ref: "../json-schema/graph/v0.1/patch.schema.json"
     GraphFragmentV02:
       $ref: "../json-schema/graph/v0.2/fragment.schema.json"
     PatchPath:
@@ -950,9 +1222,9 @@ components:
               const: setNodeView
             nodeId:
               type: string
+              minLength: 1
             view:
-              type: object
-              additionalProperties: true
+              $ref: "#/components/schemas/RuntimeCanvasNodeView"
           additionalProperties: false
         - type: object
           required:
@@ -965,13 +1237,29 @@ components:
               const: moveNodeView
             nodeId:
               type: string
+              minLength: 1
             from:
-              type: object
-              additionalProperties: true
+              $ref: "#/components/schemas/RuntimeCanvasNodeView"
             to:
-              type: object
-              additionalProperties: true
+              $ref: "#/components/schemas/RuntimeCanvasNodeView"
           additionalProperties: false
+    RuntimeCanvasNodeView:
+      type: object
+      required:
+        - x
+        - y
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        collapsed:
+          type: boolean
+      additionalProperties: false
     RuntimeMutationResponse:
       type: object
       required:
@@ -1006,6 +1294,53 @@ components:
         - mutate
         - undo
         - redo
+    RuntimeEventReplayGap:
+      type: object
+      description: Gap metadata reports a missed retained range. expectedSequence must be less than actualSequence.
+      required:
+        - expectedSequence
+        - actualSequence
+        - reason
+      properties:
+        expectedSequence:
+          type: integer
+          minimum: 1
+        actualSequence:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          enum:
+            - retention-overflow
+            - stream-reset
+            - unknown
+      additionalProperties: false
+    RuntimeEventReplayMetadata:
+      type: object
+      required:
+        - cursor
+        - previousCursor
+        - replayed
+        - gap
+        - overflow
+      properties:
+        cursor:
+          type: string
+          minLength: 1
+        previousCursor:
+          oneOf:
+            - type: string
+              minLength: 1
+            - type: "null"
+        replayed:
+          type: boolean
+        gap:
+          oneOf:
+            - $ref: "#/components/schemas/RuntimeEventReplayGap"
+            - type: "null"
+        overflow:
+          type: boolean
+      additionalProperties: false
     RuntimeSessionEvent:
       type: object
       required:
@@ -1014,9 +1349,11 @@ components:
         - id
         - sessionId
         - sequence
+        - sessionRevision
         - kind
         - snapshot
         - history
+        - replay
         - diagnostics
         - createdAt
       properties:
@@ -1028,12 +1365,17 @@ components:
           const: 0.1.0
         id:
           type: string
+          minLength: 1
         sessionId:
           type: string
           minLength: 1
         sequence:
           type: integer
           minimum: 1
+        sessionRevision:
+          type: integer
+          minimum: 0
+          description: Runtime session revision represented by snapshot.sessionRevision for this event.
         kind:
           $ref: "#/components/schemas/RuntimeSessionEventKind"
         snapshot:
@@ -1042,12 +1384,15 @@ components:
           $ref: "#/components/schemas/RuntimeHistory"
         mutation:
           $ref: "#/components/schemas/RuntimeHistoryEntry"
+        replay:
+          $ref: "#/components/schemas/RuntimeEventReplayMetadata"
         diagnostics:
           type: array
           items:
             $ref: "#/components/schemas/RuntimeDiagnostic"
         createdAt:
           type: string
+          minLength: 1
       additionalProperties: false
     RuntimeControlValue:
       oneOf:
@@ -2090,6 +2435,7 @@ components:
           const: 0.1.0
         id:
           type: string
+          minLength: 1
         sequence:
           type: integer
           minimum: 1
@@ -2160,6 +2506,7 @@ components:
       properties:
         id:
           type: string
+          minLength: 1
         sequence:
           type: integer
           minimum: 1
@@ -2175,12 +2522,15 @@ components:
           $ref: "#/components/schemas/RuntimeMutationRequest"
         subjectEventId:
           type: string
+          minLength: 1
         clientId:
           type: string
+          minLength: 1
         description:
           type: string
         createdAt:
           type: string
+          minLength: 1
       additionalProperties: false
     GraphPatchHistoryV01:
       type: object
