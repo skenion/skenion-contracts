@@ -1081,6 +1081,35 @@ test("exports and validates v0.1 graph fragment contracts", async () => {
   assert.equal(validateGraphFragmentV01(messageAny).ok, true);
 });
 
+test("rejects v0.2 graph, project, patch, and fragment contract labels", async () => {
+  const graph = await readJson("fixtures/graph/v0.1/valid/render-output.graph.json");
+  const unsupportedGraph = structuredClone(graph);
+  unsupportedGraph.schemaVersion = "0.2.0";
+  const graphResult = validateGraphDocumentV01(unsupportedGraph);
+  assert.equal(graphResult.ok, false);
+  assert.match(graphResult.errors.join("\n"), /schemaVersion/);
+
+  const project = await readJson("fixtures/project/v0.1/valid/input-only-patch.project.json");
+  const unsupportedProject = structuredClone(project);
+  unsupportedProject.schemaVersion = "0.2.0";
+  const projectResult = validateProjectDocumentV01(unsupportedProject);
+  assert.equal(projectResult.ok, false);
+  assert.match(projectResult.errors.join("\n"), /schemaVersion/);
+
+  const unsupportedPatch = structuredClone(project.patchLibrary[0]);
+  unsupportedPatch.graph.schemaVersion = "0.2.0";
+  const patchResult = validatePatchDefinitionV01(unsupportedPatch);
+  assert.equal(patchResult.ok, false);
+  assert.match(patchResult.errors.join("\n"), /schemaVersion/);
+
+  const fragment = await readJson("fixtures/graph-fragment/v0.1/valid/internal-edge.fragment.json");
+  const unsupportedFragment = structuredClone(fragment);
+  unsupportedFragment.schemaVersion = "0.2.0";
+  const fragmentResult = validateGraphFragmentV01(unsupportedFragment);
+  assert.equal(fragmentResult.ok, false);
+  assert.match(fragmentResult.errors.join("\n"), /schemaVersion/);
+});
+
 test("validates session-addressed paste operation contracts", async () => {
   assert.equal(runtimeOperationV0Schema.properties.schema.const, "skenion.runtime.operation");
   assert.equal(runtimeOperationV0Schema.$defs.pasteGraphFragmentRequest.required[0], "target");
