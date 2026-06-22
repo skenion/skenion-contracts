@@ -12,8 +12,9 @@ use skenion_contracts::{
     RuntimeSessionInfoResponse, analyze_graph_document_v01, analyze_graph_fragment_v01,
     parse_object_text_v01, validate_graph_document_v01, validate_graph_fragment_v01,
     validate_node_definition_v01, validate_object_text_parse_result_v01,
-    validate_paste_graph_fragment_response, validate_project_document_v01,
-    validate_runtime_collaboration_event_envelope, validate_runtime_collaboration_operation_batch,
+    validate_paste_graph_fragment_response, validate_patch_definition_v01,
+    validate_project_document_v01, validate_runtime_collaboration_event_envelope,
+    validate_runtime_collaboration_operation_batch,
     validate_runtime_collaboration_operation_batch_result,
     validate_runtime_collaboration_operation_envelope,
     validate_runtime_collaboration_operation_result,
@@ -114,6 +115,61 @@ fn validates_v01_graph_fragment_fixtures() {
         assert!(omitted.ok);
         assert_eq!(omitted.omitted_edge_ids, vec!["edge-to-outside".to_owned()]);
     }
+}
+
+#[test]
+fn rejects_v02_graph_project_patch_and_fragment_labels() {
+    let graph_file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/graph/v0.1/valid/render-output.graph.json");
+    let mut graph: GraphDocumentV01 =
+        serde_json::from_slice(&fs::read(&graph_file).expect("fixture should be readable"))
+            .expect("valid graph fixture should parse");
+    graph.schema_version = "0.2.0".to_owned();
+    let graph_report =
+        validate_graph_document_v01(&graph).expect_err("v0.2 graph should be rejected");
+    assert!(
+        graph_report
+            .to_string()
+            .contains("expected schemaVersion 0.1.0, found 0.2.0")
+    );
+
+    let project_file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/project/v0.1/valid/input-only-patch.project.json");
+    let mut project: ProjectDocumentV01 =
+        serde_json::from_slice(&fs::read(&project_file).expect("fixture should be readable"))
+            .expect("valid project fixture should parse");
+    project.schema_version = "0.2.0".to_owned();
+    let project_report =
+        validate_project_document_v01(&project).expect_err("v0.2 project should be rejected");
+    assert!(
+        project_report
+            .to_string()
+            .contains("expected schemaVersion 0.1.0, found 0.2.0")
+    );
+
+    project.schema_version = "0.1.0".to_owned();
+    project.patch_library[0].graph.schema_version = "0.2.0".to_owned();
+    let patch_report = validate_patch_definition_v01(&project.patch_library[0])
+        .expect_err("v0.2 patch graph should be rejected");
+    assert!(
+        patch_report
+            .to_string()
+            .contains("expected schemaVersion 0.1.0, found 0.2.0")
+    );
+
+    let fragment_file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/graph-fragment/v0.1/valid/internal-edge.fragment.json");
+    let mut fragment: GraphFragmentV01 =
+        serde_json::from_slice(&fs::read(&fragment_file).expect("fixture should be readable"))
+            .expect("valid fragment fixture should parse");
+    fragment.schema_version = "0.2.0".to_owned();
+    let fragment_report =
+        validate_graph_fragment_v01(&fragment).expect_err("v0.2 fragment should be rejected");
+    assert!(
+        fragment_report
+            .to_string()
+            .contains("expected schemaVersion 0.1.0, found 0.2.0")
+    );
 }
 
 #[test]
