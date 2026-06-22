@@ -682,11 +682,6 @@ fn validate_checksum_gate(
             continue;
         };
         validate_checksum(errors, expected_checksum);
-        if artifact.checksum.algorithm != expected_checksum.algorithm {
-            errors.push(ValidationErrorV01::new(format!(
-                "checksum gate algorithm must match artifact {artifact_id}"
-            )));
-        }
         match (&artifact.checksum.value, &expected_checksum.value) {
             (Some(actual), Some(expected)) if actual != expected => {
                 errors.push(ValidationErrorV01::new(format!(
