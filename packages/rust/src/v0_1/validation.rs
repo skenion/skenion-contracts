@@ -2014,7 +2014,7 @@ mod tests {
         RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
         RuntimeCollaborationSelectionEnvelope, RuntimeEventReplayGap, RuntimeEventReplayGapReason,
         RuntimeHistoryEntry, RuntimeOperationDiagnostic, RuntimeOperationEnvelope,
-        RuntimeSessionEvent, RuntimeSessionInfoResponse,
+        RuntimeSessionEvent, RuntimeSessionInfoResponse, StringOrStringsV01,
     };
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -2029,6 +2029,23 @@ mod tests {
 
     fn value(json: &str) -> serde_json::Value {
         serde_json::from_str(json).expect("json value should parse")
+    }
+
+    fn data_type(flow: DataFlowV01, data_kind: &str) -> DataTypeV01 {
+        DataTypeV01 {
+            flow,
+            data_kind: data_kind.to_owned(),
+            unit: None,
+            range: None,
+            shape: None,
+            channels: None,
+            sample_rate: None,
+            format: None,
+            color_space: None,
+            frame_rate: None,
+            alpha_policy: None,
+            values: None,
+        }
     }
 
     fn base_graph() -> GraphDocumentV01 {
@@ -2643,6 +2660,8 @@ mod tests {
 
         project.schema = "wrong".to_owned();
         project.patch_library.push(project.patch_library[0].clone());
+        project.view_state.schema = "wrong.view".to_owned();
+        project.view_state.schema_version = "9.9.9".to_owned();
         project.view_state.canvas.nodes.insert(
             "missing-node".to_owned(),
             crate::v0_1::CanvasNodeViewV01 {
@@ -2657,8 +2676,69 @@ mod tests {
         assert!(report.errors().len() >= 3);
         let text = report.to_string();
         assert!(text.contains("expected schema skenion.project"));
+        assert!(text.contains("viewState expected schema skenion.view-state"));
+        assert!(text.contains("viewState expected schemaVersion 0.1.0"));
         assert!(text.contains("viewState references missing graph node"));
         assert!(text.contains("duplicate patch id"));
+    }
+
+    #[test]
+    fn validates_type_helper_unit_target_branches() {
+        let one = StringOrStringsV01::One("f32".to_owned());
+        assert_eq!(one.values(), vec!["f32"]);
+
+        let many = StringOrStringsV01::Many(vec!["f32".to_owned(), "i32".to_owned()]);
+        assert_eq!(many.values(), vec!["f32", "i32"]);
+
+        let message_any = data_type(DataFlowV01::Event, "message.any");
+        let bang_event = data_type(DataFlowV01::Event, "event.bang");
+        assert!(compatible_data_types_v01(&message_any, &bang_event));
+
+        let bang_value = data_type(DataFlowV01::Value, "event.bang");
+        assert!(compatible_data_types_v01(&bang_value, &message_any));
+
+        let message_any_value = data_type(DataFlowV01::Value, "message.any");
+        assert!(compatible_data_types_v01(&message_any_value, &bang_value));
+        assert!(compatible_data_types_v01(&bang_event, &message_any_value));
+
+        let signal_any = data_type(DataFlowV01::Signal, "message.any");
+        let signal_number = data_type(DataFlowV01::Signal, "number.float");
+        assert!(!compatible_data_types_v01(&signal_any, &signal_number));
+
+        assert_eq!(type_label_v01(&bang_value), "value<event.bang>");
+        assert_eq!(type_label_v01(&bang_event), "event<event.bang>");
+        assert_eq!(
+            type_label_v01(&data_type(DataFlowV01::Stream, "midi.event")),
+            "stream<midi.event>"
+        );
+        assert_eq!(
+            type_label_v01(&data_type(DataFlowV01::Resource, "file.handle")),
+            "resource<file.handle>"
+        );
+    }
+
+    #[test]
+    fn validates_extension_manifest_negative_unit_target_branches() {
+        let manifest: ExtensionManifestV01 = serde_json::from_value(json!({
+            "schema": "wrong.extension",
+            "schemaVersion": "9.9.9",
+            "id": "",
+            "version": "",
+            "runtimeAbiVersion": "",
+            "kind": "native-runtime",
+            "provides": {},
+            "permissions": []
+        }))
+        .expect("extension manifest should parse before validation");
+
+        let report = validate_extension_manifest_v01(&manifest).expect_err("manifest should fail");
+        let text = report.to_string();
+        assert!(text.contains("expected schema skenion.extension.manifest"));
+        assert!(text.contains("expected schemaVersion 0.1.0"));
+        assert!(text.contains("extension id must not be empty"));
+        assert!(text.contains("extension version must not be empty"));
+        assert!(text.contains("extension runtimeAbiVersion must not be empty"));
+        assert!(text.contains("native-runtime extension manifest must include native binding"));
     }
 
     #[test]
