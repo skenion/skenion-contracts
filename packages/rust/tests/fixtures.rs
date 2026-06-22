@@ -5,7 +5,9 @@ use std::{fs, path::Path};
 use skenion_contracts::{
     GraphDocumentV01, GraphFragmentOutsideEndpointPolicyV01, GraphFragmentV01,
     NodeDefinitionManifestV01, ObjectTextParseResultV01, PasteGraphFragmentResponse,
-    ProjectDocumentV01, RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationBatch,
+    ProjectDocumentV01, ReleaseTrainArtifactKindV01, ReleaseTrainConnectionProfileV01,
+    ReleaseTrainManifestV01, ReleaseTrainSupportTierV01, ReleaseTrainTargetV01,
+    RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationBatch,
     RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
     RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
     RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeSessionEvent,
@@ -13,8 +15,8 @@ use skenion_contracts::{
     parse_object_text_v01, validate_graph_document_v01, validate_graph_fragment_v01,
     validate_node_definition_v01, validate_object_text_parse_result_v01,
     validate_paste_graph_fragment_response, validate_patch_definition_v01,
-    validate_project_document_v01, validate_runtime_collaboration_event_envelope,
-    validate_runtime_collaboration_operation_batch,
+    validate_project_document_v01, validate_release_train_manifest_v01,
+    validate_runtime_collaboration_event_envelope, validate_runtime_collaboration_operation_batch,
     validate_runtime_collaboration_operation_batch_result,
     validate_runtime_collaboration_operation_envelope,
     validate_runtime_collaboration_operation_result,
@@ -44,6 +46,360 @@ fn fixture_files(relative: &str) -> Vec<std::path::PathBuf> {
     collect_json_files(&root, &mut files);
     files.sort();
     files
+}
+
+fn release_train_fixture() -> ReleaseTrainManifestV01 {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/release-train/v0.1/valid/0.43.0.release-train.json");
+    serde_json::from_slice(&fs::read(&file).expect("fixture should be readable"))
+        .expect("release train fixture should parse")
+}
+
+fn assert_release_train_error(
+    mutate: impl FnOnce(&mut ReleaseTrainManifestV01),
+    expected_message: &str,
+) {
+    let mut manifest = release_train_fixture();
+    mutate(&mut manifest);
+    let report = validate_release_train_manifest_v01(&manifest)
+        .expect_err("mutated release train manifest should be invalid");
+    assert!(
+        report.to_string().contains(expected_message),
+        "expected error containing {expected_message:?}, got {report}"
+    );
+}
+
+#[test]
+fn validates_release_train_manifest_fixtures() {
+    for file in fixture_files("../../fixtures/release-train/v0.1/valid") {
+        let manifest: ReleaseTrainManifestV01 =
+            serde_json::from_slice(&fs::read(&file).expect("fixture should be readable"))
+                .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
+        validate_release_train_manifest_v01(&manifest)
+            .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+        assert_eq!(manifest.schema, "skenion.release-train");
+        assert_eq!(manifest.schema_version, "0.1.0");
+        assert_eq!(manifest.train_id, "0.43");
+        assert_eq!(manifest.train_version, "0.43.0");
+    }
+
+    for file in fixture_files("../../fixtures/release-train/v0.1/invalid") {
+        let document = fs::read(&file).expect("fixture should be readable");
+        if let Ok(manifest) = serde_json::from_slice::<ReleaseTrainManifestV01>(&document) {
+            assert!(
+                validate_release_train_manifest_v01(&manifest).is_err(),
+                "{} should be invalid",
+                file.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn validates_release_train_manifest_error_branches() {
+    assert_release_train_error(
+        |manifest| manifest.schema = "skenion.release-train.other".to_owned(),
+        "expected schema skenion.release-train",
+    );
+    assert_release_train_error(
+        |manifest| manifest.schema_version = "0.2.0".to_owned(),
+        "expected schemaVersion 0.1.0",
+    );
+    assert_release_train_error(
+        |manifest| manifest.train_id = "0.43.0".to_owned(),
+        "trainId must be a major.minor numeric version",
+    );
+    assert_release_train_error(
+        |manifest| manifest.train_version = "0.43".to_owned(),
+        "trainVersion must be a major.minor.patch numeric version",
+    );
+    assert_release_train_error(
+        |manifest| manifest.train_version = "0.44.0".to_owned(),
+        "trainVersion must match trainId major.minor",
+    );
+    assert_release_train_error(
+        |manifest| manifest.protocol_baselines.graph = "0.2".to_owned(),
+        "protocolBaselines graph must be 0.1",
+    );
+
+    assert_release_train_error(
+        |manifest| {
+            let artifact = manifest
+                .components
+                .runtime
+                .binaries
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime artifact should exist");
+            artifact.target = ReleaseTrainTargetV01::X8664AppleDarwin;
+        },
+        "runtime binary aarch64-apple-darwin target must match map key",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .components
+                .runtime
+                .binaries
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime artifact should exist")
+                .support_tier = ReleaseTrainSupportTierV01::Preview;
+        },
+        "runtime binary aarch64-apple-darwin supportTier does not match target release tier",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .components
+                .runtime
+                .binaries
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime artifact should exist")
+                .kind = ReleaseTrainArtifactKindV01::StudioDesktopPackage;
+        },
+        "runtime binary aarch64-apple-darwin kind does not match artifact set",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .components
+                .runtime
+                .binaries
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime artifact should exist")
+                .id
+                .clear();
+        },
+        "artifact id must not be empty",
+    );
+    assert_release_train_error(
+        |manifest| {
+            let duplicate_id = manifest
+                .components
+                .runtime
+                .binaries
+                .get(&ReleaseTrainTargetV01::X8664AppleDarwin)
+                .expect("runtime artifact should exist")
+                .id
+                .clone();
+            manifest
+                .components
+                .runtime
+                .binaries
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime artifact should exist")
+                .id = duplicate_id;
+        },
+        "duplicate artifact id",
+    );
+
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .github_release_assets
+                .runtime
+                .artifact_ids
+                .clear();
+        },
+        "githubReleaseAssets runtime artifactIds must not be empty",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .runtime_smoke
+                .remove(&ReleaseTrainTargetV01::Aarch64AppleDarwin);
+        },
+        "runtimeSmoke missing gate for aarch64-apple-darwin",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .runtime_smoke
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime smoke gate should exist")
+                .target = ReleaseTrainTargetV01::X8664AppleDarwin;
+        },
+        "runtimeSmoke aarch64-apple-darwin target must match map key",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .runtime_smoke
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime smoke gate should exist")
+                .artifact_id = "runtime-x86_64-apple-darwin".to_owned();
+        },
+        "runtimeSmoke aarch64-apple-darwin artifactId must match runtime binary",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .studio_package_smoke
+                .remove(&ReleaseTrainTargetV01::Aarch64AppleDarwin);
+        },
+        "studioPackageSmoke missing gate for aarch64-apple-darwin",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .studio_package_smoke
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("studio package smoke gate should exist")
+                .target = ReleaseTrainTargetV01::X8664AppleDarwin;
+        },
+        "studioPackageSmoke aarch64-apple-darwin target must match map key",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .studio_package_smoke
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("studio package smoke gate should exist")
+                .desktop_package_artifact_id = "studio-desktop-x86_64-apple-darwin".to_owned();
+        },
+        "studioPackageSmoke aarch64-apple-darwin desktopPackageArtifactId must match desktop package",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .studio_package_smoke
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("studio package smoke gate should exist")
+                .runtime_sidecar_artifact_id =
+                "studio-runtime-sidecar-x86_64-apple-darwin".to_owned();
+        },
+        "studioPackageSmoke aarch64-apple-darwin runtimeSidecarArtifactId must match runtime sidecar",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .checksum_verification
+                .artifact_ids
+                .clear();
+        },
+        "checksumVerification artifactIds must not be empty",
+    );
+    assert_release_train_error(
+        |manifest| {
+            let checksum = manifest
+                .components
+                .runtime
+                .binaries
+                .get(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime artifact should exist")
+                .checksum
+                .clone();
+            manifest
+                .release_gates
+                .checksum_verification
+                .expected_checksums
+                .insert("missing-artifact".to_owned(), checksum);
+        },
+        "checksum gate references unknown artifact missing-artifact",
+    );
+
+    assert_release_train_error(
+        |manifest| {
+            manifest.capability_set.protocol_surfaces.graph = "0.2".to_owned();
+        },
+        "capabilitySet protocolSurfaces must match protocolBaselines",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest.capability_set.runtime.connection_profiles =
+                vec![ReleaseTrainConnectionProfileV01::LocalManaged];
+        },
+        "runtime connectionProfiles must include local-managed, local-shared, and remote",
+    );
+    assert_release_train_error(
+        |manifest| manifest.capability_set.runtime.session_addressing = false,
+        "capabilitySet runtime.sessionAddressing must be enabled",
+    );
+    assert_release_train_error(
+        |manifest| manifest.capability_set.runtime.collaboration = "client-merge".to_owned(),
+        "capabilitySet runtime.collaboration must be server-authoritative-ot",
+    );
+    assert_release_train_error(
+        |manifest| manifest.capability_set.runtime.io_discovery = "semantic-device".to_owned(),
+        "capabilitySet runtime.ioDiscovery must be raw-descriptor",
+    );
+    assert_release_train_error(
+        |manifest| manifest.capability_set.runtime.auth_policy = "required".to_owned(),
+        "capabilitySet runtime.authPolicy must be deferred",
+    );
+    assert_release_train_error(
+        |manifest| manifest.capability_set.studio.desktop_shell = "electron".to_owned(),
+        "capabilitySet studio.desktopShell must be tauri",
+    );
+
+    assert_release_train_error(
+        |manifest| manifest.components.docs.manual.version = "0.42.0".to_owned(),
+        "docs manual version must be 0.43.0",
+    );
+    assert_release_train_error(
+        |manifest| manifest.components.docs.manual.path = "/manual/0.42/".to_owned(),
+        "docs manual path must be /manual/0.43/",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest.release_gates.examples_conformance.repository =
+                "echovisionlab/Other-examples".to_owned();
+        },
+        "examples conformance gate repository must match examples repository",
+    );
+    assert_release_train_error(
+        |manifest| manifest.release_gates.examples_conformance.version = "0.42.0".to_owned(),
+        "examples conformance gate version must match examples version",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest.release_gates.examples_conformance.ref_name =
+                "skenion-examples-v0.42.0".to_owned();
+        },
+        "examples conformance gate ref must match examples tag",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest.release_gates.docs_pages_deployment.manual_version = "0.42.0".to_owned()
+        },
+        "docs Pages gate manualVersion must match docs manual version",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest.release_gates.docs_pages_deployment.manual_path = "/manual/0.42/".to_owned();
+        },
+        "docs Pages gate manualPath must match docs manual path",
+    );
+}
+
+#[test]
+fn validates_release_train_manifest_unpinned_checksum_gate() {
+    let mut manifest = release_train_fixture();
+    let artifact_id = "runtime-aarch64-apple-darwin".to_owned();
+    let checksum = manifest
+        .components
+        .runtime
+        .binaries
+        .get(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+        .expect("runtime artifact should exist")
+        .checksum
+        .clone();
+    manifest
+        .release_gates
+        .checksum_verification
+        .expected_checksums
+        .insert(artifact_id, checksum);
+
+    validate_release_train_manifest_v01(&manifest)
+        .expect("unpinned checksum gate should remain valid");
 }
 
 #[test]
