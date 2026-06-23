@@ -467,6 +467,77 @@ fn validates_release_train_manifest_error_branches() {
     );
     assert_release_train_error(
         |manifest| {
+            let artifact = manifest
+                .components
+                .runtime
+                .binaries
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("runtime artifact should exist");
+            artifact.source = ReleaseTrainArtifactSourceV01::Url {
+                url: "https://downloads.example.invalid/skenion-runtime.tar.gz".to_owned(),
+            };
+        },
+        "runtime binary aarch64-apple-darwin source must be a GitHub release asset",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .components
+                .studio
+                .desktop_packages
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("studio desktop package should exist")
+                .name = "skenion-studio-macos-arm64.tar.gz".to_owned();
+        },
+        "studio desktop package aarch64-apple-darwin name must be skenion-studio-aarch64-apple-darwin.tar.gz",
+    );
+    assert_release_train_error(
+        |manifest| {
+            let artifact = manifest
+                .components
+                .studio
+                .desktop_packages
+                .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+                .expect("studio desktop package should exist");
+            artifact.source = ReleaseTrainArtifactSourceV01::GithubReleaseAsset {
+                repository: "skenion/skenion-studio".to_owned(),
+                tag: "skenion-studio-v0.43.0".to_owned(),
+                asset_name: "skenion-studio-macos-arm64.tar.gz".to_owned(),
+                url: None,
+            };
+        },
+        "studio desktop package aarch64-apple-darwin assetName must be skenion-studio-aarch64-apple-darwin.tar.gz",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest.components.studio.web_bundle.kind =
+                ReleaseTrainArtifactKindV01::StudioDesktopPackage;
+        },
+        "components.studio[\"web-bundle\"].kind must be studio-web-bundle",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest.components.studio.web_bundle.source =
+                ReleaseTrainArtifactSourceV01::GithubReleaseAsset {
+                    repository: "skenion/other-studio".to_owned(),
+                    tag: "skenion-studio-v0.43.0".to_owned(),
+                    asset_name: "skenion-studio-web-bundle-v0.43.0.tar.gz".to_owned(),
+                    url: None,
+                };
+        },
+        "components.studio[\"web-bundle\"].repository must be skenion/skenion-studio",
+    );
+    assert_release_train_error(
+        |manifest| {
+            let web_bundle = &mut manifest.components.studio.web_bundle;
+            web_bundle.source = ReleaseTrainArtifactSourceV01::Url {
+                url: "https://downloads.example.invalid/skenion-studio-web.tar.gz".to_owned(),
+            };
+        },
+        "components.studio[\"web-bundle\"].source must be a GitHub release asset",
+    );
+    assert_release_train_error(
+        |manifest| {
             manifest
                 .release_gates
                 .github_release_assets
@@ -474,6 +545,16 @@ fn validates_release_train_manifest_error_branches() {
                 .repository = "skenion/other-runtime".to_owned();
         },
         "githubReleaseAssets runtime repository must be skenion/skenion-runtime",
+    );
+    assert_release_train_error(
+        |manifest| {
+            manifest
+                .release_gates
+                .github_release_assets
+                .studio
+                .repository = "skenion/other-studio".to_owned();
+        },
+        "githubReleaseAssets studio repository must be skenion/skenion-studio",
     );
     assert_release_train_error(
         |manifest| manifest.release_gates.examples_conformance.version = "0.42.0".to_owned(),
