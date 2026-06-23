@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.45.0](https://github.com/skenion/skenion-contracts/compare/skenion-contracts-v0.44.0...skenion-contracts-v0.45.0) (2026-06-23)
+
+
+### Features
+
+* **contracts:** add compatibility matrix contract ([a4a83ed](https://github.com/skenion/skenion-contracts/commit/a4a83ed660c835acd21b76936d005e5801196e86))
+
 ## [0.44.0](https://github.com/skenion/skenion-contracts/compare/skenion-contracts-v0.43.0...skenion-contracts-v0.44.0) (2026-06-23)
 
 
