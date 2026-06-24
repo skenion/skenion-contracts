@@ -231,14 +231,48 @@ test("validates compatibility matrix fixtures and semantic failures", async () =
   const artifactShapeFailures = structuredClone(matrix);
   artifactShapeFailures.components.runtime.assets["aarch64-apple-darwin"].target = "x86_64-apple-darwin";
   artifactShapeFailures.components.runtime.assets["x86_64-apple-darwin"].kind = "studio-web-bundle";
+  artifactShapeFailures.components.runtime.assets["x86_64-pc-windows-msvc"].component = "studio";
   artifactShapeFailures.components.studio["web-assets"][0].kind = "runtime-binary";
+  artifactShapeFailures.components.studio["web-assets"][0].component = "runtime";
   artifactShapeFailures.components.studio["desktop-assets"]["x86_64-apple-darwin"].id =
     "runtime-aarch64-apple-darwin";
   const artifactShapeFailuresResult = validateCompatibilityMatrixV01(artifactShapeFailures);
   assert.equal(artifactShapeFailuresResult.ok, false);
   assert.match(
     artifactShapeFailuresResult.errors.join("\n"),
-    /target must match map key|kind must be|studio-web-bundle|duplicate compatibility matrix artifact id/
+    /target must match map key|kind must be|component must be|studio-web-bundle|duplicate compatibility matrix artifact id/
+  );
+
+  const rootKeyStorage = structuredClone(matrix);
+  const rootKeyArtifact = rootKeyStorage.components.runtime.assets["aarch64-apple-darwin"];
+  rootKeyArtifact.storage.key = `releases/${rootKeyArtifact.name}`;
+  rootKeyArtifact.storage["public-url"] =
+    `https://cdn.dsub.io/skenion/releases/${rootKeyArtifact.name}`;
+  assert.equal(validateCompatibilityMatrixV01(rootKeyStorage).ok, true);
+
+  const storeMetadataFailures = structuredClone(matrix);
+  storeMetadataFailures["artifact-store"]["upload-endpoint"] = "http://s3.dsub.io";
+  storeMetadataFailures["artifact-store"]["public-base-url"] = "http://cdn.dsub.io/skenion/releases";
+  storeMetadataFailures["artifact-store"]["path-style"] = false;
+  storeMetadataFailures["artifact-store"].prefix = "/releases";
+  const storeMetadataFailuresResult = validateCompatibilityMatrixV01(storeMetadataFailures);
+  assert.equal(storeMetadataFailuresResult.ok, false);
+  assert.match(
+    storeMetadataFailuresResult.errors.join("\n"),
+    /upload-endpoint|public-base-url|path-style|prefix/
+  );
+
+  const storageFailures = structuredClone(matrix);
+  storageFailures.components.runtime.assets["aarch64-apple-darwin"].storage.bucket = "not-skenion";
+  storageFailures.components.runtime.assets["x86_64-apple-darwin"].storage.key = "runtime/outside-prefix.tar.gz";
+  storageFailures.components.runtime.assets["aarch64-pc-windows-msvc"].storage.key = "releases/";
+  storageFailures.components.runtime.assets["x86_64-pc-windows-msvc"].storage.key =
+    "releases/runtime/0.44.2/x86_64-pc-windows-msvc/../wrong-name.zip";
+  const storageFailuresResult = validateCompatibilityMatrixV01(storageFailures);
+  assert.equal(storageFailuresResult.ok, false);
+  assert.match(
+    storageFailuresResult.errors.join("\n"),
+    /storage bucket|storage key must be under|parent path|artifact name|public-url/
   );
 
   const checksumReferenceFailures = structuredClone(matrix);
@@ -246,12 +280,11 @@ test("validates compatibility matrix fixtures and semantic failures", async () =
     algorithm: "sha256",
     value: "abababababababababababababababababababababababababababababababab"
   };
-  checksumReferenceFailures.components.runtime.assets["aarch64-apple-darwin"].checksum.value = null;
   const checksumReferenceFailuresResult = validateCompatibilityMatrixV01(checksumReferenceFailures);
   assert.equal(checksumReferenceFailuresResult.ok, false);
   assert.match(
     checksumReferenceFailuresResult.errors.join("\n"),
-    /unknown artifact|must be populated|requires checksum/
+    /unknown artifact/
   );
 
   const unpassedExamples = structuredClone(matrix);
@@ -259,6 +292,16 @@ test("validates compatibility matrix fixtures and semantic failures", async () =
   const unpassedExamplesResult = validateCompatibilityMatrixV01(unpassedExamples);
   assert.equal(unpassedExamplesResult.ok, false);
   assert.match(unpassedExamplesResult.errors.join("\n"), /examples conformance/);
+});
+
+test("rejects invalid compatibility matrix DSUB artifact store fixtures", async () => {
+  const invalidFixtures = await fixtureFiles("fixtures/compatibility-matrix/v0.1/invalid");
+
+  for (const fixture of invalidFixtures) {
+    const matrix = await readJson(fixture);
+    const result = validateCompatibilityMatrixV01(matrix);
+    assert.equal(result.ok, false, fixture);
+  }
 });
 
 test("validates release train manifest fixtures", async () => {

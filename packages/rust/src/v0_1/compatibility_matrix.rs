@@ -32,12 +32,19 @@ pub enum CompatibilityMatrixConformanceStatusV01 {
     Failed,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompatibilityMatrixComponentV01 {
+    Runtime,
+    Studio,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct CompatibilityMatrixChecksumV01 {
     pub algorithm: CompatibilityMatrixChecksumAlgorithmV01,
-    pub value: Option<String>,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -47,6 +54,7 @@ pub struct CompatibilityMatrixGithubReleaseAssetSourceV01 {
     pub kind: String,
     pub repository: String,
     pub tag: String,
+    pub commit: String,
     pub asset_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
@@ -55,16 +63,55 @@ pub struct CompatibilityMatrixGithubReleaseAssetSourceV01 {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
+pub struct CompatibilityMatrixArtifactStoreV01 {
+    pub kind: String,
+    pub provider: String,
+    pub upload_endpoint: String,
+    pub public_base_url: String,
+    pub bucket: String,
+    pub prefix: String,
+    pub path_style: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct CompatibilityMatrixArtifactUploadVerificationV01 {
+    pub no_clobber: bool,
+    pub uploaded: bool,
+    pub checksum_verified: bool,
+    pub size_verified: bool,
+    pub content_type_verified: bool,
+    pub evidence_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verified_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct CompatibilityMatrixArtifactStorageV01 {
+    pub bucket: String,
+    pub key: String,
+    pub public_url: String,
+    pub upload_verification: CompatibilityMatrixArtifactUploadVerificationV01,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
 pub struct CompatibilityMatrixArtifactV01 {
     pub id: String,
     pub target: CompatibilityMatrixTargetV01,
+    pub component: CompatibilityMatrixComponentV01,
     pub kind: CompatibilityMatrixArtifactKindV01,
     pub name: String,
     pub version: String,
     pub source: CompatibilityMatrixGithubReleaseAssetSourceV01,
     pub checksum: CompatibilityMatrixChecksumV01,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_bytes: Option<u64>,
+    pub size_bytes: u64,
+    pub content_type: String,
+    pub storage: CompatibilityMatrixArtifactStorageV01,
 }
 
 pub type CompatibilityMatrixTargetArtifactMapV01 =
@@ -204,6 +251,7 @@ pub struct CompatibilityMatrixV01 {
     pub contracts_range: String,
     pub protocol_baselines: CompatibilityMatrixProtocolBaselinesV01,
     pub capabilities: CompatibilityMatrixCapabilitySetV01,
+    pub artifact_store: CompatibilityMatrixArtifactStoreV01,
     pub components: CompatibilityMatrixComponentsV01,
     pub verification: CompatibilityMatrixVerificationV01,
     pub promotion: CompatibilityMatrixPromotionV01,
@@ -227,9 +275,7 @@ fn validate_checksum(
     label: &str,
     checksum: &CompatibilityMatrixChecksumV01,
 ) {
-    if let Some(value) = &checksum.value
-        && !is_sha256_hex(value)
-    {
+    if !is_sha256_hex(&checksum.value) {
         errors.push(ValidationErrorV01::new(format!(
             "{label} checksum value must be a 64 character sha256 hex digest"
         )));
@@ -241,6 +287,7 @@ fn validate_target_artifact_map(
     artifacts: &CompatibilityMatrixTargetArtifactMapV01,
     label: &str,
     expected_kind: CompatibilityMatrixArtifactKindV01,
+    expected_component: CompatibilityMatrixComponentV01,
 ) {
     for target in COMPATIBILITY_MATRIX_TARGETS_V01 {
         let target_label = target.as_str();
@@ -258,6 +305,11 @@ fn validate_target_artifact_map(
         if artifact.kind != expected_kind {
             errors.push(ValidationErrorV01::new(format!(
                 "{label} {target_label} kind does not match artifact set"
+            )));
+        }
+        if artifact.component != expected_component {
+            errors.push(ValidationErrorV01::new(format!(
+                "{label} {target_label} component does not match artifact set"
             )));
         }
         validate_checksum(
@@ -305,6 +357,97 @@ fn artifact_index<'a>(
     artifacts
 }
 
+fn validate_artifact_store(errors: &mut Vec<ValidationErrorV01>, matrix: &CompatibilityMatrixV01) {
+    let store = &matrix.artifact_store;
+    if store.kind != "s3-compatible" {
+        errors.push(ValidationErrorV01::new(
+            "artifact-store kind must be s3-compatible",
+        ));
+    }
+    if !store.upload_endpoint.starts_with("https://") {
+        errors.push(ValidationErrorV01::new(
+            "artifact-store upload-endpoint must use https",
+        ));
+    }
+    if !store.public_base_url.starts_with("https://") {
+        errors.push(ValidationErrorV01::new(
+            "artifact-store public-base-url must use https",
+        ));
+    }
+    if !store.path_style {
+        errors.push(ValidationErrorV01::new(
+            "artifact-store path-style must be true",
+        ));
+    }
+    if store.prefix.starts_with('/') || !store.prefix.ends_with('/') {
+        errors.push(ValidationErrorV01::new(
+            "artifact-store prefix must be a relative directory prefix ending with /",
+        ));
+    }
+
+    let all_artifacts = matrix
+        .components
+        .runtime
+        .assets
+        .values()
+        .chain(matrix.components.studio.web_assets.iter())
+        .chain(matrix.components.studio.desktop_assets.values())
+        .chain(matrix.components.studio.runtime_sidecars.values());
+
+    for artifact in all_artifacts {
+        let storage = &artifact.storage;
+        if storage.bucket != store.bucket {
+            errors.push(ValidationErrorV01::new(format!(
+                "artifact {} storage bucket must match artifact-store bucket",
+                artifact.id
+            )));
+        }
+        if !storage.key.starts_with(&store.prefix) || storage.key.len() <= store.prefix.len() {
+            errors.push(ValidationErrorV01::new(format!(
+                "artifact {} storage key must be under artifact-store prefix {}",
+                artifact.id, store.prefix
+            )));
+            continue;
+        }
+        if storage.key.contains("..") {
+            errors.push(ValidationErrorV01::new(format!(
+                "artifact {} storage key must not contain parent path segments",
+                artifact.id
+            )));
+        }
+        let suffix = format!("/{}", artifact.name);
+        let root_key = format!("{}{}", store.prefix, artifact.name);
+        if !storage.key.ends_with(&suffix) && storage.key != root_key {
+            errors.push(ValidationErrorV01::new(format!(
+                "artifact {} storage key must end with artifact name {}",
+                artifact.id, artifact.name
+            )));
+        }
+
+        let public_path = &storage.key[store.prefix.len()..];
+        let expected_public_url = format!("{}/{}", store.public_base_url, public_path);
+        if storage.public_url != expected_public_url {
+            errors.push(ValidationErrorV01::new(format!(
+                "artifact {} public-url must match artifact-store public-base-url and key",
+                artifact.id
+            )));
+        }
+
+        let upload = &storage.upload_verification;
+        if !upload.no_clobber
+            || !upload.uploaded
+            || !upload.checksum_verified
+            || !upload.size_verified
+            || !upload.content_type_verified
+        {
+            errors.push(ValidationErrorV01::new(format!(
+                "artifact {} upload-verification must confirm no-clobber upload, checksum, size, and content type",
+                artifact.id
+            )));
+        }
+    }
+}
+
 fn validate_expected_checksums(
     errors: &mut Vec<ValidationErrorV01>,
     matrix: &CompatibilityMatrixV01,
@@ -318,18 +461,10 @@ fn validate_expected_checksums(
             )));
             continue;
         };
-        match (&artifact.checksum.value, &expected_checksum.value) {
-            (Some(actual), Some(expected)) if actual != expected => {
-                errors.push(ValidationErrorV01::new(format!(
-                    "verification checksum value must match artifact {artifact_id}"
-                )));
-            }
-            (None, Some(_)) => {
-                errors.push(ValidationErrorV01::new(format!(
-                    "artifact {artifact_id} checksum value must be populated before verification can pin it"
-                )));
-            }
-            _ => {}
+        if artifact.checksum.value != expected_checksum.value {
+            errors.push(ValidationErrorV01::new(format!(
+                "verification checksum value must match artifact {artifact_id}"
+            )));
         }
     }
 }
@@ -418,18 +553,21 @@ pub fn validate_compatibility_matrix_v01(
         &matrix.components.runtime.assets,
         "runtime asset",
         ReleaseTrainArtifactKindV01::RuntimeBinary,
+        CompatibilityMatrixComponentV01::Runtime,
     );
     validate_target_artifact_map(
         &mut errors,
         &matrix.components.studio.desktop_assets,
         "studio desktop asset",
         ReleaseTrainArtifactKindV01::StudioDesktopPackage,
+        CompatibilityMatrixComponentV01::Studio,
     );
     validate_target_artifact_map(
         &mut errors,
         &matrix.components.studio.runtime_sidecars,
         "studio runtime sidecar",
         ReleaseTrainArtifactKindV01::StudioRuntimeSidecar,
+        CompatibilityMatrixComponentV01::Studio,
     );
     for artifact in &matrix.components.studio.web_assets {
         if artifact.kind != ReleaseTrainArtifactKindV01::StudioWebBundle {
@@ -438,8 +576,15 @@ pub fn validate_compatibility_matrix_v01(
                 artifact.id
             )));
         }
+        if artifact.component != CompatibilityMatrixComponentV01::Studio {
+            errors.push(ValidationErrorV01::new(format!(
+                "studio web asset {} component must be studio",
+                artifact.id
+            )));
+        }
         validate_checksum(&mut errors, "studio web asset", &artifact.checksum);
     }
+    validate_artifact_store(&mut errors, matrix);
 
     let artifacts = artifact_index(&mut errors, matrix);
     validate_expected_checksums(&mut errors, matrix, &artifacts);
@@ -463,7 +608,7 @@ pub fn validate_compatibility_matrix_v01(
             ));
         }
         for artifact in artifacts.values() {
-            if artifact.checksum.value.is_none() {
+            if artifact.checksum.value.is_empty() {
                 errors.push(ValidationErrorV01::new(format!(
                     "promoted compatibility matrix requires checksum for artifact {}",
                     artifact.id
@@ -495,7 +640,7 @@ mod tests {
     fn checksum(digit: char) -> CompatibilityMatrixChecksumV01 {
         CompatibilityMatrixChecksumV01 {
             algorithm: ReleaseTrainChecksumAlgorithmV01::Sha256,
-            value: Some(sha256_value(digit)),
+            value: sha256_value(digit),
         }
     }
 
@@ -519,6 +664,7 @@ mod tests {
             kind: "github-release-asset".to_owned(),
             repository: "skenion/example".to_owned(),
             tag: format!("{name}-v{version}"),
+            commit: "9999999".to_owned(),
             asset_name: format!("{name}-v{version}.tar.gz"),
             url: None,
         }
@@ -533,16 +679,41 @@ mod tests {
     ) -> CompatibilityMatrixArtifactV01 {
         let target_label = target.as_str();
         let id = format!("{prefix}-{target_label}");
+        let name = format!("{prefix}-{target_label}.tar.gz");
+        let component = if kind == ReleaseTrainArtifactKindV01::RuntimeBinary {
+            CompatibilityMatrixComponentV01::Runtime
+        } else {
+            CompatibilityMatrixComponentV01::Studio
+        };
+        let storage_key = format!("releases/{prefix}/{version}/{name}");
 
         CompatibilityMatrixArtifactV01 {
             id,
             target,
+            component,
             kind,
-            name: format!("{prefix}-{target_label}.tar.gz"),
+            name,
             version: version.to_owned(),
             source: source(prefix, version),
             checksum: checksum(digest_digit),
-            size_bytes: Some(1),
+            size_bytes: 1,
+            content_type: "application/gzip".to_owned(),
+            storage: CompatibilityMatrixArtifactStorageV01 {
+                bucket: "skenion".to_owned(),
+                public_url: format!(
+                    "https://cdn.dsub.io/skenion/releases/{prefix}/{version}/{prefix}-{target_label}.tar.gz"
+                ),
+                key: storage_key,
+                upload_verification: CompatibilityMatrixArtifactUploadVerificationV01 {
+                    no_clobber: true,
+                    uploaded: true,
+                    checksum_verified: true,
+                    size_verified: true,
+                    content_type_verified: true,
+                    evidence_url: "https://github.com/skenion/example/actions/runs/1".to_owned(),
+                    verified_at: Some("2026-06-23T00:00:00.000Z".to_owned()),
+                },
+            },
         }
     }
 
@@ -637,6 +808,15 @@ mod tests {
                 studio: vec!["desktop-shell-tauri".to_owned()],
                 marketplace: vec!["package-install".to_owned()],
                 docs: vec!["versioned-manual".to_owned()],
+            },
+            artifact_store: CompatibilityMatrixArtifactStoreV01 {
+                kind: "s3-compatible".to_owned(),
+                provider: "dsub-minio".to_owned(),
+                upload_endpoint: "https://s3.dsub.io".to_owned(),
+                public_base_url: "https://cdn.dsub.io/skenion/releases".to_owned(),
+                bucket: "skenion".to_owned(),
+                prefix: "releases/".to_owned(),
+                path_style: true,
             },
             components: CompatibilityMatrixComponentsV01 {
                 contracts: CompatibilityMatrixContractsComponentV01 {
@@ -743,19 +923,6 @@ mod tests {
         matrix.components.docs.manual.promoted_latest = false;
         matrix.verification.expected_checksums.clear();
 
-        for artifact in matrix.components.runtime.assets.values_mut() {
-            artifact.checksum.value = None;
-        }
-        for artifact in &mut matrix.components.studio.web_assets {
-            artifact.checksum.value = None;
-        }
-        for artifact in matrix.components.studio.desktop_assets.values_mut() {
-            artifact.checksum.value = None;
-        }
-        for artifact in matrix.components.studio.runtime_sidecars.values_mut() {
-            artifact.checksum.value = None;
-        }
-
         validate_compatibility_matrix_v01(&matrix)
             .expect("draft matrix should not require promotion evidence");
     }
@@ -810,20 +977,48 @@ mod tests {
             .expect("runtime artifact should exist");
         artifact.target = ReleaseTrainTargetV01::X8664AppleDarwin;
         artifact.kind = ReleaseTrainArtifactKindV01::StudioWebBundle;
-        artifact.checksum.value = Some("not-a-sha256-digest".to_owned());
+        artifact.component = CompatibilityMatrixComponentV01::Studio;
+        artifact.checksum.value = "not-a-sha256-digest".to_owned();
 
         let messages = validation_messages(&matrix);
 
         assert_has_message(&messages, "target must match map key");
         assert_has_message(&messages, "kind does not match artifact set");
+        assert_has_message(&messages, "component does not match artifact set");
         assert_has_message(&messages, "64 character sha256 hex digest");
+    }
+
+    #[test]
+    fn reports_artifact_store_errors() {
+        let mut matrix = valid_matrix();
+        matrix.artifact_store.upload_endpoint = "http://s3.dsub.io".to_owned();
+        matrix.artifact_store.path_style = false;
+
+        let artifact = matrix
+            .components
+            .runtime
+            .assets
+            .get_mut(&ReleaseTrainTargetV01::Aarch64AppleDarwin)
+            .expect("runtime artifact should exist");
+        artifact.storage.key = "outside/runtime.tar.gz".to_owned();
+        artifact.storage.public_url =
+            "https://cdn.dsub.io/skenion/releases/runtime.tar.gz".to_owned();
+
+        let messages = validation_messages(&matrix);
+
+        assert_has_message(&messages, "upload-endpoint must use https");
+        assert_has_message(&messages, "path-style must be true");
+        assert_has_message(&messages, "storage key must be under artifact-store prefix");
     }
 
     #[test]
     fn reports_web_duplicate_expected_checksum_and_promotion_errors() {
         let mut matrix = valid_matrix();
         matrix.components.studio.web_assets[0].kind = ReleaseTrainArtifactKindV01::RuntimeBinary;
-        matrix.components.studio.web_assets[0].checksum.value = None;
+        matrix.components.studio.web_assets[0]
+            .checksum
+            .value
+            .clear();
         matrix.components.examples.conformance_status =
             CompatibilityMatrixConformanceStatusV01::Failed;
 
@@ -847,7 +1042,7 @@ mod tests {
 
         assert_has_message(&messages, "kind must be studio-web-bundle");
         assert_has_message(&messages, "duplicate compatibility matrix artifact id");
-        assert_has_message(&messages, "checksum value must be populated");
+        assert_has_message(&messages, "64 character sha256 hex digest");
         assert_has_message(&messages, "requires passed examples conformance");
         assert_has_message(&messages, "requires checksum for artifact");
     }

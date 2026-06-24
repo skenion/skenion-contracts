@@ -6614,6 +6614,7 @@ export const compatibilityMatrixV01Schema = {
     "contracts-range",
     "protocol-baselines",
     "capabilities",
+    "artifact-store",
     "components",
     "verification",
     "promotion"
@@ -6642,6 +6643,9 @@ export const compatibilityMatrixV01Schema = {
     },
     "capabilities": {
       "$ref": "#/$defs/capabilities"
+    },
+    "artifact-store": {
+      "$ref": "#/$defs/artifactStore"
     },
     "components": {
       "$ref": "#/$defs/components"
@@ -6708,10 +6712,7 @@ export const compatibilityMatrixV01Schema = {
           "const": "sha256"
         },
         "value": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": "string",
           "pattern": "^[A-Fa-f0-9]{64}$"
         }
       },
@@ -6723,6 +6724,7 @@ export const compatibilityMatrixV01Schema = {
         "kind",
         "repository",
         "tag",
+        "commit",
         "asset-name"
       ],
       "properties": {
@@ -6737,6 +6739,10 @@ export const compatibilityMatrixV01Schema = {
           "type": "string",
           "minLength": 1
         },
+        "commit": {
+          "type": "string",
+          "minLength": 7
+        },
         "asset-name": {
           "type": "string",
           "minLength": 1
@@ -6750,16 +6756,125 @@ export const compatibilityMatrixV01Schema = {
       },
       "additionalProperties": false
     },
+    "artifactStore": {
+      "type": "object",
+      "required": [
+        "kind",
+        "provider",
+        "upload-endpoint",
+        "public-base-url",
+        "bucket",
+        "prefix",
+        "path-style"
+      ],
+      "properties": {
+        "kind": {
+          "const": "s3-compatible"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "upload-endpoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public-base-url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prefix": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path-style": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifactUploadVerification": {
+      "type": "object",
+      "required": [
+        "no-clobber",
+        "uploaded",
+        "checksum-verified",
+        "size-verified",
+        "content-type-verified",
+        "evidence-url"
+      ],
+      "properties": {
+        "no-clobber": {
+          "const": true
+        },
+        "uploaded": {
+          "const": true
+        },
+        "checksum-verified": {
+          "const": true
+        },
+        "size-verified": {
+          "const": true
+        },
+        "content-type-verified": {
+          "const": true
+        },
+        "evidence-url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verified-at": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifactStorage": {
+      "type": "object",
+      "required": [
+        "bucket",
+        "key",
+        "public-url",
+        "upload-verification"
+      ],
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public-url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "upload-verification": {
+          "$ref": "#/$defs/artifactUploadVerification"
+        }
+      },
+      "additionalProperties": false
+    },
     "artifact": {
       "type": "object",
       "required": [
         "id",
         "target",
+        "component",
         "kind",
         "name",
         "version",
         "source",
-        "checksum"
+        "checksum",
+        "size-bytes",
+        "content-type",
+        "storage"
       ],
       "properties": {
         "id": {
@@ -6768,6 +6883,12 @@ export const compatibilityMatrixV01Schema = {
         },
         "target": {
           "$ref": "#/$defs/target"
+        },
+        "component": {
+          "enum": [
+            "runtime",
+            "studio"
+          ]
         },
         "kind": {
           "enum": [
@@ -6792,11 +6913,15 @@ export const compatibilityMatrixV01Schema = {
           "$ref": "#/$defs/checksum"
         },
         "size-bytes": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 0
+          "type": "integer",
+          "minimum": 1
+        },
+        "content-type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "storage": {
+          "$ref": "#/$defs/artifactStorage"
         }
       },
       "additionalProperties": false

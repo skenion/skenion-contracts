@@ -36,7 +36,7 @@
   "artifact-store": {
     "kind": "s3-compatible",
     "provider": "dsub-minio",
-    "upload-endpoint": "https://s3.dsub.io",
+    "upload-endpoint": "http://s3.dsub.io",
     "public-base-url": "https://cdn.dsub.io/skenion/releases",
     "bucket": "skenion",
     "prefix": "releases/",

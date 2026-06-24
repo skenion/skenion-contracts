@@ -969,7 +969,7 @@ function compatibilityMatrixArtifacts(matrix) {
   ];
 }
 
-function validateCompatibilityMatrixTargetMap(file, artifacts, label, expectedKind) {
+function validateCompatibilityMatrixTargetMap(file, artifacts, label, expectedKind, expectedComponent) {
   for (const target of releaseTrainTargetsV01) {
     const artifact = artifacts[target];
     if (artifact.target !== target) {
@@ -977,6 +977,46 @@ function validateCompatibilityMatrixTargetMap(file, artifacts, label, expectedKi
     }
     if (artifact.kind !== expectedKind) {
       fail(file, `${label} ${target} kind must be ${expectedKind}`);
+    }
+    if (artifact.component !== expectedComponent) {
+      fail(file, `${label} ${target} component must be ${expectedComponent}`);
+    }
+  }
+}
+
+function validateCompatibilityMatrixArtifactStorage(file, matrix) {
+  const store = matrix["artifact-store"];
+  if (!store["upload-endpoint"].startsWith("https://")) {
+    fail(file, "artifact-store upload-endpoint must use https");
+  }
+  if (!store["public-base-url"].startsWith("https://")) {
+    fail(file, "artifact-store public-base-url must use https");
+  }
+  if (store["path-style"] !== true) {
+    fail(file, "artifact-store path-style must be true");
+  }
+  if (store.prefix.startsWith("/") || !store.prefix.endsWith("/")) {
+    fail(file, "artifact-store prefix must be a relative directory prefix ending with /");
+  }
+
+  for (const artifact of compatibilityMatrixArtifacts(matrix)) {
+    if (artifact.storage.bucket !== store.bucket) {
+      fail(file, `artifact ${artifact.id} storage bucket must match artifact-store bucket`);
+    }
+    if (!artifact.storage.key.startsWith(store.prefix) || artifact.storage.key.length <= store.prefix.length) {
+      fail(file, `artifact ${artifact.id} storage key must be under artifact-store prefix ${store.prefix}`);
+    }
+    if (artifact.storage.key.includes("..")) {
+      fail(file, `artifact ${artifact.id} storage key must not contain parent path segments`);
+    }
+    if (!artifact.storage.key.endsWith(`/${artifact.name}`) && artifact.storage.key !== `${store.prefix}${artifact.name}`) {
+      fail(file, `artifact ${artifact.id} storage key must end with artifact name ${artifact.name}`);
+    }
+
+    const publicPath = artifact.storage.key.slice(store.prefix.length);
+    const expectedPublicUrl = `${store["public-base-url"]}/${publicPath}`;
+    if (artifact.storage["public-url"] !== expectedPublicUrl) {
+      fail(file, `artifact ${artifact.id} public-url must match artifact-store public-base-url and key`);
     }
   }
 }
@@ -1012,14 +1052,18 @@ function validateCompatibilityMatrixSemantics(file, matrix) {
     fail(file, "contracts-range must include the Contracts package version");
   }
 
-  validateCompatibilityMatrixTargetMap(file, matrix.components.runtime.assets, "runtime asset", "runtime-binary");
-  validateCompatibilityMatrixTargetMap(file, matrix.components.studio["desktop-assets"], "studio desktop asset", "studio-desktop-package");
-  validateCompatibilityMatrixTargetMap(file, matrix.components.studio["runtime-sidecars"], "studio runtime sidecar", "studio-runtime-sidecar");
+  validateCompatibilityMatrixTargetMap(file, matrix.components.runtime.assets, "runtime asset", "runtime-binary", "runtime");
+  validateCompatibilityMatrixTargetMap(file, matrix.components.studio["desktop-assets"], "studio desktop asset", "studio-desktop-package", "studio");
+  validateCompatibilityMatrixTargetMap(file, matrix.components.studio["runtime-sidecars"], "studio runtime sidecar", "studio-runtime-sidecar", "studio");
   for (const artifact of matrix.components.studio["web-assets"]) {
     if (artifact.kind !== "studio-web-bundle") {
       fail(file, `studio web asset ${artifact.id} kind must be studio-web-bundle`);
     }
+    if (artifact.component !== "studio") {
+      fail(file, `studio web asset ${artifact.id} component must be studio`);
+    }
   }
+  validateCompatibilityMatrixArtifactStorage(file, matrix);
 
   const artifactsById = new Map();
   for (const artifact of compatibilityMatrixArtifacts(matrix)) {
@@ -1033,14 +1077,7 @@ function validateCompatibilityMatrixSemantics(file, matrix) {
     if (artifact === undefined) {
       fail(file, `verification expected-checksums references unknown artifact ${artifactId}`);
     }
-    if (artifact.checksum.value === null && expectedChecksum.value !== null) {
-      fail(file, `artifact ${artifactId} checksum value must be populated before verification can pin it`);
-    }
-    if (
-      artifact.checksum.value !== null &&
-      expectedChecksum.value !== null &&
-      artifact.checksum.value !== expectedChecksum.value
-    ) {
+    if (artifact.checksum.value !== expectedChecksum.value) {
       fail(file, `verification checksum value must match artifact ${artifactId}`);
     }
   }
@@ -1056,7 +1093,7 @@ function validateCompatibilityMatrixSemantics(file, matrix) {
       fail(file, "promoted compatibility matrix requires docs manual promoted latest");
     }
     for (const artifact of compatibilityMatrixArtifacts(matrix)) {
-      if (artifact.checksum.value === null) {
+      if (artifact.checksum.value.length === 0) {
         fail(file, `promoted compatibility matrix requires checksum for artifact ${artifact.id}`);
       }
     }

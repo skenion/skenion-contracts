@@ -84,7 +84,7 @@
           "content-type": "application/gzip",
           "storage": {
             "bucket": "skenion",
-            "key": "releases/runtime/0.44.2/aarch64-apple-darwin/skenion-runtime-aarch64-apple-darwin.tar.gz",
+            "key": "runtime/0.44.2/aarch64-apple-darwin/skenion-runtime-aarch64-apple-darwin.tar.gz",
             "public-url": "https://cdn.dsub.io/skenion/releases/runtime/0.44.2/aarch64-apple-darwin/skenion-runtime-aarch64-apple-darwin.tar.gz",
             "upload-verification": {
               "no-clobber": true,

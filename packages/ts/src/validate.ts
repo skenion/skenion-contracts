@@ -1383,7 +1383,8 @@ function compatibilityMatrixArtifactMap(matrix: CompatibilityMatrixV01): Map<str
 function compatibilityMatrixTargetMapErrors(
   artifacts: CompatibilityMatrixTargetArtifactMapV01,
   label: string,
-  expectedKind: CompatibilityMatrixArtifactV01["kind"]
+  expectedKind: CompatibilityMatrixArtifactV01["kind"],
+  expectedComponent: CompatibilityMatrixArtifactV01["component"]
 ): string[] {
   const errors: string[] = [];
 
@@ -1394,6 +1395,52 @@ function compatibilityMatrixTargetMapErrors(
     }
     if (artifact.kind !== expectedKind) {
       errors.push(`${label} ${target} kind must be ${expectedKind}`);
+    }
+    if (artifact.component !== expectedComponent) {
+      errors.push(`${label} ${target} component must be ${expectedComponent}`);
+    }
+  }
+
+  return errors;
+}
+
+function compatibilityMatrixArtifactStorageErrors(matrix: CompatibilityMatrixV01): string[] {
+  const errors: string[] = [];
+  const store = matrix["artifact-store"];
+
+  if (!store["upload-endpoint"].startsWith("https://")) {
+    errors.push("artifact-store upload-endpoint must use https");
+  }
+  if (!store["public-base-url"].startsWith("https://")) {
+    errors.push("artifact-store public-base-url must use https");
+  }
+  if (store["path-style"] !== true) {
+    errors.push("artifact-store path-style must be true");
+  }
+  if (store.prefix.startsWith("/") || !store.prefix.endsWith("/")) {
+    errors.push("artifact-store prefix must be a relative directory prefix ending with /");
+  }
+
+  for (const artifact of compatibilityMatrixArtifacts(matrix)) {
+    const storage = artifact.storage;
+    if (storage.bucket !== store.bucket) {
+      errors.push(`artifact ${artifact.id} storage bucket must match artifact-store bucket`);
+    }
+    if (!storage.key.startsWith(store.prefix) || storage.key.length <= store.prefix.length) {
+      errors.push(`artifact ${artifact.id} storage key must be under artifact-store prefix ${store.prefix}`);
+      continue;
+    }
+    if (storage.key.includes("..")) {
+      errors.push(`artifact ${artifact.id} storage key must not contain parent path segments`);
+    }
+    if (!storage.key.endsWith(`/${artifact.name}`) && storage.key !== `${store.prefix}${artifact.name}`) {
+      errors.push(`artifact ${artifact.id} storage key must end with artifact name ${artifact.name}`);
+    }
+
+    const publicPath = storage.key.slice(store.prefix.length);
+    const expectedPublicUrl = `${store["public-base-url"]}/${publicPath}`;
+    if (storage["public-url"] !== expectedPublicUrl) {
+      errors.push(`artifact ${artifact.id} public-url must match artifact-store public-base-url and key`);
     }
   }
 
@@ -1412,14 +1459,7 @@ function compatibilityMatrixChecksumErrors(
       errors.push(`verification expected-checksums references unknown artifact ${artifactId}`);
       continue;
     }
-    if (artifact.checksum.value === null && expectedChecksum.value !== null) {
-      errors.push(`artifact ${artifactId} checksum value must be populated before verification can pin it`);
-    }
-    if (
-      artifact.checksum.value !== null &&
-      expectedChecksum.value !== null &&
-      artifact.checksum.value !== expectedChecksum.value
-    ) {
+    if (artifact.checksum.value !== expectedChecksum.value) {
       errors.push(`verification checksum value must match artifact ${artifactId}`);
     }
   }
@@ -1469,17 +1509,20 @@ function validateCompatibilityMatrixV01Semantics(matrix: CompatibilityMatrixV01)
     ...compatibilityMatrixTargetMapErrors(
       matrix.components.runtime.assets,
       "runtime asset",
-      "runtime-binary"
+      "runtime-binary",
+      "runtime"
     ),
     ...compatibilityMatrixTargetMapErrors(
       matrix.components.studio["desktop-assets"],
       "studio desktop asset",
-      "studio-desktop-package"
+      "studio-desktop-package",
+      "studio"
     ),
     ...compatibilityMatrixTargetMapErrors(
       matrix.components.studio["runtime-sidecars"],
       "studio runtime sidecar",
-      "studio-runtime-sidecar"
+      "studio-runtime-sidecar",
+      "studio"
     )
   );
 
@@ -1487,7 +1530,11 @@ function validateCompatibilityMatrixV01Semantics(matrix: CompatibilityMatrixV01)
     if (artifact.kind !== "studio-web-bundle") {
       errors.push(`studio web asset ${artifact.id} kind must be studio-web-bundle`);
     }
+    if (artifact.component !== "studio") {
+      errors.push(`studio web asset ${artifact.id} component must be studio`);
+    }
   }
+  errors.push(...compatibilityMatrixArtifactStorageErrors(matrix));
 
   const artifactIds = compatibilityMatrixArtifacts(matrix).map((artifact) => artifact.id);
   errors.push(...duplicateErrors(artifactIds, "compatibility matrix artifact id"));
@@ -1508,11 +1555,6 @@ function validateCompatibilityMatrixV01Semantics(matrix: CompatibilityMatrixV01)
     }
     if (!matrix.components.docs.manual["promoted-latest"]) {
       errors.push("promoted compatibility matrix requires docs manual promoted latest");
-    }
-    for (const artifact of compatibilityMatrixArtifacts(matrix)) {
-      if (artifact.checksum.value === null) {
-        errors.push(`promoted compatibility matrix requires checksum for artifact ${artifact.id}`);
-      }
     }
   }
 

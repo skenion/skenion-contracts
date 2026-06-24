@@ -75,11 +75,6 @@
             "asset-name": "skenion-runtime-aarch64-apple-darwin.tar.gz",
             "commit": "4444442"
           },
-          "checksum": {
-            "algorithm": "sha256",
-            "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-          },
-          "size-bytes": 101,
           "component": "runtime",
           "content-type": "application/gzip",
           "storage": {

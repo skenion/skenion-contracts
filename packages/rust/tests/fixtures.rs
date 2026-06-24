@@ -3,8 +3,8 @@
 use std::{fs, path::Path};
 
 use skenion_contracts::{
-    GraphDocumentV01, GraphFragmentOutsideEndpointPolicyV01, GraphFragmentV01,
-    NodeDefinitionManifestV01, ObjectTextParseResultV01, PackageManifestV01,
+    CompatibilityMatrixV01, GraphDocumentV01, GraphFragmentOutsideEndpointPolicyV01,
+    GraphFragmentV01, NodeDefinitionManifestV01, ObjectTextParseResultV01, PackageManifestV01,
     PackageRootDocumentV01, PasteGraphFragmentResponse, ProjectDocumentV01,
     ReleaseTrainArtifactKindV01, ReleaseTrainArtifactSourceV01, ReleaseTrainConnectionProfileV01,
     ReleaseTrainManifestV01, ReleaseTrainSupportTierV01, ReleaseTrainTargetV01,
@@ -13,12 +13,13 @@ use skenion_contracts::{
     RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
     RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeSessionEvent,
     RuntimeSessionInfoResponse, analyze_graph_document_v01, analyze_graph_fragment_v01,
-    parse_object_text_v01, validate_graph_document_v01, validate_graph_fragment_v01,
-    validate_node_definition_v01, validate_object_text_parse_result_v01,
-    validate_package_manifest_v01, validate_package_root_v01,
-    validate_paste_graph_fragment_response, validate_patch_definition_v01,
-    validate_project_document_v01, validate_release_train_manifest_v01,
-    validate_runtime_collaboration_event_envelope, validate_runtime_collaboration_operation_batch,
+    parse_object_text_v01, validate_compatibility_matrix_v01, validate_graph_document_v01,
+    validate_graph_fragment_v01, validate_node_definition_v01,
+    validate_object_text_parse_result_v01, validate_package_manifest_v01,
+    validate_package_root_v01, validate_paste_graph_fragment_response,
+    validate_patch_definition_v01, validate_project_document_v01,
+    validate_release_train_manifest_v01, validate_runtime_collaboration_event_envelope,
+    validate_runtime_collaboration_operation_batch,
     validate_runtime_collaboration_operation_batch_result,
     validate_runtime_collaboration_operation_envelope,
     validate_runtime_collaboration_operation_result,
@@ -117,6 +118,30 @@ fn validates_release_train_manifest_fixtures() {
         if let Ok(manifest) = serde_json::from_slice::<ReleaseTrainManifestV01>(&document) {
             assert!(
                 validate_release_train_manifest_v01(&manifest).is_err(),
+                "{} should be invalid",
+                file.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn validates_compatibility_matrix_fixtures() {
+    for file in fixture_files("../../fixtures/compatibility-matrix/v0.1/valid") {
+        let matrix: CompatibilityMatrixV01 =
+            serde_json::from_slice(&fs::read(&file).expect("fixture should be readable"))
+                .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
+        validate_compatibility_matrix_v01(&matrix)
+            .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+        assert_eq!(matrix.schema, "skenion.compatibility-matrix");
+        assert_eq!(matrix.schema_version, "0.1.0");
+    }
+
+    for file in fixture_files("../../fixtures/compatibility-matrix/v0.1/invalid") {
+        let document = fs::read(&file).expect("fixture should be readable");
+        if let Ok(matrix) = serde_json::from_slice::<CompatibilityMatrixV01>(&document) {
+            assert!(
+                validate_compatibility_matrix_v01(&matrix).is_err(),
                 "{} should be invalid",
                 file.display()
             );

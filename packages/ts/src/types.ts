@@ -2175,26 +2175,59 @@ export type CompatibilityMatrixConformanceStatusV01 = "pending" | "passed" | "fa
 
 export interface CompatibilityMatrixChecksumV01 {
   algorithm: CompatibilityMatrixChecksumAlgorithmV01;
-  value: string | null;
+  value: string;
 }
 
 export interface CompatibilityMatrixGithubReleaseAssetSourceV01 {
   kind: "github-release-asset";
   repository: string;
   tag: string;
+  commit: string;
   "asset-name": string;
   url?: string | null;
 }
 
+export interface CompatibilityMatrixArtifactStoreV01 {
+  kind: "s3-compatible";
+  provider: string;
+  "upload-endpoint": string;
+  "public-base-url": string;
+  bucket: string;
+  prefix: string;
+  "path-style": true;
+}
+
+export interface CompatibilityMatrixArtifactUploadVerificationV01 {
+  "no-clobber": true;
+  uploaded: true;
+  "checksum-verified": true;
+  "size-verified": true;
+  "content-type-verified": true;
+  "evidence-url": string;
+  "verified-at"?: string;
+}
+
+export interface CompatibilityMatrixArtifactStorageV01 {
+  bucket: string;
+  key: string;
+  "public-url": string;
+  "upload-verification": CompatibilityMatrixArtifactUploadVerificationV01;
+}
+
+export type CompatibilityMatrixComponentV01 = "runtime" | "studio";
+
 export interface CompatibilityMatrixArtifactV01 {
   id: string;
   target: CompatibilityMatrixTargetV01;
+  component: CompatibilityMatrixComponentV01;
   kind: CompatibilityMatrixArtifactKindV01;
   name: string;
   version: string;
   source: CompatibilityMatrixGithubReleaseAssetSourceV01;
   checksum: CompatibilityMatrixChecksumV01;
-  "size-bytes"?: number | null;
+  "size-bytes": number;
+  "content-type": string;
+  storage: CompatibilityMatrixArtifactStorageV01;
 }
 
 export type CompatibilityMatrixTargetArtifactMapV01 = Record<
@@ -2291,6 +2324,7 @@ export interface CompatibilityMatrixV01 {
   "contracts-range": string;
   "protocol-baselines": CompatibilityMatrixProtocolBaselinesV01;
   capabilities: CompatibilityMatrixCapabilitySetV01;
+  "artifact-store": CompatibilityMatrixArtifactStoreV01;
   components: CompatibilityMatrixComponentsV01;
   verification: CompatibilityMatrixVerificationV01;
   promotion: CompatibilityMatrixPromotionV01;
