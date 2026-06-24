@@ -33,6 +33,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuntimeExtensionListResponse"
+  /v0/packages:
+    get:
+      summary: Return the Runtime-visible package registry projection.
+      description: Lists package manifests and load diagnostics using Contracts-owned DTOs. Runtime may keep registry revisions, event ids, transaction state, install history, watcher state, and cache bookkeeping internally; those ledger fields are not part of this public snapshot response unless a later Contracts issue promotes them explicitly.
+      responses:
+        "200":
+          description: Current package registry snapshot visible to Runtime HTTP clients.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackageRegistryListResponseV01"
   /v0/io/devices:
     get:
       summary: Return currently enumerable runtime IO devices.
@@ -734,6 +745,7 @@ components:
       additionalProperties: false
     PackageRegistryEntryV01:
       type: object
+      description: Public package manifest projection for Runtime HTTP clients. It mirrors package identity, contract support, provided surfaces, manifest location, manifest checksum, and load diagnostics; Runtime-internal revision, event, transaction, enabled/active, watcher, and cache state are intentionally excluded.
       required:
         - packageId
         - version
@@ -784,6 +796,7 @@ components:
       additionalProperties: false
     PackageRegistryListResponseV01:
       type: object
+      description: Snapshot response for `/v0/packages`. This is not the Runtime package ledger and does not carry revision or event cursors.
       required:
         - ok
         - packages

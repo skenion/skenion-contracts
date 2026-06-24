@@ -552,6 +552,22 @@ test("validates package registry DTOs", async () => {
 
   assert.equal(isPackageRegistryListResponse(registry), true);
 
+  const registryRevision = structuredClone(registry);
+  registryRevision.revision = "registry-rev-1";
+  assert.equal(isPackageRegistryListResponse(registryRevision), false);
+
+  const registryEventCursor = structuredClone(registry);
+  registryEventCursor.eventId = "event-1";
+  assert.equal(isPackageRegistryListResponse(registryEventCursor), false);
+
+  const packageRuntimeState = structuredClone(registry);
+  packageRuntimeState.packages[0].state = "active";
+  assert.equal(isPackageRegistryListResponse(packageRuntimeState), false);
+
+  const packageLedgerMetadata = structuredClone(registry);
+  packageLedgerMetadata.packages[0].revision = "pkg-rev-1";
+  assert.equal(isPackageRegistryListResponse(packageLedgerMetadata), false);
+
   const missingCode = structuredClone(registry);
   delete missingCode.packages[0].diagnostics[0].code;
   assert.equal(isPackageRegistryListResponse(missingCode), false);
@@ -585,10 +601,11 @@ test("validates package registry DTOs", async () => {
   assert.equal(isPackageRegistryListResponse(invalidProviderPath), false);
 });
 
-test("documents runtime IO discovery HTTP API", async () => {
+test("documents runtime HTTP endpoints that use Contracts DTOs", async () => {
   const openApi = await readFile(path.join(repoRoot, "openapi/runtime-http.v0.yaml"), "utf8");
 
   for (const pathName of [
+    "/v0/packages:",
     "/v0/io/devices:"
   ]) {
     assert.match(openApi, new RegExp(pathName.replace(/[{}]/g, "\\$&")));
@@ -649,6 +666,8 @@ test("documents runtime IO discovery HTTP API", async () => {
   assert.match(openApi, /RuntimeProjectSnapshot:\n\s+\$ref: "#\/components\/schemas\/ProjectDocumentV01"/);
   assert.match(openApi, /RuntimeMutationRequest:[\s\S]*?operation:\n\s+\$ref: "#\/components\/schemas\/RuntimeOperationEnvelope"/);
   assert.match(openApi, /RuntimeDiagnostic:[\s\S]*?code:\n\s+type: string[\s\S]*?details:\n\s+description: Arbitrary JSON diagnostic metadata\./);
+  assert.match(openApi, /\/v0\/packages[\s\S]*?PackageRegistryListResponseV01/);
+  assert.match(openApi, /Runtime may keep registry revisions, event ids, transaction state/);
   assert.doesNotMatch(openApi, /RuntimeMutationGraphPatch:/);
   assert.doesNotMatch(openApi, /GraphDocumentV01:|GraphPatchV01:|GraphPatchEventV01:|GraphPatchHistoryV01:/);
 });

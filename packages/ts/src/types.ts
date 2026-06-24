@@ -845,6 +845,15 @@ export interface PackageRootDocumentV01 {
   manifest: PackageManifestV01;
 }
 
+/**
+ * Runtime HTTP package registry entry exposed to clients.
+ *
+ * This is a Contracts-owned projection of package manifest identity, provided
+ * surfaces, checksum evidence, and load diagnostics. Runtime registry revisions,
+ * event ids, install transactions, active/enabled state, watcher state, and
+ * cache bookkeeping remain Runtime-internal until a later contract promotes
+ * one of those fields explicitly.
+ */
 export interface PackageRegistryEntryV01 {
   packageId: string;
   version: string;
@@ -861,6 +870,13 @@ export interface PackageRegistryEntryV01 {
   diagnostics: PackageDiagnosticV01[];
 }
 
+/**
+ * Snapshot DTO for Runtime's `/v0/packages` endpoint.
+ *
+ * The response intentionally has no revision or event cursor; clients that need
+ * registry event history must use a future explicit Runtime contract rather
+ * than inferring ledger state from this package list.
+ */
 export interface PackageRegistryListResponseV01 {
   ok: boolean;
   packages: PackageRegistryEntryV01[];
