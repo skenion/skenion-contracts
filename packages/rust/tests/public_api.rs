@@ -1151,7 +1151,7 @@ fn validates_public_package_manifest_contract_surface() {
         "pkg-skenion-examples-0.45.0"
     );
 
-    let registry: PackageRegistryListResponseV01 = serde_json::from_value(serde_json::json!({
+    let registry_json = serde_json::json!({
         "ok": true,
         "packages": [
             {
@@ -1172,11 +1172,34 @@ fn validates_public_package_manifest_contract_surface() {
             }
         ],
         "diagnostics": []
-    }))
-    .expect("registry list DTO should parse");
+    });
+    let registry: PackageRegistryListResponseV01 =
+        serde_json::from_value(registry_json.clone()).expect("registry list DTO should parse");
 
     assert!(registry.ok);
     assert_eq!(registry.packages[0].root, PackageRootKindV01::Package);
+
+    let mut registry_revision = registry_json.clone();
+    registry_revision["revision"] = serde_json::json!("registry-rev-1");
+    assert!(serde_json::from_value::<PackageRegistryListResponseV01>(registry_revision).is_err());
+
+    let mut registry_event_cursor = registry_json.clone();
+    registry_event_cursor["eventId"] = serde_json::json!("event-1");
+    assert!(
+        serde_json::from_value::<PackageRegistryListResponseV01>(registry_event_cursor).is_err()
+    );
+
+    let mut package_runtime_state = registry_json.clone();
+    package_runtime_state["packages"][0]["state"] = serde_json::json!("active");
+    assert!(
+        serde_json::from_value::<PackageRegistryListResponseV01>(package_runtime_state).is_err()
+    );
+
+    let mut package_ledger_metadata = registry_json;
+    package_ledger_metadata["packages"][0]["revision"] = serde_json::json!("pkg-rev-1");
+    assert!(
+        serde_json::from_value::<PackageRegistryListResponseV01>(package_ledger_metadata).is_err()
+    );
 }
 
 #[test]

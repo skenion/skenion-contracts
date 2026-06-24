@@ -531,6 +531,7 @@ export function isRuntimeExtensionListResponse(value: unknown): value is Runtime
 export function isPackageRegistryListResponse(value: unknown): value is PackageRegistryListResponseV01 {
   return (
     isRecord(value) &&
+    hasOnlyKeys(value, ["ok", "packages", "diagnostics"]) &&
     typeof value.ok === "boolean" &&
     Array.isArray(value.packages) &&
     value.packages.every(isPackageRegistryEntry) &&
