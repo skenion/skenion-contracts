@@ -4,8 +4,10 @@ use std::{fs, path::Path};
 
 use skenion_contracts::{
     GraphDocumentV01, GraphFragmentOutsideEndpointPolicyV01, GraphFragmentV01,
-    NodeDefinitionManifestV01, ObjectTextParseResultV01, PackageManifestV01,
-    PackageRootDocumentV01, PasteGraphFragmentResponse, ProjectDocumentV01,
+    NodeDefinitionManifestV01, ObjectTextParseResultV01, PackageDiagnosticSeverityV01,
+    PackageManifestV01, PackageRootDocumentV01, PasteGraphFragmentResponse, ProjectDocumentV01,
+    ProjectObjectBindingDiagnosticCodeV01, ProjectObjectBindingDiagnosticV01,
+    ProjectObjectBindingStatusV01, ProjectObjectBindingTargetV01,
     RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationBatch,
     RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
     RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
@@ -196,6 +198,39 @@ fn validates_runtime_operation_fixtures() {
             other => panic!("{} has unexpected schema {other:?}", file.display()),
         }
     }
+}
+
+#[test]
+fn validates_runtime_interface_diagnostic_error_branches() {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/runtime-operation/v0/valid/interface-diagnostic.response.json");
+    let mut response: PasteGraphFragmentResponse =
+        serde_json::from_slice(&fs::read(&file).expect("fixture should be readable"))
+            .expect("interface diagnostic response should parse");
+
+    response.diagnostics[0].interface_detail = None;
+    let report = validate_paste_graph_fragment_response(&response)
+        .expect_err("interface diagnostic without detail should fail validation");
+    assert!(
+        report.to_string().contains("requires interfaceDetail"),
+        "got {report}"
+    );
+
+    let mut response: PasteGraphFragmentResponse =
+        serde_json::from_slice(&fs::read(&file).expect("fixture should be readable"))
+            .expect("interface diagnostic response should parse");
+    response.diagnostics[0]
+        .interface_detail
+        .as_mut()
+        .expect("fixture diagnostic should have interface detail")
+        .recovery_actions
+        .clear();
+    let report = validate_paste_graph_fragment_response(&response)
+        .expect_err("interface diagnostic without recoveryActions should fail validation");
+    assert!(
+        report.to_string().contains("requires recoveryActions"),
+        "got {report}"
+    );
 }
 
 #[test]
@@ -1295,6 +1330,10 @@ fn validates_package_manifest_semantic_branches() {
         "package id must not be empty",
     );
     assert_package_manifest_error(
+        |manifest| manifest.id = "skenion.examples".to_owned(),
+        "package id must match publisher/package",
+    );
+    assert_package_manifest_error(
         |manifest| manifest.version.clear(),
         "package version must not be empty",
     );
@@ -1325,6 +1364,34 @@ fn validates_package_manifest_semantic_branches() {
             manifest.native_artifacts = native_manifest.native_artifacts;
         },
         "patch package must not declare nativeArtifacts",
+    );
+    assert_package_manifest_error(
+        |manifest| manifest.provides.patches[0].id = "example.bad_id".to_owned(),
+        "without underscores",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            let mut provided = manifest.provides.patches[0].clone();
+            provided.id = "example.bad_node".to_owned();
+            manifest.provides.nodes.push(provided);
+        },
+        "provided node id must use lowercase dotted/hyphen grammar",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            let mut provided = manifest.provides.patches[0].clone();
+            provided.id = "example.bad_resource".to_owned();
+            manifest.provides.resources.push(provided);
+        },
+        "provided resource id must use lowercase dotted/hyphen grammar",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            let mut provided = manifest.provides.patches[0].clone();
+            provided.id = "example.bad_help".to_owned();
+            manifest.provides.help.push(provided);
+        },
+        "provided help id must use lowercase dotted/hyphen grammar",
     );
 
     let mut native_missing_targets = package_manifest_fixture(
@@ -1443,6 +1510,32 @@ fn validates_v01_project_patch_library_fixtures() {
     }
 }
 
+fn project_document_fixture(relative: &str) -> ProjectDocumentV01 {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative);
+    serde_json::from_slice(&fs::read(&file).expect("project fixture should be readable"))
+        .expect("project fixture should parse")
+}
+
+fn binding_diagnostic(
+    code: ProjectObjectBindingDiagnosticCodeV01,
+) -> ProjectObjectBindingDiagnosticV01 {
+    ProjectObjectBindingDiagnosticV01 {
+        severity: PackageDiagnosticSeverityV01::Warning,
+        code,
+        message: "coverage diagnostic".to_owned(),
+        details: None,
+    }
+}
+
+fn assert_project_document_error(project: &ProjectDocumentV01, expected_message: &str) {
+    let report =
+        validate_project_document_v01(project).expect_err("project should fail validation");
+    assert!(
+        report.to_string().contains(expected_message),
+        "expected error containing {expected_message:?}, got {report}"
+    );
+}
+
 #[test]
 fn validates_project_package_lock_reference_failures() {
     for (fixture, expected) in [
@@ -1457,6 +1550,22 @@ fn validates_project_package_lock_reference_failures() {
         (
             "../../fixtures/project/v0.1/invalid/package-dependency-version-out-of-range.project.json",
             "locked version 0.45.0 does not satisfy >=0.46.0 <0.47.0",
+        ),
+        (
+            "../../fixtures/project/v0.1/invalid/native-lock-missing-artifact.project.json",
+            "requires nativeArtifacts",
+        ),
+        (
+            "../../fixtures/project/v0.1/invalid/resolved-binding-missing-target.project.json",
+            "requires target",
+        ),
+        (
+            "../../fixtures/project/v0.1/invalid/resolved-package-binding-missing-lock.project.json",
+            "resolved object binding binding-resolved-missing-lock references missing lockEntryId",
+        ),
+        (
+            "../../fixtures/project/v0.1/invalid/resolved-project-patch-binding-missing-patch.project.json",
+            "resolved object binding binding-resolved-missing-patch references missing project patch",
         ),
     ] {
         let file = Path::new(env!("CARGO_MANIFEST_DIR")).join(fixture);
@@ -1502,14 +1611,191 @@ fn validates_project_package_missing_lock_references() {
             .contains("references missing lockEntryId: missing-resource-lock")
     );
 
-    let mut missing_provider_lock = base_project;
-    missing_provider_lock.provider_refs[0].lock_entry_id = "missing-provider-lock".to_owned();
-    let report = validate_project_document_v01(&missing_provider_lock)
-        .expect_err("missing provider lock should fail validation");
+    validate_project_document_v01(&base_project)
+        .expect("missing package-provider binding with diagnostics should remain valid");
+
+    let mut missing_binding_ref = base_project;
+    missing_binding_ref.graph.nodes[0].binding_ref = Some("missing-binding".to_owned());
+    let report = validate_project_document_v01(&missing_binding_ref)
+        .expect_err("missing node bindingRef should fail validation");
     assert!(
         report
             .to_string()
-            .contains("references missing lockEntryId: missing-provider-lock")
+            .contains("node external-oscillator references missing bindingRef: missing-binding")
+    );
+}
+
+#[test]
+fn validates_project_package_and_binding_semantic_error_branches() {
+    let base_project =
+        project_document_fixture("../../fixtures/project/v0.1/valid/package-lock.project.json");
+    let native_project = project_document_fixture(
+        "../../fixtures/project/v0.1/valid/native-package-lock.project.json",
+    );
+
+    let mut invalid_patch_lock = base_project.clone();
+    invalid_patch_lock.package_lock[0].package_id = "skenion.examples".to_owned();
+    invalid_patch_lock.package_lock[0].runtime_abi_range = Some(">=0.45.0 <0.46.0".to_owned());
+    invalid_patch_lock.package_lock[0].target = native_project.package_lock[0].target.clone();
+    invalid_patch_lock.package_lock[0].native_artifacts =
+        native_project.package_lock[0].native_artifacts.clone();
+    let report = validate_project_document_v01(&invalid_patch_lock)
+        .expect_err("invalid patch lock should fail validation");
+    let text = report.to_string();
+    assert!(text.contains("package lock pkg-skenion-examples-0.45.0 packageId must match"));
+    assert!(text.contains(
+        "patch package lock pkg-skenion-examples-0.45.0 must not declare runtimeAbiRange"
+    ));
+    assert!(
+        text.contains("patch package lock pkg-skenion-examples-0.45.0 must not declare target")
+    );
+    assert!(text.contains(
+        "patch package lock pkg-skenion-examples-0.45.0 must not declare nativeArtifacts"
+    ));
+
+    let mut native_missing_abi = native_project;
+    native_missing_abi.package_lock[0].runtime_abi_range = None;
+    assert_project_document_error(&native_missing_abi, "requires runtimeAbiRange");
+
+    let mut invalid_dependency_id = base_project.clone();
+    invalid_dependency_id.package_dependencies[0].package_id = "skenion.examples".to_owned();
+    assert_project_document_error(
+        &invalid_dependency_id,
+        "package dependency packageId must match",
+    );
+
+    let mut invalid_resource_id = base_project.clone();
+    invalid_resource_id.resource_lock[0].resource_id = "example.bad_id".to_owned();
+    assert_project_document_error(
+        &invalid_resource_id,
+        "resourceId must use lowercase dotted/hyphen grammar",
+    );
+
+    for (status, expected) in [
+        (
+            ProjectObjectBindingStatusV01::Missing,
+            "missing object binding binding-example-oscillator requires binding-target-missing diagnostic",
+        ),
+        (
+            ProjectObjectBindingStatusV01::Stale,
+            "stale object binding binding-example-oscillator requires stale or interface-drift diagnostic",
+        ),
+        (
+            ProjectObjectBindingStatusV01::Unresolved,
+            "unresolved object binding binding-example-oscillator requires binding-unresolved diagnostic",
+        ),
+        (
+            ProjectObjectBindingStatusV01::Ambiguous,
+            "ambiguous object binding binding-example-oscillator requires binding-ambiguous diagnostic",
+        ),
+    ] {
+        let mut missing_diagnostic = base_project.clone();
+        missing_diagnostic.object_bindings[0].status = status;
+        missing_diagnostic.object_bindings[0].diagnostics.clear();
+        assert_project_document_error(&missing_diagnostic, expected);
+    }
+
+    let mut missing_patch_binding = base_project.clone();
+    {
+        let binding = &mut missing_patch_binding.object_bindings[1];
+        binding.status = ProjectObjectBindingStatusV01::Unresolved;
+        binding.diagnostics = vec![binding_diagnostic(
+            ProjectObjectBindingDiagnosticCodeV01::BindingUnresolved,
+        )];
+        match binding.target.as_mut().expect("project patch target") {
+            ProjectObjectBindingTargetV01::ProjectPatch { patch_id, .. } => {
+                *patch_id = "missing-wrapper".to_owned();
+            }
+            ProjectObjectBindingTargetV01::PackageProvider { .. } => {
+                panic!("expected project patch binding")
+            }
+        }
+    }
+    assert_project_document_error(
+        &missing_patch_binding,
+        "object binding binding-local-wrapper references missing project patch: missing-wrapper",
+    );
+
+    let mut resolved_stale_revision = base_project.clone();
+    match resolved_stale_revision.object_bindings[1]
+        .target
+        .as_mut()
+        .expect("project patch target")
+    {
+        ProjectObjectBindingTargetV01::ProjectPatch { revision, .. } => {
+            *revision = Some("2".to_owned());
+        }
+        ProjectObjectBindingTargetV01::PackageProvider { .. } => {
+            panic!("expected project patch binding")
+        }
+    }
+    assert_project_document_error(
+        &resolved_stale_revision,
+        "resolved object binding binding-local-wrapper project patch local_wrapper revision is stale",
+    );
+
+    let mut stale_revision_without_diagnostic = base_project.clone();
+    {
+        let binding = &mut stale_revision_without_diagnostic.object_bindings[1];
+        binding.status = ProjectObjectBindingStatusV01::Stale;
+        binding.diagnostics.clear();
+        match binding.target.as_mut().expect("project patch target") {
+            ProjectObjectBindingTargetV01::ProjectPatch { revision, .. } => {
+                *revision = Some("2".to_owned());
+            }
+            ProjectObjectBindingTargetV01::PackageProvider { .. } => {
+                panic!("expected project patch binding")
+            }
+        }
+    }
+    assert_project_document_error(
+        &stale_revision_without_diagnostic,
+        "object binding binding-local-wrapper project patch local_wrapper revision is stale without diagnostics",
+    );
+
+    let mut invalid_provider_ids = base_project.clone();
+    match invalid_provider_ids.object_bindings[0]
+        .target
+        .as_mut()
+        .expect("package provider target")
+    {
+        ProjectObjectBindingTargetV01::PackageProvider {
+            package_id,
+            provided_id,
+            ..
+        } => {
+            *package_id = "skenion.examples".to_owned();
+            *provided_id = "example.bad_id".to_owned();
+        }
+        ProjectObjectBindingTargetV01::ProjectPatch { .. } => {
+            panic!("expected package provider binding")
+        }
+    }
+    let report = validate_project_document_v01(&invalid_provider_ids)
+        .expect_err("invalid package provider ids should fail validation");
+    let text = report.to_string();
+    assert!(text.contains("object binding binding-example-oscillator packageId must match"));
+    assert!(text.contains("object binding binding-example-oscillator providedId must use lowercase dotted/hyphen grammar"));
+
+    let mut unresolved_missing_lock = base_project;
+    {
+        let binding = &mut unresolved_missing_lock.object_bindings[0];
+        binding.status = ProjectObjectBindingStatusV01::Unresolved;
+        binding.diagnostics = vec![binding_diagnostic(
+            ProjectObjectBindingDiagnosticCodeV01::BindingUnresolved,
+        )];
+        match binding.target.as_mut().expect("package provider target") {
+            ProjectObjectBindingTargetV01::PackageProvider { lock_entry_id, .. } => {
+                *lock_entry_id = "missing-package-lock".to_owned();
+            }
+            ProjectObjectBindingTargetV01::ProjectPatch { .. } => {
+                panic!("expected package provider binding")
+            }
+        }
+    }
+    assert_project_document_error(
+        &unresolved_missing_lock,
+        "object binding binding-example-oscillator references missing lockEntryId: missing-package-lock",
     );
 }
 
