@@ -1113,6 +1113,21 @@ fn validates_public_package_manifest_contract_surface() {
         SKENION_PACKAGE_MANIFEST_FILE_NAME
     );
 
+    let mut package_with_prerelease_build = patch_package.clone();
+    package_with_prerelease_build.version = "0.45.0-alpha.1+build.1".to_owned();
+    validate_package_manifest_v01(&package_with_prerelease_build)
+        .expect("package version with prerelease and build metadata should validate");
+
+    let mut package_with_empty_build = patch_package.clone();
+    package_with_empty_build.version = "0.45.0+".to_owned();
+    let package_with_empty_build_report = validate_package_manifest_v01(&package_with_empty_build)
+        .expect_err("package version with empty build metadata should fail");
+    assert!(
+        package_with_empty_build_report
+            .to_string()
+            .contains("SemVer")
+    );
+
     let mixed_package: PackageManifestV01 = serde_json::from_str(include_str!(
         "../../../fixtures/package/v0.1/valid/mixed-native.skenion.package.json"
     ))
@@ -1322,6 +1337,21 @@ fn validates_public_package_manifest_contract_surface() {
     assert!(malformed_public_metadata_text.contains("homepageUrl"));
     assert!(malformed_public_metadata_text.contains("repositoryUrl"));
     assert!(malformed_public_metadata_text.contains("rankingScore"));
+
+    let mut listing_with_prerelease_build = listing.clone();
+    listing_with_prerelease_build.version = "0.45.0-alpha.1+build.1".to_owned();
+    validate_package_listing_v01(&listing_with_prerelease_build)
+        .expect("listing version with prerelease and build metadata should validate");
+
+    let mut listing_with_empty_build = listing.clone();
+    listing_with_empty_build.version = "0.45.0+".to_owned();
+    let listing_with_empty_build_report = validate_package_listing_v01(&listing_with_empty_build)
+        .expect_err("listing version with empty build metadata should fail");
+    assert!(
+        listing_with_empty_build_report
+            .to_string()
+            .contains("SemVer")
+    );
 
     let mut malformed_semver_suffix = listing.clone();
     malformed_semver_suffix.version = "0.45.0-alpha_1".to_owned();

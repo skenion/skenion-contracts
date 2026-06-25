@@ -131,15 +131,17 @@ fn is_semver_suffix(value: &str) -> bool {
 }
 
 fn is_package_semver_v01(value: &str) -> bool {
-    let (without_build, build) = value.split_once('+').unwrap_or((value, ""));
-    if !build.is_empty() && !is_semver_suffix(build) {
-        return false;
-    }
+    let without_build = match value.split_once('+') {
+        Some((without_build, build)) if is_semver_suffix(build) => without_build,
+        Some(_) => return false,
+        None => value,
+    };
 
-    let (core, prerelease) = without_build.split_once('-').unwrap_or((without_build, ""));
-    if !prerelease.is_empty() && !is_semver_suffix(prerelease) {
-        return false;
-    }
+    let core = match without_build.split_once('-') {
+        Some((core, prerelease)) if is_semver_suffix(prerelease) => core,
+        Some(_) => return false,
+        None => without_build,
+    };
 
     let mut parts = core.split('.');
     let major = parts.next().unwrap_or("");
@@ -2206,6 +2208,11 @@ pub fn validate_package_manifest_v01(
     }
     if manifest.version.is_empty() {
         errors.push(ValidationErrorV01::new("package version must not be empty"));
+    } else if !is_package_semver_v01(&manifest.version) {
+        errors.push(ValidationErrorV01::new(format!(
+            "package version must be SemVer: {}",
+            manifest.version
+        )));
     }
     if manifest.checksums.is_empty() {
         errors.push(ValidationErrorV01::new(
