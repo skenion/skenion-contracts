@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.48.0](https://github.com/skenion/skenion-contracts/compare/v0.47.0...v0.48.0) (2026-06-25)
+
+
+### Features
+
+* **contracts:** add package listing discovery contracts ([#165](https://github.com/skenion/skenion-contracts/issues/165)) ([963acf5](https://github.com/skenion/skenion-contracts/commit/963acf5c221adf31149de50a8d93437653d7d839))
+
 ## [0.47.0](https://github.com/skenion/skenion-contracts/compare/v0.46.1...v0.47.0) (2026-06-25)
 
 
