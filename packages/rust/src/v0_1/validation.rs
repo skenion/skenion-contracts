@@ -107,9 +107,7 @@ fn is_package_id_v01(value: &str) -> bool {
 }
 
 fn is_provided_id_v01(value: &str) -> bool {
-    value
-        .split('.')
-        .all(|segment| is_lower_digit_hyphen_segment(segment))
+    value.split('.').all(is_lower_digit_hyphen_segment)
 }
 
 fn is_message_any_compatible(source_type: &DataTypeV01, target_type: &DataTypeV01) -> bool {
@@ -1436,13 +1434,13 @@ pub fn validate_paste_graph_fragment_response(
                 diagnostic.code
             )));
         }
-        if let Some(detail) = &diagnostic.interface_detail {
-            if detail.recovery_actions.is_empty() {
-                errors.push(ValidationErrorV01::new(format!(
-                    "runtime operation diagnostic {} interfaceDetail requires recoveryActions",
-                    diagnostic.code
-                )));
-            }
+        if let Some(detail) = &diagnostic.interface_detail
+            && detail.recovery_actions.is_empty()
+        {
+            errors.push(ValidationErrorV01::new(format!(
+                "runtime operation diagnostic {} interfaceDetail requires recoveryActions",
+                diagnostic.code
+            )));
         }
     }
 
@@ -2415,13 +2413,13 @@ fn project_package_reference_errors(project: &ProjectDocumentV01) -> Vec<Validat
             .iter()
             .flat_map(|patch| patch.graph.nodes.iter()),
     ) {
-        if let Some(binding_ref) = &node.binding_ref {
-            if !binding_ids.contains(binding_ref.as_str()) {
-                errors.push(ValidationErrorV01::new(format!(
-                    "node {} references missing bindingRef: {}",
-                    node.id, binding_ref
-                )));
-            }
+        if let Some(binding_ref) = &node.binding_ref
+            && !binding_ids.contains(binding_ref.as_str())
+        {
+            errors.push(ValidationErrorV01::new(format!(
+                "node {} references missing bindingRef: {}",
+                node.id, binding_ref
+            )));
         }
     }
 
