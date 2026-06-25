@@ -1,19 +1,22 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     error::Error,
     fmt,
 };
 
-use super::version::satisfies_v0_compatibility_range;
+use super::version::{
+    derive_v0_compatibility_line, derive_v0_compatibility_range, satisfies_v0_compatibility_range,
+};
 use super::{
     CycleValidationV01, DataFlowV01, DataTypeV01, EdgeSpecV01, ExtensionKindV01,
     ExtensionManifestV01, FeedbackBoundaryV01, GraphCycleValidationV01, GraphDocumentV01,
     GraphFragmentDiagnosticV01, GraphFragmentOutsideEndpointPolicyV01, GraphFragmentV01,
     GraphFragmentValidationResultV01, GraphValidationDiagnosticV01, GraphValidationResultV01,
-    MergePolicyV01, NodeDefinitionManifestV01, PackageCategoryV01, PackageManifestV01,
-    PackageRootDocumentV01, PasteGraphFragmentRequest, PasteGraphFragmentResponse,
-    PatchDefinitionV01, PortDirectionV01, PortSpecV01, ProjectDocumentV01,
-    ProjectObjectBindingDiagnosticCodeV01, ProjectObjectBindingStatusV01,
+    MergePolicyV01, NodeDefinitionManifestV01, PackageCategoryV01, PackageDiscoveryResponseV01,
+    PackageListingArtifactKindV01, PackageListingTargetSupportKindV01, PackageListingV01,
+    PackageManifestV01, PackageRootDocumentV01, PasteGraphFragmentRequest,
+    PasteGraphFragmentResponse, PatchDefinitionV01, PortDirectionV01, PortSpecV01,
+    ProjectDocumentV01, ProjectObjectBindingDiagnosticCodeV01, ProjectObjectBindingStatusV01,
     ProjectObjectBindingTargetV01, RuntimeCollaborationAuthSubject,
     RuntimeCollaborationCausalMetadata, RuntimeCollaborationChange,
     RuntimeCollaborationEventEnvelope, RuntimeCollaborationEventKind,
@@ -108,6 +111,118 @@ fn is_package_id_v01(value: &str) -> bool {
 
 fn is_provided_id_v01(value: &str) -> bool {
     value.split('.').all(is_lower_digit_hyphen_segment)
+}
+
+fn is_package_tag_v01(value: &str) -> bool {
+    is_lower_digit_hyphen_segment(value)
+}
+
+fn is_semver_numeric_part(value: &str) -> bool {
+    !value.is_empty()
+        && value.bytes().all(|byte| byte.is_ascii_digit())
+        && (value.len() == 1 || !value.starts_with('0'))
+}
+
+fn is_semver_suffix(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'-')
+}
+
+fn is_package_semver_v01(value: &str) -> bool {
+    let (without_build, build) = value.split_once('+').unwrap_or((value, ""));
+    if !build.is_empty() && !is_semver_suffix(build) {
+        return false;
+    }
+    if without_build.contains('+') {
+        return false;
+    }
+
+    let (core, prerelease) = without_build.split_once('-').unwrap_or((without_build, ""));
+    if !prerelease.is_empty() && !is_semver_suffix(prerelease) {
+        return false;
+    }
+
+    let mut parts = core.split('.');
+    let Some(major) = parts.next() else {
+        return false;
+    };
+    let Some(minor) = parts.next() else {
+        return false;
+    };
+    let Some(patch) = parts.next() else {
+        return false;
+    };
+    parts.next().is_none()
+        && is_semver_numeric_part(major)
+        && is_semver_numeric_part(minor)
+        && is_semver_numeric_part(patch)
+}
+
+fn compatibility_range_lower_bound(range: &str) -> Option<&str> {
+    range
+        .strip_prefix(">=")
+        .and_then(|range| range.split(' ').next())
+}
+
+fn is_current_v0_compatibility_range(range: &str) -> bool {
+    let Some(lower_bound) = compatibility_range_lower_bound(range) else {
+        return false;
+    };
+    derive_v0_compatibility_range(lower_bound).as_deref() == Some(range)
+}
+
+fn is_http_url_v01(value: &str) -> bool {
+    let rest = value
+        .strip_prefix("https://")
+        .or_else(|| value.strip_prefix("http://"));
+    matches!(rest, Some(rest) if !rest.is_empty() && !rest.chars().any(char::is_whitespace))
+}
+
+fn is_relative_path_v01(value: &str) -> bool {
+    !value.is_empty()
+        && !value.starts_with('/')
+        && !value.split('/').any(|segment| segment == "..")
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric()
+                || matches!(
+                    byte,
+                    b'.' | b'_'
+                        | b'~'
+                        | b'!'
+                        | b'$'
+                        | b'&'
+                        | b'\''
+                        | b'('
+                        | b')'
+                        | b'+'
+                        | b','
+                        | b';'
+                        | b'='
+                        | b':'
+                        | b'@'
+                        | b'%'
+                        | b'/'
+                        | b'-'
+                )
+        })
+}
+
+fn is_sha256_hex_v01(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn validate_package_checksum_v01(
+    errors: &mut Vec<ValidationErrorV01>,
+    label: &str,
+    checksum: &super::PackageChecksumV01,
+) {
+    if !is_sha256_hex_v01(&checksum.value) {
+        errors.push(ValidationErrorV01::new(format!(
+            "{label} checksum must be a 64-character sha256 hex value"
+        )));
+    }
 }
 
 fn is_message_any_compatible(source_type: &DataTypeV01, target_type: &DataTypeV01) -> bool {
@@ -2261,6 +2376,419 @@ pub fn validate_package_root_v01(root: &PackageRootDocumentV01) -> Result<(), Va
                 error.message
             )));
         }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV01::new(errors))
+    }
+}
+
+fn package_listing_errors(listing: &PackageListingV01) -> Vec<ValidationErrorV01> {
+    let mut errors = Vec::new();
+
+    if listing.schema != "skenion.package.listing" {
+        errors.push(ValidationErrorV01::new(format!(
+            "expected schema skenion.package.listing, found {}",
+            listing.schema
+        )));
+    }
+    if listing.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV01::new(format!(
+            "expected schemaVersion 0.1.0, found {}",
+            listing.schema_version
+        )));
+    }
+    if listing.package_id.is_empty() {
+        errors.push(ValidationErrorV01::new("packageId must not be empty"));
+    } else if !is_package_id_v01(&listing.package_id) {
+        errors.push(ValidationErrorV01::new(format!(
+            "packageId must match publisher/package lowercase digit hyphen grammar: {}",
+            listing.package_id
+        )));
+    }
+    if listing.version.is_empty() {
+        errors.push(ValidationErrorV01::new(
+            "package listing version must not be empty",
+        ));
+    } else if !is_package_semver_v01(&listing.version) {
+        errors.push(ValidationErrorV01::new(format!(
+            "package listing version must be SemVer: {}",
+            listing.version
+        )));
+    }
+    if listing.display_name.is_empty() {
+        errors.push(ValidationErrorV01::new(
+            "package listing displayName must not be empty",
+        ));
+    }
+    if listing.summary.is_empty() {
+        errors.push(ValidationErrorV01::new(
+            "package listing summary must not be empty",
+        ));
+    }
+    if listing.license.is_empty() {
+        errors.push(ValidationErrorV01::new(
+            "package listing license must not be empty",
+        ));
+    }
+    if let Some(homepage_url) = &listing.homepage_url
+        && !is_http_url_v01(homepage_url)
+    {
+        errors.push(ValidationErrorV01::new(format!(
+            "package listing homepageUrl must be an http(s) URL: {homepage_url}"
+        )));
+    }
+    if let Some(repository_url) = &listing.repository_url
+        && !is_http_url_v01(repository_url)
+    {
+        errors.push(ValidationErrorV01::new(format!(
+            "package listing repositoryUrl must be an http(s) URL: {repository_url}"
+        )));
+    }
+
+    let contracts_lower_bound =
+        compatibility_range_lower_bound(&listing.contracts.range).unwrap_or_default();
+    if derive_v0_compatibility_line(contracts_lower_bound).as_deref()
+        != Some(listing.contracts.line.as_str())
+        || derive_v0_compatibility_range(contracts_lower_bound).as_deref()
+            != Some(listing.contracts.range.as_str())
+    {
+        errors.push(ValidationErrorV01::new(
+            "package listing contracts line must match contracts range",
+        ));
+    }
+    if let Some(runtime_abi_range) = &listing.runtime_abi_range
+        && !is_current_v0_compatibility_range(runtime_abi_range)
+    {
+        errors.push(ValidationErrorV01::new(
+            "package listing runtimeAbiRange must be a current v0 compatibility range",
+        ));
+    }
+    let mut target_support_targets = BTreeSet::new();
+    for target in &listing.target_support.targets {
+        if !target_support_targets.insert(target) {
+            errors.push(ValidationErrorV01::new(format!(
+                "duplicate package listing targetSupport target: {:?}",
+                target
+            )));
+        }
+    }
+    match listing.target_support.kind {
+        PackageListingTargetSupportKindV01::TargetIndependent => {
+            if !listing.target_support.targets.is_empty() {
+                errors.push(ValidationErrorV01::new(
+                    "target-independent package listing targetSupport must not declare targets",
+                ));
+            }
+        }
+        PackageListingTargetSupportKindV01::Targeted => {
+            if listing.target_support.targets.is_empty() {
+                errors.push(ValidationErrorV01::new(
+                    "targeted package listing targetSupport requires targets",
+                ));
+            }
+        }
+        PackageListingTargetSupportKindV01::Unavailable => {}
+    }
+
+    errors.extend(duplicate_errors(
+        listing.tags.iter().map(String::as_str).collect(),
+        "package listing tag",
+    ));
+    for tag in &listing.tags {
+        if !is_package_tag_v01(tag) {
+            errors.push(ValidationErrorV01::new(format!(
+                "package listing tag must use lowercase hyphen grammar: {tag}"
+            )));
+        }
+    }
+    errors.extend(duplicate_errors(
+        listing
+            .provides
+            .patches
+            .iter()
+            .map(|provided| provided.id.as_str())
+            .collect(),
+        "provided patch id",
+    ));
+    errors.extend(duplicate_errors(
+        listing
+            .provides
+            .nodes
+            .iter()
+            .map(|provided| provided.id.as_str())
+            .collect(),
+        "provided node id",
+    ));
+    errors.extend(duplicate_errors(
+        listing
+            .provides
+            .resources
+            .iter()
+            .map(|provided| provided.id.as_str())
+            .collect(),
+        "provided resource id",
+    ));
+    errors.extend(duplicate_errors(
+        listing
+            .provides
+            .help
+            .iter()
+            .map(|provided| provided.id.as_str())
+            .collect(),
+        "provided help id",
+    ));
+    errors.extend(duplicate_errors(
+        listing
+            .provides
+            .native_objects
+            .iter()
+            .map(|provided| provided.id.as_str())
+            .collect(),
+        "provided native object id",
+    ));
+    errors.extend(duplicate_errors(
+        listing
+            .provides
+            .codecs
+            .iter()
+            .map(|provided| provided.id.as_str())
+            .collect(),
+        "provided codec id",
+    ));
+    errors.extend(duplicate_errors(
+        listing
+            .provides
+            .capabilities
+            .iter()
+            .map(String::as_str)
+            .collect(),
+        "package capability",
+    ));
+
+    for provided in listing
+        .provides
+        .patches
+        .iter()
+        .chain(listing.provides.nodes.iter())
+        .chain(listing.provides.resources.iter())
+        .chain(listing.provides.help.iter())
+        .chain(listing.provides.native_objects.iter())
+        .chain(listing.provides.codecs.iter())
+    {
+        if !is_provided_id_v01(&provided.id) {
+            errors.push(ValidationErrorV01::new(format!(
+                "package listing provided id must use lowercase dotted/hyphen grammar without underscores: {}",
+                provided.id
+            )));
+        }
+    }
+    for capability in &listing.provides.capabilities {
+        if capability.is_empty() {
+            errors.push(ValidationErrorV01::new(
+                "package listing capability must not be empty",
+            ));
+        }
+    }
+    if !listing.discovery_signals.ranking_score.is_finite()
+        || listing.discovery_signals.ranking_score < 0.0
+    {
+        errors.push(ValidationErrorV01::new(
+            "package listing rankingScore must be a non-negative finite number",
+        ));
+    }
+
+    if listing.artifact_evidence.artifacts.is_empty() {
+        errors.push(ValidationErrorV01::new(
+            "package listing requires artifact summaries",
+        ));
+    }
+    if listing.artifact_evidence.evidence.is_empty() {
+        errors.push(ValidationErrorV01::new(
+            "package listing requires evidence summaries",
+        ));
+    }
+    if !listing
+        .artifact_evidence
+        .artifacts
+        .iter()
+        .any(|artifact| matches!(artifact.kind, PackageListingArtifactKindV01::Manifest))
+    {
+        errors.push(ValidationErrorV01::new(
+            "package listing requires manifest artifact evidence",
+        ));
+    }
+
+    let evidence_ids: HashSet<&str> = listing
+        .artifact_evidence
+        .evidence
+        .iter()
+        .map(|evidence| evidence.id.as_str())
+        .collect();
+    for artifact in &listing.artifact_evidence.artifacts {
+        if matches!(artifact.kind, PackageListingArtifactKindV01::NativeArtifact)
+            && artifact.target.is_none()
+        {
+            errors.push(ValidationErrorV01::new(format!(
+                "native artifact {} requires target",
+                artifact.path
+            )));
+        }
+        if !is_relative_path_v01(&artifact.path) {
+            errors.push(ValidationErrorV01::new(format!(
+                "listing artifact path must be relative and stay inside the package: {}",
+                artifact.path
+            )));
+        }
+        validate_package_checksum_v01(
+            &mut errors,
+            &format!("listing artifact {}", artifact.path),
+            &artifact.checksum,
+        );
+        if artifact.evidence_refs.is_empty() {
+            errors.push(ValidationErrorV01::new(format!(
+                "listing artifact {} requires evidenceRefs",
+                artifact.path
+            )));
+        }
+        let evidence_ref_label = format!("listing artifact {} evidenceRef", artifact.path);
+        errors.extend(duplicate_errors(
+            artifact.evidence_refs.iter().map(String::as_str).collect(),
+            &evidence_ref_label,
+        ));
+        for evidence_ref in &artifact.evidence_refs {
+            if !evidence_ids.contains(evidence_ref.as_str()) {
+                errors.push(ValidationErrorV01::new(format!(
+                    "listing artifact {} references missing evidence: {}",
+                    artifact.path, evidence_ref
+                )));
+            }
+        }
+    }
+    for evidence in &listing.artifact_evidence.evidence {
+        if evidence.id.is_empty() {
+            errors.push(ValidationErrorV01::new(
+                "listing evidence id must not be empty",
+            ));
+        }
+        if !is_relative_path_v01(&evidence.path) {
+            errors.push(ValidationErrorV01::new(format!(
+                "listing evidence path must be relative and stay inside the package: {}",
+                evidence.path
+            )));
+        }
+        validate_package_checksum_v01(
+            &mut errors,
+            &format!("listing evidence {}", evidence.id),
+            &evidence.checksum,
+        );
+    }
+
+    let native_artifact_targets: BTreeSet<_> = listing
+        .artifact_evidence
+        .artifacts
+        .iter()
+        .filter_map(|artifact| match artifact.kind {
+            PackageListingArtifactKindV01::NativeArtifact => artifact.target.clone(),
+            PackageListingArtifactKindV01::Manifest
+            | PackageListingArtifactKindV01::PackageArchive => None,
+        })
+        .collect();
+    match listing.category {
+        PackageCategoryV01::Patch => {
+            if listing.runtime_abi_range.is_some() {
+                errors.push(ValidationErrorV01::new(
+                    "patch package listing must not declare runtimeAbiRange",
+                ));
+            }
+            if listing.target_support.kind != PackageListingTargetSupportKindV01::TargetIndependent
+            {
+                errors.push(ValidationErrorV01::new(
+                    "patch package listing targetSupport must be target-independent",
+                ));
+            }
+            if !native_artifact_targets.is_empty() {
+                errors.push(ValidationErrorV01::new(
+                    "patch package listing must not declare native artifact summaries",
+                ));
+            }
+        }
+        PackageCategoryV01::Native | PackageCategoryV01::Mixed => {
+            if listing.runtime_abi_range.is_none() {
+                errors.push(ValidationErrorV01::new(format!(
+                    "{:?} package listing requires runtimeAbiRange",
+                    listing.category
+                )));
+            }
+            if listing.target_support.kind == PackageListingTargetSupportKindV01::TargetIndependent
+            {
+                errors.push(ValidationErrorV01::new(format!(
+                    "{:?} package listing targetSupport must not be target-independent",
+                    listing.category
+                )));
+            }
+            if native_artifact_targets.is_empty() {
+                errors.push(ValidationErrorV01::new(format!(
+                    "{:?} package listing requires native artifact summaries",
+                    listing.category
+                )));
+            }
+            for target in &listing.target_support.targets {
+                if !native_artifact_targets.contains(target) {
+                    errors.push(ValidationErrorV01::new(format!(
+                        "package listing target {:?} has no native artifact summary",
+                        target
+                    )));
+                }
+            }
+        }
+    }
+
+    errors
+}
+
+pub fn validate_package_listing_v01(
+    listing: &PackageListingV01,
+) -> Result<(), ValidationReportV01> {
+    let errors = package_listing_errors(listing);
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV01::new(errors))
+    }
+}
+
+pub fn validate_package_discovery_response_v01(
+    response: &PackageDiscoveryResponseV01,
+) -> Result<(), ValidationReportV01> {
+    let mut errors = Vec::new();
+
+    if response.schema != "skenion.package.discovery" {
+        errors.push(ValidationErrorV01::new(format!(
+            "expected schema skenion.package.discovery, found {}",
+            response.schema
+        )));
+    }
+    if response.schema_version != "0.1.0" {
+        errors.push(ValidationErrorV01::new(format!(
+            "expected schemaVersion 0.1.0, found {}",
+            response.schema_version
+        )));
+    }
+    let listing_keys: Vec<String> = response
+        .listings
+        .iter()
+        .map(|listing| format!("{}@{}", listing.package_id, listing.version))
+        .collect();
+    errors.extend(duplicate_errors(
+        listing_keys.iter().map(String::as_str).collect(),
+        "package listing",
+    ));
+    for listing in &response.listings {
+        errors.extend(package_listing_errors(listing));
     }
 
     if errors.is_empty() {

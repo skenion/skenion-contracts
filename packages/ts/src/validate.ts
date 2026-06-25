@@ -12,6 +12,8 @@ import {
   graphV01Schema,
   nodeDefinitionV01Schema,
   objectTextParseResultV01Schema,
+  packageDiscoveryV01Schema,
+  packageListingV01Schema,
   packageManifestV01Schema,
   projectV01Schema,
   runtimeCollaborationV0Schema,
@@ -36,6 +38,8 @@ import type {
   GraphValidationResultV01,
   NodeDefinitionManifestV01,
   ObjectTextParseResultV01,
+  PackageDiscoveryResponseV01,
+  PackageListingV01,
   PackageManifestV01,
   PackageRootDocumentV01,
   PatchDefinitionV01,
@@ -148,6 +152,9 @@ const patchDefinitionV01Validator = ajv.compile({
 });
 const extensionManifestV01Validator = ajv.compile(extensionManifestV01Schema);
 const packageManifestV01Validator = ajv.compile(packageManifestV01Schema);
+ajv.addSchema(packageListingV01Schema);
+const packageListingV01Validator = ajv.compile(packageListingV01Schema);
+const packageDiscoveryV01Validator = ajv.compile(packageDiscoveryV01Schema);
 const compatibilityMatrixV01Validator = ajv.compile(compatibilityMatrixV01Schema);
 
 function schemaErrors(errors: ErrorObject[]): string[] {
@@ -256,6 +263,72 @@ function validatePackageManifestV01Semantics(manifest: PackageManifestV01): stri
         errors.push(`native artifact ${artifact.path} references missing evidence: ${evidenceRef}`);
       }
     }
+  }
+
+  return errors;
+}
+
+function validatePackageListingV01Semantics(listing: PackageListingV01): string[] {
+  const errors: string[] = [];
+
+  errors.push(...duplicateErrors((listing.provides.patches ?? []).map((provided) => provided.id), "provided patch id"));
+  errors.push(...duplicateErrors((listing.provides.nodes ?? []).map((provided) => provided.id), "provided node id"));
+  errors.push(...duplicateErrors((listing.provides.resources ?? []).map((provided) => provided.id), "provided resource id"));
+  errors.push(...duplicateErrors((listing.provides.help ?? []).map((provided) => provided.id), "provided help id"));
+  errors.push(...duplicateErrors((listing.provides.nativeObjects ?? []).map((provided) => provided.id), "provided native object id"));
+  errors.push(...duplicateErrors((listing.provides.codecs ?? []).map((provided) => provided.id), "provided codec id"));
+
+  const lowerBoundVersion = listing.contracts.range.slice(2).split(" ", 1)[0];
+  if (
+    deriveV0CompatibilityLine(lowerBoundVersion) !== listing.contracts.line ||
+    deriveV0CompatibilityRange(lowerBoundVersion) !== listing.contracts.range
+  ) {
+    errors.push("package listing contracts line must match contracts range");
+  }
+  if (listing.runtimeAbiRange !== undefined) {
+    const runtimeAbiLowerBoundVersion = listing.runtimeAbiRange.slice(2).split(" ", 1)[0];
+    if (deriveV0CompatibilityRange(runtimeAbiLowerBoundVersion) !== listing.runtimeAbiRange) {
+      errors.push("package listing runtimeAbiRange must be a current v0 compatibility range");
+    }
+  }
+
+  const artifacts = listing.artifactEvidence.artifacts;
+  const evidenceIds = new Set(listing.artifactEvidence.evidence.map((evidence) => evidence.id));
+  for (const artifact of artifacts) {
+    for (const evidenceRef of artifact.evidenceRefs) {
+      if (!evidenceIds.has(evidenceRef)) {
+        errors.push(`listing artifact ${artifact.path} references missing evidence: ${evidenceRef}`);
+      }
+    }
+  }
+
+  const nativeArtifacts = artifacts.filter((artifact) => artifact.kind === "native-artifact");
+  if (listing.category === "patch") {
+    if (nativeArtifacts.length > 0) {
+      errors.push("patch package listing must not declare native artifact summaries");
+    }
+  }
+
+  if (listing.category === "native" || listing.category === "mixed") {
+    const nativeTargets = new Set(nativeArtifacts.map((artifact) => artifact.target));
+    for (const target of listing.targetSupport.targets ?? []) {
+      if (!nativeTargets.has(target)) {
+        errors.push(`package listing target ${target} has no native artifact summary`);
+      }
+    }
+  }
+
+  return errors;
+}
+
+function validatePackageDiscoveryResponseV01Semantics(response: PackageDiscoveryResponseV01): string[] {
+  const errors = duplicateErrors(
+    response.listings.map((listing) => `${listing.packageId}@${listing.version}`),
+    "package listing"
+  );
+
+  for (const listing of response.listings) {
+    errors.push(...validatePackageListingV01Semantics(listing));
   }
 
   return errors;
@@ -950,6 +1023,48 @@ export function validatePackageManifestV01(
   }
 
   return { ok: true, value: manifest };
+}
+
+export function validatePackageListingV01(
+  document: unknown
+): ValidationResult<PackageListingV01> {
+  if (!packageListingV01Validator(document)) {
+    return { ok: false, errors: schemaErrors(packageListingV01Validator.errors as ErrorObject[]) };
+  }
+
+  const listing = document as PackageListingV01;
+  const errors = validatePackageListingV01Semantics(listing);
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: listing };
+}
+
+export function validatePackageDiscoveryResponseV01(
+  document: unknown
+): ValidationResult<PackageDiscoveryResponseV01> {
+  if (!packageDiscoveryV01Validator(document)) {
+    return { ok: false, errors: schemaErrors(packageDiscoveryV01Validator.errors as ErrorObject[]) };
+  }
+
+  const response = document as PackageDiscoveryResponseV01;
+  const errors = validatePackageDiscoveryResponseV01Semantics(response);
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: response };
+}
+
+export function isPackageListingV01(document: unknown): document is PackageListingV01 {
+  return validatePackageListingV01(document).ok;
+}
+
+export function isPackageDiscoveryResponseV01(
+  document: unknown
+): document is PackageDiscoveryResponseV01 {
+  return validatePackageDiscoveryResponseV01(document).ok;
 }
 
 export function validatePackageRootV01(

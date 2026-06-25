@@ -51,6 +51,12 @@ const extensionManifestV01Schema = await readSchema(
 const packageManifestV01Schema = await readSchema(
   "json-schema/package/v0.1/package-manifest.schema.json"
 );
+const packageListingV01Schema = await readSchema(
+  "json-schema/package/v0.1/package-listing.schema.json"
+);
+const packageDiscoveryV01Schema = await readSchema(
+  "json-schema/package/v0.1/package-discovery.schema.json"
+);
 const compatibilityMatrixV01Schema = await readSchema(
   "json-schema/compatibility-matrix/v0.1/compatibility-matrix.schema.json"
 );
@@ -88,6 +94,10 @@ await writeFile(
     `export const extensionManifestV01Schema = ${JSON.stringify(extensionManifestV01Schema, null, 2)} as const;`,
     "",
     `export const packageManifestV01Schema = ${JSON.stringify(packageManifestV01Schema, null, 2)} as const;`,
+    "",
+    `export const packageListingV01Schema = ${JSON.stringify(packageListingV01Schema, null, 2)} as const;`,
+    "",
+    `export const packageDiscoveryV01Schema = ${JSON.stringify(packageDiscoveryV01Schema, null, 2)} as const;`,
     "",
     `export const compatibilityMatrixV01Schema = ${JSON.stringify(compatibilityMatrixV01Schema, null, 2)} as const;`,
     ""

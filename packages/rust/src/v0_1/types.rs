@@ -1572,6 +1572,33 @@ pub enum PackageDiagnosticSeverityV01 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PackageListingTargetSupportKindV01 {
+    TargetIndependent,
+    Targeted,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PackageListingArtifactKindV01 {
+    Manifest,
+    PackageArchive,
+    NativeArtifact,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PackageListingDiagnosticCodeV01 {
+    MalformedListingMetadata,
+    UnsupportedContractsRange,
+    MissingArtifact,
+    UnavailableTarget,
+    QuarantinedPackage,
+    HiddenPackage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageContractsSupportV01 {
@@ -1702,6 +1729,149 @@ pub struct PackageRootDocumentV01 {
     pub schema_version: String,
     pub manifest_file_name: String,
     pub manifest: PackageManifestV01,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingTargetSupportV01 {
+    pub kind: PackageListingTargetSupportKindV01,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub targets: Vec<PackageTargetTripleV01>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingProvidedSummaryRefV01 {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingProvidesSummaryV01 {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patches: Vec<PackageListingProvidedSummaryRefV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nodes: Vec<PackageListingProvidedSummaryRefV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resources: Vec<PackageListingProvidedSummaryRefV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub help: Vec<PackageListingProvidedSummaryRefV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub native_objects: Vec<PackageListingProvidedSummaryRefV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub codecs: Vec<PackageListingProvidedSummaryRefV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingArtifactSummaryV01 {
+    pub kind: PackageListingArtifactKindV01,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<PackageTargetTripleV01>,
+    pub path: String,
+    pub checksum: PackageChecksumV01,
+    pub evidence_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingEvidenceSummaryV01 {
+    pub id: String,
+    pub kind: PackageEvidenceKindV01,
+    pub path: String,
+    pub checksum: PackageChecksumV01,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingArtifactEvidenceSummaryV01 {
+    pub artifacts: Vec<PackageListingArtifactSummaryV01>,
+    pub evidence: Vec<PackageListingEvidenceSummaryV01>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingDiscoverySignalsV01 {
+    pub stargazer_count: u64,
+    pub ranking_score: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingDiagnosticV01 {
+    pub severity: PackageDiagnosticSeverityV01,
+    pub code: PackageListingDiagnosticCodeV01,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<Value>,
+}
+
+/// Public marketplace/package discovery projection.
+///
+/// Project packageId, version, category, contracts, runtimeAbiRange,
+/// targetSupport targets, provides, and artifactEvidence from PackageManifestV01
+/// plus release artifacts; displayName is manifest-derived when present.
+/// Marketplace/discovery metadata owns summary, description, tags, license,
+/// homepageUrl, repositoryUrl, discoverySignals, and visibility diagnostics.
+/// This DTO intentionally excludes accounts, auth, writes, install
+/// transactions, local registry roots, and mutable package manifests.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingV01 {
+    pub schema: String,
+    pub schema_version: String,
+    pub package_id: String,
+    pub version: String,
+    pub display_name: String,
+    pub summary: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub category: PackageCategoryV01,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    pub license: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub homepage_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_url: Option<String>,
+    pub contracts: PackageContractsSupportV01,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_abi_range: Option<String>,
+    pub target_support: PackageListingTargetSupportV01,
+    pub provides: PackageListingProvidesSummaryV01,
+    pub artifact_evidence: PackageListingArtifactEvidenceSummaryV01,
+    pub discovery_signals: PackageListingDiscoverySignalsV01,
+    pub diagnostics: Vec<PackageListingDiagnosticV01>,
+}
+
+/// Public package discovery/search response.
+///
+/// This read-only aggregate response intentionally defers install/update plan
+/// request and response DTOs to the package management contract slice.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageDiscoveryResponseV01 {
+    pub schema: String,
+    pub schema_version: String,
+    pub ok: bool,
+    pub listings: Vec<PackageListingV01>,
+    pub diagnostics: Vec<PackageListingDiagnosticV01>,
 }
 
 /// Runtime HTTP package registry entry exposed to clients.

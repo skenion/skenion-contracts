@@ -757,6 +757,15 @@ export type PackageTargetTripleV01 =
 export type PackageChecksumAlgorithmV01 = "sha256";
 export type PackageEvidenceKindV01 = "checksum" | "signature" | "sbom" | "attestation";
 export type PackageDiagnosticSeverityV01 = "error" | "warning" | "info";
+export type PackageListingTargetSupportKindV01 = "target-independent" | "targeted" | "unavailable";
+export type PackageListingArtifactKindV01 = "manifest" | "package-archive" | "native-artifact";
+export type PackageListingDiagnosticCodeV01 =
+  | "malformed-listing-metadata"
+  | "unsupported-contracts-range"
+  | "missing-artifact"
+  | "unavailable-target"
+  | "quarantined-package"
+  | "hidden-package";
 
 export interface PackageContractsSupportV01 {
   line: string;
@@ -840,6 +849,107 @@ export interface PackageRootDocumentV01 {
   schemaVersion: "0.1.0";
   manifestFileName: typeof SKENION_PACKAGE_MANIFEST_FILE_NAME;
   manifest: PackageManifestV01;
+}
+
+export interface PackageListingTargetSupportV01 {
+  kind: PackageListingTargetSupportKindV01;
+  targets?: PackageTargetTripleV01[];
+  summary?: string;
+}
+
+export interface PackageListingProvidedSummaryRefV01 {
+  id: string;
+  description?: string;
+}
+
+export interface PackageListingProvidesSummaryV01 {
+  patches?: PackageListingProvidedSummaryRefV01[];
+  nodes?: PackageListingProvidedSummaryRefV01[];
+  resources?: PackageListingProvidedSummaryRefV01[];
+  help?: PackageListingProvidedSummaryRefV01[];
+  nativeObjects?: PackageListingProvidedSummaryRefV01[];
+  codecs?: PackageListingProvidedSummaryRefV01[];
+  capabilities?: string[];
+}
+
+export interface PackageListingArtifactSummaryV01 {
+  kind: PackageListingArtifactKindV01;
+  target?: PackageTargetTripleV01;
+  path: string;
+  checksum: PackageChecksumV01;
+  evidenceRefs: string[];
+}
+
+export interface PackageListingEvidenceSummaryV01 {
+  id: string;
+  kind: PackageEvidenceKindV01;
+  path: string;
+  checksum: PackageChecksumV01;
+}
+
+export interface PackageListingArtifactEvidenceSummaryV01 {
+  artifacts: PackageListingArtifactSummaryV01[];
+  evidence: PackageListingEvidenceSummaryV01[];
+}
+
+export interface PackageListingDiscoverySignalsV01 {
+  stargazerCount: number;
+  rankingScore: number;
+}
+
+export interface PackageListingDiagnosticV01 {
+  severity: PackageDiagnosticSeverityV01;
+  code: PackageListingDiagnosticCodeV01;
+  message: string;
+  details?: RuntimeDiagnosticDetails;
+}
+
+/**
+ * Public marketplace/package discovery projection.
+ *
+ * Project packageId, version, category, contracts, runtimeAbiRange,
+ * targetSupport targets, provides, and artifactEvidence from PackageManifestV01
+ * plus release artifacts; displayName is manifest-derived when present.
+ * Marketplace/discovery metadata owns summary, description, tags, license,
+ * homepageUrl, repositoryUrl, discoverySignals, and visibility diagnostics.
+ * This DTO intentionally excludes accounts, auth, writes, install transactions,
+ * local registry roots, and mutable package manifests.
+ */
+export interface PackageListingV01 {
+  schema: "skenion.package.listing";
+  schemaVersion: "0.1.0";
+  packageId: string;
+  version: string;
+  displayName: string;
+  summary: string;
+  description?: string;
+  category: PackageCategoryV01;
+  tags?: string[];
+  license: string;
+  homepageUrl?: string;
+  repositoryUrl?: string;
+  contracts: PackageContractsSupportV01;
+  runtimeAbiRange?: string;
+  targetSupport: PackageListingTargetSupportV01;
+  provides: PackageListingProvidesSummaryV01;
+  artifactEvidence: PackageListingArtifactEvidenceSummaryV01;
+  discoverySignals: PackageListingDiscoverySignalsV01;
+  diagnostics: PackageListingDiagnosticV01[];
+}
+
+/**
+ * Public package discovery/search response.
+ *
+ * The response is read-only aggregate discovery data. Install/update planning
+ * request and response DTOs are intentionally deferred to the next package
+ * management contract slice.
+ */
+export interface PackageDiscoveryResponseV01 {
+  schema: "skenion.package.discovery";
+  schemaVersion: "0.1.0";
+  ok: boolean;
+  listings: PackageListingV01[];
+  diagnostics: PackageListingDiagnosticV01[];
 }
 
 /**

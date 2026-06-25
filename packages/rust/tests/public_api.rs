@@ -5,24 +5,27 @@ use skenion_contracts::{
     DataFlowV01, DataTypeV01, ExtensionKindV01, ExtensionManifestV01, GraphDocumentV01,
     GraphFragmentOutsideEndpointPolicyV01, GraphFragmentV01, MidiClockMessageKindV01,
     MidiClockMessageV01, MidiClockSnapshotV01, NodeDefinitionManifestV01, NumberRangeV01,
-    ObjectTextParseResultV01, PackageCategoryV01, PackageManifestV01,
+    ObjectTextParseResultV01, PackageCategoryV01, PackageDiscoveryResponseV01,
+    PackageListingDiagnosticCodeV01, PackageListingV01, PackageManifestV01,
     PackageRegistryListResponseV01, PackageRootDocumentV01, PackageRootKindV01,
-    PasteGraphFragmentResponse, ProjectDocumentV01, RuntimeCollaborationEventEnvelope,
-    RuntimeCollaborationEventKind, RuntimeCollaborationOperationBatchResult,
-    RuntimeCollaborationOperationEnvelope, RuntimeCollaborationOperationResult,
-    RuntimeCollaborationRebaseStrategy, RuntimeDiagnostic, RuntimeDiagnosticSeverity,
-    RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionEventKind,
-    RuntimeSessionInfoResponse, SKENION_PACKAGE_MANIFEST_FILE_NAME, StringOrStringsV01,
-    analyze_graph_document_v01, analyze_graph_fragment_v01, apply_midi_clock_message_v01,
-    compatible_data_types_v01, derive_patch_contract_v01, derive_patch_contracts_v01,
-    derive_v0_compatibility_line, derive_v0_compatibility_range, is_same_v0_compatibility_line,
-    midi_clock_snapshot_to_clock_state_v01, parse_midi_clock_message_v01, parse_object_text_v01,
-    plan_audio_clock_bridge_v01, satisfies_v0_compatibility_range, type_label_v01,
-    validate_compatibility_matrix_v01, validate_extension_manifest_v01,
-    validate_graph_document_v01, validate_graph_fragment_v01, validate_node_definition_v01,
-    validate_object_text_parse_result_v01, validate_package_manifest_v01,
-    validate_package_root_v01, validate_paste_graph_fragment_response,
-    validate_project_document_v01, validate_runtime_collaboration_event_envelope,
+    PackageTargetTripleV01, PasteGraphFragmentResponse, ProjectDocumentV01,
+    RuntimeCollaborationEventEnvelope, RuntimeCollaborationEventKind,
+    RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
+    RuntimeCollaborationOperationResult, RuntimeCollaborationRebaseStrategy, RuntimeDiagnostic,
+    RuntimeDiagnosticSeverity, RuntimeOperationEnvelope, RuntimeSessionEvent,
+    RuntimeSessionEventKind, RuntimeSessionInfoResponse, SKENION_PACKAGE_MANIFEST_FILE_NAME,
+    StringOrStringsV01, analyze_graph_document_v01, analyze_graph_fragment_v01,
+    apply_midi_clock_message_v01, compatible_data_types_v01, derive_patch_contract_v01,
+    derive_patch_contracts_v01, derive_v0_compatibility_line, derive_v0_compatibility_range,
+    is_same_v0_compatibility_line, midi_clock_snapshot_to_clock_state_v01,
+    parse_midi_clock_message_v01, parse_object_text_v01, plan_audio_clock_bridge_v01,
+    satisfies_v0_compatibility_range, type_label_v01, validate_compatibility_matrix_v01,
+    validate_extension_manifest_v01, validate_graph_document_v01, validate_graph_fragment_v01,
+    validate_node_definition_v01, validate_object_text_parse_result_v01,
+    validate_package_discovery_response_v01, validate_package_listing_v01,
+    validate_package_manifest_v01, validate_package_root_v01,
+    validate_paste_graph_fragment_response, validate_project_document_v01,
+    validate_runtime_collaboration_event_envelope,
     validate_runtime_collaboration_operation_batch_result,
     validate_runtime_collaboration_operation_envelope,
     validate_runtime_collaboration_operation_result, validate_runtime_operation_envelope,
@@ -1242,6 +1245,158 @@ fn validates_public_package_manifest_contract_surface() {
     package_ledger_metadata["packages"][0]["revision"] = serde_json::json!("pkg-rev-1");
     assert!(
         serde_json::from_value::<PackageRegistryListResponseV01>(package_ledger_metadata).is_err()
+    );
+
+    let listing: PackageListingV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/package/v0.1/valid/patch-listing.skenion.package-listing.json"
+    ))
+    .expect("public package listing should parse");
+    validate_package_listing_v01(&listing).expect("public package listing should validate");
+    assert_eq!(listing.schema, "skenion.package.listing");
+    assert_eq!(listing.package_id, "skenion/examples");
+    assert_eq!(listing.discovery_signals.stargazer_count, 128);
+    assert_eq!(listing.discovery_signals.ranking_score, 0.92);
+
+    let discovery: PackageDiscoveryResponseV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/package/v0.1/valid/marketplace-search.skenion.package-discovery.json"
+    ))
+    .expect("public package discovery response should parse");
+    validate_package_discovery_response_v01(&discovery)
+        .expect("public package discovery response should validate");
+    assert_eq!(discovery.listings.len(), 2);
+    assert_eq!(
+        discovery.listings[1].provides.native_objects[0].id,
+        "example.sensor-native"
+    );
+    assert_eq!(
+        discovery.listings[1].provides.codecs[0].id,
+        "example.sensor-calibration-json"
+    );
+    assert_eq!(
+        discovery.listings[1].diagnostics[0].code,
+        PackageListingDiagnosticCodeV01::UnavailableTarget
+    );
+    assert_eq!(
+        discovery.diagnostics[0].code,
+        PackageListingDiagnosticCodeV01::HiddenPackage
+    );
+    assert_eq!(
+        discovery.diagnostics[1].code,
+        PackageListingDiagnosticCodeV01::QuarantinedPackage
+    );
+
+    let mut listing_missing_evidence = listing.clone();
+    listing_missing_evidence.artifact_evidence.artifacts[0].evidence_refs =
+        vec!["missing-evidence".to_owned()];
+    let listing_missing_evidence_report = validate_package_listing_v01(&listing_missing_evidence)
+        .expect_err("missing listing evidence should fail");
+    assert!(
+        listing_missing_evidence_report
+            .to_string()
+            .contains("missing evidence")
+    );
+
+    let mut duplicate_discovery = discovery.clone();
+    duplicate_discovery
+        .listings
+        .push(discovery.listings[0].clone());
+    let duplicate_discovery_report = validate_package_discovery_response_v01(&duplicate_discovery)
+        .expect_err("duplicate listing should fail");
+    assert!(
+        duplicate_discovery_report
+            .to_string()
+            .contains("duplicate package listing")
+    );
+
+    let mut malformed_public_metadata = listing.clone();
+    malformed_public_metadata.version = "0.45".to_owned();
+    malformed_public_metadata.homepage_url = Some("ftp://skenion.dev/examples".to_owned());
+    malformed_public_metadata.repository_url =
+        Some("https://github.com/skenion/skenion examples".to_owned());
+    malformed_public_metadata.discovery_signals.ranking_score = -0.1;
+    let malformed_public_metadata_report = validate_package_listing_v01(&malformed_public_metadata)
+        .expect_err("malformed public listing metadata should fail");
+    let malformed_public_metadata_text = malformed_public_metadata_report.to_string();
+    assert!(malformed_public_metadata_text.contains("SemVer"));
+    assert!(malformed_public_metadata_text.contains("homepageUrl"));
+    assert!(malformed_public_metadata_text.contains("repositoryUrl"));
+    assert!(malformed_public_metadata_text.contains("rankingScore"));
+
+    let mut invalid_artifact_evidence = listing.clone();
+    invalid_artifact_evidence.artifact_evidence.artifacts[0].path =
+        "../skenion.package.json".to_owned();
+    invalid_artifact_evidence.artifact_evidence.artifacts[0]
+        .checksum
+        .value = "not-sha256".to_owned();
+    invalid_artifact_evidence.artifact_evidence.evidence[0].path =
+        "/evidence/manifest.sha256".to_owned();
+    invalid_artifact_evidence.artifact_evidence.evidence[0]
+        .checksum
+        .value = "bad".to_owned();
+    let invalid_artifact_evidence_report = validate_package_listing_v01(&invalid_artifact_evidence)
+        .expect_err("malformed artifact evidence should fail");
+    let invalid_artifact_evidence_text = invalid_artifact_evidence_report.to_string();
+    assert!(invalid_artifact_evidence_text.contains("relative"));
+    assert!(invalid_artifact_evidence_text.contains("sha256"));
+
+    let mut target_independent_with_targets = listing.clone();
+    target_independent_with_targets.target_support.targets =
+        vec![PackageTargetTripleV01::Aarch64AppleDarwin];
+    let target_independent_with_targets_report =
+        validate_package_listing_v01(&target_independent_with_targets)
+            .expect_err("target-independent listing targets should fail");
+    assert!(
+        target_independent_with_targets_report
+            .to_string()
+            .contains("target-independent")
+    );
+
+    let mut targeted_without_targets = discovery.listings[1].clone();
+    targeted_without_targets.target_support.targets.clear();
+    let targeted_without_targets_report = validate_package_listing_v01(&targeted_without_targets)
+        .expect_err("targeted listing without targets should fail");
+    assert!(
+        targeted_without_targets_report
+            .to_string()
+            .contains("requires targets")
+    );
+
+    let mut duplicate_target_support_targets = discovery.listings[1].clone();
+    duplicate_target_support_targets
+        .target_support
+        .targets
+        .push(PackageTargetTripleV01::Aarch64AppleDarwin);
+    let duplicate_target_support_targets_report =
+        validate_package_listing_v01(&duplicate_target_support_targets)
+            .expect_err("duplicate target support targets should fail");
+    assert!(
+        duplicate_target_support_targets_report
+            .to_string()
+            .contains("duplicate package listing targetSupport target")
+    );
+
+    let mut duplicate_evidence_refs = listing.clone();
+    duplicate_evidence_refs.artifact_evidence.artifacts[0]
+        .evidence_refs
+        .push("manifest-checksum".to_owned());
+    let duplicate_evidence_refs_report = validate_package_listing_v01(&duplicate_evidence_refs)
+        .expect_err("duplicate listing artifact evidenceRefs should fail");
+    assert!(
+        duplicate_evidence_refs_report
+            .to_string()
+            .contains("duplicate listing artifact")
+    );
+
+    let range_mismatch: PackageListingV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/package/v0.1/invalid/listing-contracts-range-mismatch.skenion.package-listing.json"
+    ))
+    .expect("range mismatch listing should parse before validation");
+    let range_mismatch_report =
+        validate_package_listing_v01(&range_mismatch).expect_err("line/range mismatch should fail");
+    assert!(
+        range_mismatch_report
+            .to_string()
+            .contains("contracts line must match contracts range")
     );
 }
 

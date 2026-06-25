@@ -5,17 +5,18 @@ use std::{fs, path::Path};
 use skenion_contracts::{
     GraphDocumentV01, GraphFragmentOutsideEndpointPolicyV01, GraphFragmentV01,
     NodeDefinitionManifestV01, ObjectTextParseResultV01, PackageDiagnosticSeverityV01,
-    PackageManifestV01, PackageRootDocumentV01, PasteGraphFragmentResponse, ProjectDocumentV01,
-    ProjectObjectBindingDiagnosticCodeV01, ProjectObjectBindingDiagnosticV01,
-    ProjectObjectBindingStatusV01, ProjectObjectBindingTargetV01,
-    RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationBatch,
-    RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
-    RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
-    RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeSessionEvent,
-    RuntimeSessionInfoResponse, analyze_graph_document_v01, analyze_graph_fragment_v01,
-    parse_object_text_v01, validate_graph_document_v01, validate_graph_fragment_v01,
-    validate_node_definition_v01, validate_object_text_parse_result_v01,
-    validate_package_manifest_v01, validate_package_root_v01,
+    PackageDiscoveryResponseV01, PackageListingV01, PackageManifestV01, PackageRootDocumentV01,
+    PasteGraphFragmentResponse, ProjectDocumentV01, ProjectObjectBindingDiagnosticCodeV01,
+    ProjectObjectBindingDiagnosticV01, ProjectObjectBindingStatusV01,
+    ProjectObjectBindingTargetV01, RuntimeCollaborationEventEnvelope,
+    RuntimeCollaborationOperationBatch, RuntimeCollaborationOperationBatchResult,
+    RuntimeCollaborationOperationEnvelope, RuntimeCollaborationOperationResult,
+    RuntimeCollaborationPresenceEnvelope, RuntimeCollaborationSelectionEnvelope,
+    RuntimeOperationEnvelope, RuntimeSessionEvent, RuntimeSessionInfoResponse,
+    analyze_graph_document_v01, analyze_graph_fragment_v01, parse_object_text_v01,
+    validate_graph_document_v01, validate_graph_fragment_v01, validate_node_definition_v01,
+    validate_object_text_parse_result_v01, validate_package_discovery_response_v01,
+    validate_package_listing_v01, validate_package_manifest_v01, validate_package_root_v01,
     validate_paste_graph_fragment_response, validate_patch_definition_v01,
     validate_project_document_v01, validate_runtime_collaboration_event_envelope,
     validate_runtime_collaboration_operation_batch,
@@ -1261,13 +1262,51 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
 #[test]
 fn validates_package_manifest_fixtures() {
     for file in fixture_files("../../fixtures/package/v0.1/valid") {
-        let manifest: PackageManifestV01 =
-            serde_json::from_slice(&fs::read(&file).expect("fixture should be readable"))
-                .unwrap_or_else(|error| panic!("{} should parse: {error}", file.display()));
-        validate_package_manifest_v01(&manifest)
-            .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
-        assert_eq!(manifest.schema, "skenion.package.manifest");
-        assert_eq!(manifest.schema_version, "0.1.0");
+        let document = fs::read(&file).expect("fixture should be readable");
+        let value: serde_json::Value =
+            serde_json::from_slice(&document).expect("package fixture should parse as JSON");
+        match value.get("schema").and_then(serde_json::Value::as_str) {
+            Some("skenion.package.manifest") => {
+                let manifest: PackageManifestV01 =
+                    serde_json::from_value(value).unwrap_or_else(|error| {
+                        panic!(
+                            "{} should parse as package manifest: {error}",
+                            file.display()
+                        )
+                    });
+                validate_package_manifest_v01(&manifest)
+                    .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+                assert_eq!(manifest.schema, "skenion.package.manifest");
+                assert_eq!(manifest.schema_version, "0.1.0");
+            }
+            Some("skenion.package.listing") => {
+                let listing: PackageListingV01 =
+                    serde_json::from_value(value).unwrap_or_else(|error| {
+                        panic!(
+                            "{} should parse as package listing: {error}",
+                            file.display()
+                        )
+                    });
+                validate_package_listing_v01(&listing)
+                    .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+                assert_eq!(listing.schema, "skenion.package.listing");
+                assert_eq!(listing.schema_version, "0.1.0");
+            }
+            Some("skenion.package.discovery") => {
+                let response: PackageDiscoveryResponseV01 = serde_json::from_value(value)
+                    .unwrap_or_else(|error| {
+                        panic!(
+                            "{} should parse as package discovery: {error}",
+                            file.display()
+                        )
+                    });
+                validate_package_discovery_response_v01(&response)
+                    .unwrap_or_else(|error| panic!("{} should validate: {error}", file.display()));
+                assert_eq!(response.schema, "skenion.package.discovery");
+                assert_eq!(response.schema_version, "0.1.0");
+            }
+            other => panic!("{} has unexpected schema {other:?}", file.display()),
+        }
     }
 
     for file in fixture_files("../../fixtures/package/v0.1/invalid") {
@@ -1281,15 +1320,42 @@ fn validates_package_manifest_fixtures() {
             continue;
         }
 
-        let manifest: PackageManifestV01 =
-            serde_json::from_slice(&document).unwrap_or_else(|error| {
-                panic!("{} should parse before validation: {error}", file.display())
-            });
-        assert!(
-            validate_package_manifest_v01(&manifest).is_err(),
-            "{} should be invalid",
-            file.display()
-        );
+        let value: serde_json::Value = serde_json::from_slice(&document)
+            .expect("invalid package fixture should parse as JSON");
+        match value.get("schema").and_then(serde_json::Value::as_str) {
+            Some("skenion.package.manifest") => {
+                let manifest: PackageManifestV01 =
+                    serde_json::from_value(value).unwrap_or_else(|error| {
+                        panic!("{} should parse before validation: {error}", file.display())
+                    });
+                assert!(
+                    validate_package_manifest_v01(&manifest).is_err(),
+                    "{} should be invalid",
+                    file.display()
+                );
+            }
+            Some("skenion.package.listing") => {
+                let listing = serde_json::from_value::<PackageListingV01>(value);
+                if let Ok(listing) = listing {
+                    assert!(
+                        validate_package_listing_v01(&listing).is_err(),
+                        "{} should be invalid",
+                        file.display()
+                    );
+                }
+            }
+            Some("skenion.package.discovery") => {
+                let response = serde_json::from_value::<PackageDiscoveryResponseV01>(value);
+                if let Ok(response) = response {
+                    assert!(
+                        validate_package_discovery_response_v01(&response).is_err(),
+                        "{} should be invalid",
+                        file.display()
+                    );
+                }
+            }
+            other => panic!("{} has unexpected schema {other:?}", file.display()),
+        }
     }
 }
 
