@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.0](https://github.com/skenion/skenion-contracts/compare/v0.46.1...v0.47.0) (2026-06-25)
+
+
+### Features
+
+* **contracts:** normalize package binding authority ([c1f7514](https://github.com/skenion/skenion-contracts/commit/c1f751419f0613c49ecad0e7ec624e4ffc3ff632))
+
 ## [0.46.1](https://github.com/skenion/skenion-contracts/compare/v0.46.0...v0.46.1) (2026-06-24)
 
 
