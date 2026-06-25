@@ -1,0 +1,52 @@
+{
+  "schema": "skenion.package.listing",
+  "schemaVersion": "0.1.0",
+  "packageId": "skenion/examples",
+  "version": "0.45.0",
+  "displayName": "Skenion Examples",
+  "category": "patch",
+  "license": "Apache-2.0",
+  "contracts": {
+    "line": "0.45",
+    "range": ">=0.45.0 <0.46.0"
+  },
+  "targetSupport": {
+    "kind": "target-independent"
+  },
+  "provides": {},
+  "artifactEvidence": {
+    "artifacts": [
+      {
+        "kind": "manifest",
+        "path": "skenion.package.json",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "evidenceRefs": ["manifest-checksum"]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "manifest-checksum",
+        "kind": "checksum",
+        "path": "evidence/manifest.sha256",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    ]
+  },
+  "discoverySignals": {
+    "stargazerCount": 128,
+    "rankingScore": 0.92
+  },
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "malformed-listing-metadata",
+      "message": "Listing metadata is missing a public summary."
+    }
+  ]
+}

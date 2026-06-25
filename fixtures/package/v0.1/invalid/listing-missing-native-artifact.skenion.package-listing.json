@@ -1,0 +1,61 @@
+{
+  "schema": "skenion.package.listing",
+  "schemaVersion": "0.1.0",
+  "packageId": "example/native-sensor",
+  "version": "0.45.1",
+  "displayName": "Native Sensor",
+  "summary": "Native sensor node package with calibrated resources.",
+  "category": "mixed",
+  "license": "Apache-2.0",
+  "contracts": {
+    "line": "0.45",
+    "range": ">=0.45.0 <0.46.0"
+  },
+  "runtimeAbiRange": ">=0.45.0 <0.46.0",
+  "targetSupport": {
+    "kind": "targeted",
+    "targets": ["aarch64-apple-darwin"]
+  },
+  "provides": {
+    "nodes": [
+      {
+        "id": "example.sensor-reading"
+      }
+    ]
+  },
+  "artifactEvidence": {
+    "artifacts": [
+      {
+        "kind": "manifest",
+        "path": "skenion.package.json",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "evidenceRefs": ["manifest-checksum"]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "manifest-checksum",
+        "kind": "checksum",
+        "path": "evidence/manifest.sha256",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      }
+    ]
+  },
+  "discoverySignals": {
+    "stargazerCount": 42,
+    "rankingScore": 0.71
+  },
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "missing-artifact",
+      "message": "Native package listing does not include a native artifact summary."
+    }
+  ]
+}

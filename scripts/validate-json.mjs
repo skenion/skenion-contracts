@@ -283,6 +283,66 @@ function validatePackageManifestV01Semantics(file, manifest) {
   }
 }
 
+function validatePackageListingV01Semantics(file, listing) {
+  duplicateCheck(file, (listing.provides.patches ?? []).map((provided) => provided.id), "provided patch id");
+  duplicateCheck(file, (listing.provides.nodes ?? []).map((provided) => provided.id), "provided node id");
+  duplicateCheck(file, (listing.provides.resources ?? []).map((provided) => provided.id), "provided resource id");
+  duplicateCheck(file, (listing.provides.help ?? []).map((provided) => provided.id), "provided help id");
+  duplicateCheck(file, (listing.provides.nativeObjects ?? []).map((provided) => provided.id), "provided native object id");
+  duplicateCheck(file, (listing.provides.codecs ?? []).map((provided) => provided.id), "provided codec id");
+
+  const lowerBoundVersion = listing.contracts.range.slice(2).split(" ")[0];
+  if (
+    listing.contracts.line !== deriveV0CompatibilityLine(lowerBoundVersion) ||
+    listing.contracts.range !== deriveV0CompatibilityRange(lowerBoundVersion)
+  ) {
+    fail(file, "package listing contracts line must match contracts range");
+  }
+  if (listing.runtimeAbiRange !== undefined) {
+    const runtimeAbiLowerBoundVersion = listing.runtimeAbiRange.slice(2).split(" ")[0];
+    if (listing.runtimeAbiRange !== deriveV0CompatibilityRange(runtimeAbiLowerBoundVersion)) {
+      fail(file, "package listing runtimeAbiRange must be a current v0 compatibility range");
+    }
+  }
+
+  const artifacts = listing.artifactEvidence.artifacts;
+  const evidenceIds = new Set(listing.artifactEvidence.evidence.map((evidence) => evidence.id));
+  for (const artifact of artifacts) {
+    for (const evidenceRef of artifact.evidenceRefs) {
+      if (!evidenceIds.has(evidenceRef)) {
+        fail(file, `listing artifact ${artifact.path} references missing evidence: ${evidenceRef}`);
+      }
+    }
+  }
+
+  const nativeArtifacts = artifacts.filter((artifact) => artifact.kind === "native-artifact");
+  if (listing.category === "patch") {
+    if (nativeArtifacts.length > 0) {
+      fail(file, "patch package listing must not declare native artifact summaries");
+    }
+  }
+
+  if (listing.category === "native" || listing.category === "mixed") {
+    const nativeTargets = new Set(nativeArtifacts.map((artifact) => artifact.target));
+    for (const target of listing.targetSupport.targets ?? []) {
+      if (!nativeTargets.has(target)) {
+        fail(file, `package listing target ${target} has no native artifact summary`);
+      }
+    }
+  }
+}
+
+function validatePackageDiscoveryV01Semantics(file, response) {
+  duplicateCheck(
+    file,
+    response.listings.map((listing) => `${listing.packageId}@${listing.version}`),
+    "package listing"
+  );
+  for (const listing of response.listings) {
+    validatePackageListingV01Semantics(file, listing);
+  }
+}
+
 function portSpecKey(nodeId, portId) {
   return `${nodeId}:${portId}`;
 }
@@ -840,6 +900,12 @@ function selectValidator(file, document, validators) {
   if (document.schema === "skenion.package.manifest" && document.schemaVersion === "0.1.0") {
     return validators.packageManifestV01;
   }
+  if (document.schema === "skenion.package.listing" && document.schemaVersion === "0.1.0") {
+    return validators.packageListingV01;
+  }
+  if (document.schema === "skenion.package.discovery" && document.schemaVersion === "0.1.0") {
+    return validators.packageDiscoveryV01;
+  }
   if (document.schema === "skenion.compatibility-matrix" && document["schema-version"] === "0.1.0") {
     return validators.compatibilityMatrixV01;
   }
@@ -894,6 +960,12 @@ function validateDocument(file, document, validators) {
   }
   if (document.schema === "skenion.package.manifest" && document.schemaVersion === "0.1.0") {
     validatePackageManifestV01Semantics(file, document);
+  }
+  if (document.schema === "skenion.package.listing" && document.schemaVersion === "0.1.0") {
+    validatePackageListingV01Semantics(file, document);
+  }
+  if (document.schema === "skenion.package.discovery" && document.schemaVersion === "0.1.0") {
+    validatePackageDiscoveryV01Semantics(file, document);
   }
   if (document.schema === "skenion.node.definition" && document.schemaVersion === "0.1.0") {
     validateNodeDefinitionV01Semantics(file, document);
@@ -1138,6 +1210,8 @@ const projectV01Schema = await readJson("json-schema/project/v0.1/project.schema
 const nodeDefinitionV01Schema = await readJson("json-schema/node/v0.1/node-definition.schema.json");
 const extensionManifestV01Schema = await readJson("json-schema/extension/v0.1/extension-manifest.schema.json");
 const packageManifestV01Schema = await readJson("json-schema/package/v0.1/package-manifest.schema.json");
+const packageListingV01Schema = await readJson("json-schema/package/v0.1/package-listing.schema.json");
+const packageDiscoveryV01Schema = await readJson("json-schema/package/v0.1/package-discovery.schema.json");
 const compatibilityMatrixV01Schema = await readJson("json-schema/compatibility-matrix/v0.1/compatibility-matrix.schema.json");
 ajv.addSchema(graphV01Schema);
 ajv.addSchema(graphFragmentV01Schema);
@@ -1147,6 +1221,7 @@ ajv.addSchema(nodeDefinitionV01Schema);
 ajv.addSchema(projectV01Schema);
 ajv.addSchema(runtimeSessionV0Schema);
 ajv.addSchema(runtimeCollaborationV0Schema);
+ajv.addSchema(packageListingV01Schema);
 ajv.addSchema(compatibilityMatrixV01Schema);
 const validators = {
   graphV01: ajv.compile(graphV01Schema),
@@ -1209,6 +1284,8 @@ const validators = {
   ),
   extensionManifestV01: ajv.compile(extensionManifestV01Schema),
   packageManifestV01: ajv.compile(packageManifestV01Schema),
+  packageListingV01: ajv.compile(packageListingV01Schema),
+  packageDiscoveryV01: ajv.compile(packageDiscoveryV01Schema),
   compatibilityMatrixV01: ajv.compile(compatibilityMatrixV01Schema)
 };
 

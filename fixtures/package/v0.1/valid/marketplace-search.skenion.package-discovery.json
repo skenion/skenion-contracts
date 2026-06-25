@@ -1,0 +1,209 @@
+{
+  "schema": "skenion.package.discovery",
+  "schemaVersion": "0.1.0",
+  "ok": true,
+  "listings": [
+    {
+      "schema": "skenion.package.listing",
+      "schemaVersion": "0.1.0",
+      "packageId": "skenion/examples",
+      "version": "0.45.0",
+      "displayName": "Skenion Examples",
+      "summary": "Reusable example patches for learning Skenion.",
+      "description": "A public marketplace listing projection for the example patch package.",
+      "category": "patch",
+      "tags": ["examples", "audio"],
+      "license": "Apache-2.0",
+      "homepageUrl": "https://skenion.dev/examples",
+      "repositoryUrl": "https://github.com/skenion/skenion-examples",
+      "contracts": {
+        "line": "0.45",
+        "range": ">=0.45.0 <0.46.0"
+      },
+      "targetSupport": {
+        "kind": "target-independent",
+        "summary": "Patch package; no native runtime target is required."
+      },
+      "provides": {
+        "patches": [
+          {
+            "id": "example.oscillator",
+            "description": "Basic oscillator patch."
+          }
+        ],
+        "help": [
+          {
+            "id": "example.oscillator",
+            "description": "Oscillator help and walkthrough."
+          }
+        ],
+        "capabilities": ["patch-library"]
+      },
+      "artifactEvidence": {
+        "artifacts": [
+          {
+            "kind": "manifest",
+            "path": "skenion.package.json",
+            "checksum": {
+              "algorithm": "sha256",
+              "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "evidenceRefs": ["manifest-checksum"]
+          }
+        ],
+        "evidence": [
+          {
+            "id": "manifest-checksum",
+            "kind": "checksum",
+            "path": "evidence/manifest.sha256",
+            "checksum": {
+              "algorithm": "sha256",
+              "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          }
+        ]
+      },
+      "discoverySignals": {
+        "stargazerCount": 128,
+        "rankingScore": 0.92
+      },
+      "diagnostics": []
+    },
+    {
+      "schema": "skenion.package.listing",
+      "schemaVersion": "0.1.0",
+      "packageId": "example/native-sensor",
+      "version": "0.45.1",
+      "displayName": "Native Sensor",
+      "summary": "Native sensor node package with calibrated resources.",
+      "description": "A target-specific mixed package listing that exposes node and resource capabilities.",
+      "category": "mixed",
+      "tags": ["native", "sensor"],
+      "license": "Apache-2.0",
+      "homepageUrl": "https://skenion.dev/packages/native-sensor",
+      "repositoryUrl": "https://github.com/skenion/native-sensor",
+      "contracts": {
+        "line": "0.45",
+        "range": ">=0.45.0 <0.46.0"
+      },
+      "runtimeAbiRange": ">=0.45.0 <0.46.0",
+      "targetSupport": {
+        "kind": "targeted",
+        "targets": ["aarch64-apple-darwin", "x86_64-apple-darwin"],
+        "summary": "Native artifacts are currently published for macOS arm64 and x64."
+      },
+      "provides": {
+        "nodes": [
+          {
+            "id": "example.sensor-reading",
+            "description": "Reads calibrated values from the native sensor binding."
+          }
+        ],
+        "resources": [
+          {
+            "id": "example.sensor-calibration",
+            "description": "Calibration table used by the sensor node."
+          }
+        ],
+        "nativeObjects": [
+          {
+            "id": "example.sensor-native",
+            "description": "Native object entrypoint for sensor readings."
+          }
+        ],
+        "codecs": [
+          {
+            "id": "example.sensor-calibration-json",
+            "description": "Calibration resource codec."
+          }
+        ],
+        "capabilities": ["native-object", "codec", "resource-provider"]
+      },
+      "artifactEvidence": {
+        "artifacts": [
+          {
+            "kind": "manifest",
+            "path": "skenion.package.json",
+            "checksum": {
+              "algorithm": "sha256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            "evidenceRefs": ["manifest-checksum"]
+          },
+          {
+            "kind": "native-artifact",
+            "target": "aarch64-apple-darwin",
+            "path": "native/aarch64-apple-darwin/libsensor.dylib",
+            "checksum": {
+              "algorithm": "sha256",
+              "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            },
+            "evidenceRefs": ["native-attestation"]
+          },
+          {
+            "kind": "native-artifact",
+            "target": "x86_64-apple-darwin",
+            "path": "native/x86_64-apple-darwin/libsensor.dylib",
+            "checksum": {
+              "algorithm": "sha256",
+              "value": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+            },
+            "evidenceRefs": ["native-attestation"]
+          }
+        ],
+        "evidence": [
+          {
+            "id": "manifest-checksum",
+            "kind": "checksum",
+            "path": "evidence/manifest.sha256",
+            "checksum": {
+              "algorithm": "sha256",
+              "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          },
+          {
+            "id": "native-attestation",
+            "kind": "attestation",
+            "path": "evidence/native-attestation.json",
+            "checksum": {
+              "algorithm": "sha256",
+              "value": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          }
+        ]
+      },
+      "discoverySignals": {
+        "stargazerCount": 42,
+        "rankingScore": 0.71
+      },
+      "diagnostics": [
+        {
+          "severity": "warning",
+          "code": "unavailable-target",
+          "message": "No artifact is currently available for Windows arm64.",
+          "details": {
+            "target": "aarch64-pc-windows-msvc"
+          }
+        }
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "severity": "info",
+      "code": "hidden-package",
+      "message": "One hidden package was excluded from public search results.",
+      "details": {
+        "packageId": "example/hidden-tools"
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "quarantined-package",
+      "message": "One quarantined package was excluded from public search results.",
+      "details": {
+        "packageId": "example/quarantined-tools"
+      }
+    }
+  ]
+}

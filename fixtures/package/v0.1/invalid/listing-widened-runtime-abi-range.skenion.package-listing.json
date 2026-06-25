@@ -1,0 +1,81 @@
+{
+  "schema": "skenion.package.listing",
+  "schemaVersion": "0.1.0",
+  "packageId": "example/native-sensor",
+  "version": "0.45.1",
+  "displayName": "Native Sensor",
+  "summary": "Native sensor node package with a widened Runtime ABI range.",
+  "description": "A schema-valid listing that must fail semantic validation because runtimeAbiRange spans more than the current v0 compatibility line.",
+  "category": "mixed",
+  "tags": ["native", "sensor"],
+  "license": "Apache-2.0",
+  "homepageUrl": "https://skenion.dev/packages/native-sensor",
+  "repositoryUrl": "https://github.com/skenion/native-sensor",
+  "contracts": {
+    "line": "0.45",
+    "range": ">=0.45.0 <0.46.0"
+  },
+  "runtimeAbiRange": ">=0.45.0 <0.47.0",
+  "targetSupport": {
+    "kind": "targeted",
+    "targets": ["aarch64-apple-darwin"],
+    "summary": "Native artifacts are currently published for macOS arm64."
+  },
+  "provides": {
+    "nativeObjects": [
+      {
+        "id": "example.sensor-native",
+        "description": "Native object entrypoint for sensor readings."
+      }
+    ],
+    "capabilities": ["native-object"]
+  },
+  "artifactEvidence": {
+    "artifacts": [
+      {
+        "kind": "manifest",
+        "path": "skenion.package.json",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "evidenceRefs": ["manifest-checksum"]
+      },
+      {
+        "kind": "native-artifact",
+        "target": "aarch64-apple-darwin",
+        "path": "native/aarch64-apple-darwin/libsensor.dylib",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "evidenceRefs": ["native-attestation"]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "manifest-checksum",
+        "kind": "checksum",
+        "path": "evidence/manifest.sha256",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      {
+        "id": "native-attestation",
+        "kind": "attestation",
+        "path": "evidence/native-attestation.json",
+        "checksum": {
+          "algorithm": "sha256",
+          "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      }
+    ]
+  },
+  "discoverySignals": {
+    "stargazerCount": 12,
+    "rankingScore": 0.44
+  },
+  "diagnostics": []
+}

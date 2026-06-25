@@ -23,6 +23,8 @@ import {
   graphV01Schema,
   nodeDefinitionV01Schema,
   objectTextParseResultV01Schema,
+  packageDiscoveryV01Schema,
+  packageListingV01Schema,
   packageManifestV01Schema,
   planAudioClockBridgeV01,
   planConversion,
@@ -50,6 +52,8 @@ import {
   validateGraphDocument,
   validateGraphDocumentV01,
   validateGraphFragmentV01,
+  validatePackageDiscoveryResponseV01,
+  validatePackageListingV01,
   validatePackageManifestV01,
   validatePackageRootV01,
   validateNodeDefinition,
@@ -74,6 +78,8 @@ import {
   validateViewStateV01,
   validateShaderInterface,
   isCompatibilityMatrixV01,
+  isPackageDiscoveryResponseV01,
+  isPackageListingV01,
   isPackageRegistryListResponse,
   isSameV0CompatibilityLine,
   isRuntimeExtensionListResponse,
@@ -114,6 +120,8 @@ test("exports active schema contracts", () => {
   assert.equal(objectTextParseResultV01Schema.properties.schema.const, "skenion.object-text.parse-result");
   assert.equal(extensionManifestV01Schema.properties.schemaVersion.const, "0.1.0");
   assert.equal(packageManifestV01Schema.properties.schema.const, "skenion.package.manifest");
+  assert.equal(packageListingV01Schema.properties.schema.const, "skenion.package.listing");
+  assert.equal(packageDiscoveryV01Schema.properties.schema.const, "skenion.package.discovery");
   assert.equal(SKENION_PACKAGE_MANIFEST_FILE_NAME, "skenion.package.json");
   assert.equal(compatibilityMatrixV01Schema.properties.schema.const, "skenion.compatibility-matrix");
   assert.equal(compatibilityMatrixV01Schema.properties["schema-version"].const, "0.1.0");
@@ -614,6 +622,105 @@ test("validates package registry DTOs", async () => {
   const invalidProviderPath = structuredClone(registry);
   invalidProviderPath.packages[0].provides.patches[0].path = "../outside.json";
   assert.equal(isPackageRegistryListResponse(invalidProviderPath), false);
+});
+
+test("validates public package listing and discovery DTOs", async () => {
+  const listing = await readJson("fixtures/package/v0.1/valid/patch-listing.skenion.package-listing.json");
+  const listingResult = validatePackageListingV01(listing);
+
+  assert.equal(listingResult.ok, true);
+  assert.equal(isPackageListingV01(listing), true);
+  assert.equal(listing.schema, "skenion.package.listing");
+  assert.equal(listing.targetSupport.kind, "target-independent");
+  assert.equal(listing.discoverySignals.stargazerCount, 128);
+  assert.equal(listing.discoverySignals.rankingScore, 0.92);
+  assert.equal(listing.account, undefined);
+  assert.equal(listing.installPlan, undefined);
+
+  const discovery = await readJson("fixtures/package/v0.1/valid/marketplace-search.skenion.package-discovery.json");
+  const discoveryResult = validatePackageDiscoveryResponseV01(discovery);
+
+  assert.equal(discoveryResult.ok, true);
+  assert.equal(isPackageDiscoveryResponseV01(discovery), true);
+  assert.equal(discovery.schema, "skenion.package.discovery");
+  assert.equal(discovery.listings.length, 2);
+  assert.equal(discovery.listings[1].targetSupport.kind, "targeted");
+  assert.deepEqual(discovery.listings[1].targetSupport.targets, ["aarch64-apple-darwin", "x86_64-apple-darwin"]);
+  assert.equal(discovery.listings[1].provides.nativeObjects[0].id, "example.sensor-native");
+  assert.equal(discovery.listings[1].provides.codecs[0].id, "example.sensor-calibration-json");
+  assert.equal(discovery.listings[1].diagnostics[0].code, "unavailable-target");
+  assert.equal(discovery.diagnostics[0].code, "hidden-package");
+  assert.equal(discovery.diagnostics[1].code, "quarantined-package");
+
+  const duplicateDiscovery = structuredClone(discovery);
+  duplicateDiscovery.listings.push(structuredClone(discovery.listings[0]));
+  const duplicateDiscoveryResult = validatePackageDiscoveryResponseV01(duplicateDiscovery);
+  assert.equal(duplicateDiscoveryResult.ok, false);
+  assert.match(duplicateDiscoveryResult.errors.join("\n"), /duplicate package listing/);
+
+  const accountState = structuredClone(listing);
+  accountState.account = { viewerStarred: true };
+  assert.equal(validatePackageListingV01(accountState).ok, false);
+
+  const missingEvidence = structuredClone(listing);
+  missingEvidence.artifactEvidence.artifacts[0].evidenceRefs = ["missing-evidence"];
+  const missingEvidenceResult = validatePackageListingV01(missingEvidence);
+  assert.equal(missingEvidenceResult.ok, false);
+  assert.match(missingEvidenceResult.errors.join("\n"), /missing evidence/);
+
+  const lineMismatch = structuredClone(listing);
+  lineMismatch.contracts.line = "0.44";
+  const lineMismatchResult = validatePackageListingV01(lineMismatch);
+  assert.equal(lineMismatchResult.ok, false);
+  assert.match(lineMismatchResult.errors.join("\n"), /contracts line must match contracts range/);
+
+  const patchWithNativeArtifact = structuredClone(listing);
+  patchWithNativeArtifact.artifactEvidence.artifacts.push(
+    structuredClone(discovery.listings[1].artifactEvidence.artifacts[1])
+  );
+  const patchWithNativeArtifactResult = validatePackageListingV01(patchWithNativeArtifact);
+  assert.equal(patchWithNativeArtifactResult.ok, false);
+  assert.match(patchWithNativeArtifactResult.errors.join("\n"), /native artifact summaries/);
+
+  const targetWithoutArtifact = structuredClone(discovery.listings[1]);
+  targetWithoutArtifact.targetSupport.targets.push("x86_64-unknown-linux-gnu");
+  const targetWithoutArtifactResult = validatePackageListingV01(targetWithoutArtifact);
+  assert.equal(targetWithoutArtifactResult.ok, false);
+  assert.match(targetWithoutArtifactResult.errors.join("\n"), /has no native artifact summary/);
+
+  const unavailableTargets = structuredClone(discovery.listings[1]);
+  unavailableTargets.targetSupport.kind = "unavailable";
+  delete unavailableTargets.targetSupport.targets;
+  const unavailableTargetsResult = validatePackageListingV01(unavailableTargets);
+  assert.equal(unavailableTargetsResult.ok, true);
+
+  const duplicateSummaries = structuredClone(discovery.listings[1]);
+  duplicateSummaries.provides.nativeObjects.push(structuredClone(duplicateSummaries.provides.nativeObjects[0]));
+  duplicateSummaries.provides.codecs.push(structuredClone(duplicateSummaries.provides.codecs[0]));
+  const duplicateSummariesResult = validatePackageListingV01(duplicateSummaries);
+  assert.equal(duplicateSummariesResult.ok, false);
+  assert.match(
+    duplicateSummariesResult.errors.join("\n"),
+    /duplicate provided native object id|duplicate provided codec id/
+  );
+
+  const invalidCases = [
+    ["fixtures/package/v0.1/invalid/listing-contracts-range-mismatch.skenion.package-listing.json", validatePackageListingV01, /contracts line must match contracts range/],
+    ["fixtures/package/v0.1/invalid/listing-invalid-artifact-evidence.skenion.package-listing.json", validatePackageListingV01, /checksum|path/],
+    ["fixtures/package/v0.1/invalid/listing-malformed-public-metadata.skenion.package-listing.json", validatePackageListingV01, /version|homepageUrl|repositoryUrl|rankingScore/],
+    ["fixtures/package/v0.1/invalid/listing-missing-summary.skenion.package-listing.json", validatePackageListingV01, /summary/],
+    ["fixtures/package/v0.1/invalid/listing-missing-native-artifact.skenion.package-listing.json", validatePackageListingV01, /contains|constant|native artifact/],
+    ["fixtures/package/v0.1/invalid/listing-widened-runtime-abi-range.skenion.package-listing.json", validatePackageListingV01, /runtimeAbiRange/],
+    ["fixtures/package/v0.1/invalid/listing-unsupported-contracts-range.skenion.package-discovery.json", validatePackageDiscoveryResponseV01, /range/]
+  ];
+
+  for (const [fixture, validate, expected] of invalidCases) {
+    const invalid = await readJson(fixture);
+    const result = validate(invalid);
+
+    assert.equal(result.ok, false, fixture);
+    assert.match(result.errors.join("\n"), expected, fixture);
+  }
 });
 
 test("documents runtime HTTP endpoints that use Contracts DTOs", async () => {
