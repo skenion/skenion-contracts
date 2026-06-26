@@ -691,6 +691,28 @@ function legacyControlPortType(type) {
   ].includes(type) || String(type).startsWith("value.") || String(type).startsWith("value<");
 }
 
+function payloadIdentityNodeKind(kind) {
+  return [
+    "value",
+    "data",
+    "payload",
+    "bool",
+    "string",
+    "core.bool",
+    "core.string",
+    "control.message.any",
+    "event.bang",
+    "asset.video",
+    "asset.image",
+    "asset.audio",
+    "gpu.texture2d"
+  ].includes(kind) ||
+    String(kind).startsWith("value.") ||
+    String(kind).startsWith("data.") ||
+    String(kind).startsWith("payload.") ||
+    String(kind).startsWith("control.");
+}
+
 function selectorAwareInputPort(port) {
   return port.direction === "input" && (
     port.type === "control.message.any" ||
@@ -839,6 +861,9 @@ function validateGraphV01Semantics(file, graph) {
   const incoming = new Map();
   const outgoing = new Map();
   for (const node of graph.nodes) {
+    if (payloadIdentityNodeKind(node.kind)) {
+      fail(file, `node ${node.id} uses payload identity ${node.kind} as an executable kind`);
+    }
     duplicateCheck(
       file,
       node.ports.map((port) => port.id),
@@ -971,6 +996,9 @@ function validateGraphFragmentV01Semantics(file, fragment) {
   const nodeIds = new Set(fragment.nodes.map((node) => node.id));
   const ports = new Map();
   for (const node of fragment.nodes) {
+    if (payloadIdentityNodeKind(node.kind)) {
+      fail(file, `node ${node.id} uses payload identity ${node.kind} as an executable kind`);
+    }
     duplicateCheck(
       file,
       node.ports.map((port) => port.id),
@@ -1481,6 +1509,9 @@ function validateBuiltinNodeDefinition(file, definition, id, manifest) {
   validateDocument(file, definition, validators);
   if (definition.id !== id) {
     fail(file, `node definition id ${definition.id} does not match canonical id ${id}`);
+  }
+  if (payloadIdentityNodeKind(definition.id)) {
+    fail(file, `payload identity node definition id: ${definition.id}`);
   }
   if (!manifest.nodes.includes(definition.id)) {
     fail(file, `node definition is not listed in builtins manifest: ${definition.id}`);

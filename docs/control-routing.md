@@ -1,9 +1,9 @@
 # Control Routing
 
 skenion v0.1 uses object-owned typed routing for non-local control values.
-Typed control, message, panel, and annotation objects can publish to or receive
-from named channels through `sendName` and `receiveName` params. Standalone
-routing objects are not part of the builtin object model.
+Behavior-named control, message, panel, and annotation objects can publish to or
+receive from named channels through `sendName` and `receiveName` params.
+Standalone routing objects are not part of the builtin object model.
 
 ## Object-Owned Channels
 
@@ -51,8 +51,8 @@ shader or render reads from channel names are not part of v0.1.
 
 Primary routing-capable objects include:
 
-- `core.float`, `core.int`, `core.bool`
-- `core.color`, `core.string`, `core.message`
+- `core.float`, `core.int`, `core.uint`
+- `core.color`, `core.message`
 - `core.comment`, `core.panel`
 - `core.bang`
 
@@ -70,12 +70,13 @@ edits:
   without output
 - `core.float` with `widget: "slider"` sends typed payloads to the hot `in`
   inlet and emits `control.number.float`
-- `core.bool` with `widget: "toggle"` handles `bang`, `0/1`, `off/on`,
-  `false/true`, and `set` forms through its hot `in` inlet
+- Bool and string payloads are selectors/atoms handled by behavior-named
+  objects. Toggle/text UI objects are deferred until they have behavior-named
+  contracts.
 
 Changing graph parameters such as `label`, `min`, `max`, `step`, `sendName`, or
 `receiveName` remains a saved graph mutation. Moving a runtime slider or
-clicking a runtime toggle must not create a graph mutation.
+clicking a runtime widget must not create a graph mutation.
 
 When local preview is running, Runtime may write the updated control state to a
 preview control-state snapshot so the preview can consume new typed values on a

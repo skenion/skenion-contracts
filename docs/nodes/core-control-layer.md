@@ -3,10 +3,11 @@
 The core control layer establishes the basic Max/MSP-style patching surface for
 typed payloads and simple control annotations.
 
-## Typed Control Objects
+## Control Objects And Payloads
 
-`core.float`, `core.int`, `core.uint`, `core.bool`, `core.color`, and
-`core.string` share the same stored-payload surface:
+`core.bang` and `core.message` are the canonical behavior-named control objects.
+`core.float`, `core.int`, `core.uint`, and `core.color` remain pre-v1
+numeric/color stored-payload objects and share the same surface:
 
 - `in`: hot `control.message.any` inlet; typed controls update and emit,
   `bang` emits the stored payload, and `set ...` updates silently
@@ -14,10 +15,11 @@ typed payloads and simple control annotations.
 - `value`: output the current stored payload. The port id is payload/state
   naming, not a value-object contract.
 
-`core.bool` is also the canonical toggle object when `params.widget` is
-`"toggle"` or `"checkbox"`. In that widget mode, `bang` sent to `in` flips the
-stored bool and emits the new payload. Typed control objects may also use
-`sendName` and `receiveName` graph params for named typed routing.
+Bool and string are payload/atom semantics. `control.bool`, `control.string`,
+and the `bool`, `string`, and `symbol` selectors can be carried by
+`ControlMessage` and handled by behavior-named objects. A toggle, checkbox,
+label, or text UI must be introduced as a behavior-named object rather than
+`core.bool` or `core.string`.
 
 ## Message And Comment
 
@@ -35,11 +37,11 @@ Inspector color edits remain saved graph mutations.
 
 ## UI Widgets
 
-Buttons, sliders, toggles, and compact number boxes are widget modes on
-canonical core objects. `core.bang` is the button-like bang object, `core.float`
-with `widget: "slider"` is the float slider, and `core.bool` with
-`widget: "toggle"` is the bool toggle. Standalone routing nodes are not part
-of the builtin object model.
+Buttons, sliders, toggles, and compact number boxes are widget modes only when
+the object identity names behavior. `core.bang` is the button-like bang object,
+and `core.float` with `widget: "slider"` is the float slider. Toggle/text
+widgets are deferred until they have behavior-named object contracts. Standalone
+routing nodes are not part of the builtin object model.
 
 ## Addressing
 

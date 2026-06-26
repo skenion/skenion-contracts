@@ -501,7 +501,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
             },
             {
               "id": "bool_value",
-              "kind": "core.bool",
+              "kind": "test.bool-emitter",
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
@@ -519,7 +519,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
             },
             {
               "id": "string_value",
-              "kind": "core.string",
+              "kind": "test.string-emitter",
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [

@@ -1,21 +1,34 @@
 # Control Value Semantics
 
-skenion typed control objects are stateful control boxes. This document defines
-the pre-v1 typed atom/control behavior used by built-in control objects and
+skenion control messages carry selectors and typed atoms. This document defines
+the pre-v1 control payload behavior used by built-in control objects and
 runtime control events.
 
-## Typed Control Objects
+## Control Objects And Payloads
 
-The canonical v0.1 typed control objects are:
+The current canonical behavior-named control objects are:
+
+- `core.bang` for trigger behavior. It emits `event.bang`; `event.bang` is not
+  an object identity.
+- `core.message` for saved message-box behavior. It emits a `ControlMessage`
+  selector plus typed atoms.
+
+The current numeric/color stored-payload objects remain pre-v1 compatibility
+surface:
 
 - `core.float` for `control.number.float` payloads
 - `core.int` for `control.number.int` payloads
 - `core.uint` for `control.number.uint` payloads
-- `core.bool` for `control.bool` payloads
 - `core.color` for `control.color` payloads
-- `core.string` for `control.string` payloads
 
-Each typed control object has the same control surface:
+Bool and string are payload/atom semantics, not canonical object identities.
+`control.bool`, `control.string`, and the `bool`, `string`, and `symbol`
+selectors may be accepted by behavior-named objects such as `core.message`,
+`core.bang`, or future widget objects. A toggle, checkbox, label, or text UI
+must use a behavior-named object contract rather than `core.bool` or
+`core.string`.
+
+The numeric/color stored-payload objects have the same control surface:
 
 - `in` is the hot `control.message.any` inlet. A compatible typed control
   payload updates the stored payload and emits it; `bang` emits the current
@@ -25,11 +38,7 @@ Each typed control object has the same control surface:
 - `value` emits the current stored payload. The port id is payload/state naming;
   it does not make the object a value object.
 
-`core.bool` is also the canonical toggle object when `params.widget` is
-`"toggle"` or `"checkbox"`. In that widget mode, a `bang` interaction flips the
-stored bool and emits the new payload. There is no separate toggle node.
-
-This is the Max/MSP-style typed control box model:
+This is the Max/MSP-style stored-payload message model:
 
 ```text
 set 32
@@ -73,8 +82,8 @@ display text silently. Inspector text edits remain saved graph mutations.
 `core.message` is the first simple message-box form. It stores message box text
 in graph params and emits a `ControlMessage` selector plus typed atoms when
 banged or clicked. `set ...` on `in` updates the runtime message text silently.
-`pack`/`unpack` and richer message transforms are deferred until the typed
-control graph is stable.
+`pack`/`unpack`, toggle widgets, text widgets, and richer message transforms are
+deferred until the behavior-named control graph is stable.
 
 Bang is a message selector and the pure trigger edge type `event.bang`. It is
 not a stored runtime value and is not represented as `control.bang` or boolean
@@ -89,6 +98,7 @@ This is a pre-v1 contract. Breaking built-in node shape changes are allowed
 while skenion is still converging on the runtime/editor control model.
 
 The previous generic value-object surface with separate visual `bang` and `set`
-input ports is removed. Canonical typed control objects expose only `in`,
+input ports is removed. Numeric/color stored-payload objects expose only `in`,
 `cold`, and `value`; `bang` and `set` remain `ControlMessage.selector` values
-handled by the receiving object.
+handled by the receiving object. Bool/string payload-named object identities are
+not canonical v0.1 builtins.

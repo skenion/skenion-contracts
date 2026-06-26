@@ -169,10 +169,15 @@ test("builtin typed control boxes expose message hot inlet selector policy", () 
     ["core.float", "control.number.float", ["control.number.float", "control.number.int", "control.number.uint", "control.bool"], ["bang", "set", "float", "int", "uint", "bool"]],
     ["core.int", "control.number.int", ["control.number.float", "control.number.int", "control.number.uint", "control.bool"], ["bang", "set", "float", "int", "uint", "bool"]],
     ["core.uint", "control.number.uint", ["control.number.float", "control.number.int", "control.number.uint", "control.bool"], ["bang", "set", "float", "int", "uint", "bool"]],
-    ["core.bool", "control.bool", ["control.number.float", "control.number.int", "control.number.uint", "control.bool"], ["bang", "set", "float", "int", "uint", "bool"]],
-    ["core.string", "control.string", ["control.string"], ["bang", "set", "string", "symbol"]],
     ["core.color", "control.color", ["control.color"], ["bang", "set", "color"]]
   ];
+
+  assert.equal(getBuiltinNodeDefinition("core.bool"), undefined);
+  assert.equal(getBuiltinNodeDefinition("core.string"), undefined);
+  assert.equal(getBuiltinNodeHelp("core.bool"), undefined);
+  assert.equal(getBuiltinNodeHelp("core.string"), undefined);
+  assert.equal(getBuiltinNodeHelpGraph("core.bool"), undefined);
+  assert.equal(getBuiltinNodeHelpGraph("core.string"), undefined);
 
   for (const [id, payloadType, typedAccepts, selectors] of typedControls) {
     const definition = getBuiltinNodeDefinition(id);
@@ -1855,6 +1860,10 @@ test("exports and validates v0.1 graph fragment contracts", async () => {
   duplicateNode.nodes.push(structuredClone(duplicateNode.nodes[0]));
   assert.match(validateGraphFragmentV01(duplicateNode).errors.join("\n"), /duplicate-node-id/);
 
+  const payloadKind = structuredClone(fragment);
+  payloadKind.nodes[0].kind = "event.bang";
+  assert.match(validateGraphFragmentV01(payloadKind).errors.join("\n"), /payload-node-kind/);
+
   const duplicatePort = structuredClone(fragment);
   duplicatePort.nodes[0].ports.push(structuredClone(duplicatePort.nodes[0].ports[0]));
   assert.match(validateGraphFragmentV01(duplicatePort).errors.join("\n"), /duplicate-port-id/);
@@ -1921,8 +1930,16 @@ test("exports and validates v0.1 graph fragment contracts", async () => {
   };
   const invalidSelectorsResult = validateGraphFragmentV01(invalidSelectors);
   assert.equal(invalidSelectorsResult.ok, false);
-  assert.match(invalidSelectorsResult.errors.join("\n"), /messageSelectors\.accepted/);
-  assert.match(invalidSelectorsResult.errors.join("\n"), /selector bang is not accepted/);
+  assert.match(invalidSelectorsResult.errors.join("\n"), /messageSelectors\/accepted|messageSelectors\.accepted/);
+
+  const invalidTriggerSelector = structuredClone(fragment);
+  invalidTriggerSelector.nodes[1].ports[0].messageSelectors = {
+    accepted: ["float"],
+    trigger: ["bang"]
+  };
+  const invalidTriggerSelectorResult = validateGraphFragmentV01(invalidTriggerSelector);
+  assert.equal(invalidTriggerSelectorResult.ok, false);
+  assert.match(invalidTriggerSelectorResult.errors.join("\n"), /selector bang is not accepted/);
 
   const invalidSetTrigger = structuredClone(messageAny);
   invalidSetTrigger.nodes[1].ports[0].messageSelectors = {
@@ -2786,7 +2803,7 @@ test("v0.1 control ports declare numeric accepts and bang trigger behavior separ
       },
       {
         id: "bool_source",
-        kind: "core.bool",
+        kind: "test.bool-emitter",
         kindVersion: "0.1.0",
         params: {},
         ports: [
@@ -2939,13 +2956,22 @@ test("v0.1 rejects invalid direction fan-in and algebraic-loop fixtures", async 
     ["fixtures/graph/v0.1/invalid/output-to-output-edge.graph.json", /invalid-target-direction/],
     ["fixtures/graph/v0.1/invalid/fan-in-without-merge-policy.graph.json", /fan-in-without-merge-policy/],
     ["fixtures/graph/v0.1/invalid/render-input-fan-in-default.graph.json", /fan-in-cardinality/],
-    ["fixtures/graph/v0.1/invalid/ambiguous-value-algebraic-loop.graph.json", /ambiguous-algebraic-loop/]
+    ["fixtures/graph/v0.1/invalid/ambiguous-value-algebraic-loop.graph.json", /ambiguous-algebraic-loop/],
+    ["fixtures/graph/v0.1/invalid/payload-identity-node-kind.graph.json", /payload-node-kind/]
   ];
 
   for (const [fixture, expected] of cases) {
     const result = validateGraphDocumentV01(await readJson(fixture));
     assert.equal(result.ok, false, fixture);
     assert.match(result.errors.join("\n"), expected, fixture);
+  }
+
+  for (const payloadKind of ["bool", "string"]) {
+    const graph = await readJson("fixtures/graph/v0.1/valid/zero-port-node.graph.json");
+    graph.nodes[0].kind = payloadKind;
+    const result = validateGraphDocumentV01(graph);
+    assert.equal(result.ok, false, payloadKind);
+    assert.match(result.errors.join("\n"), /payload-node-kind/, payloadKind);
   }
 
   const controlLoop = await readJson("fixtures/graph/v0.1/invalid/ambiguous-value-algebraic-loop.graph.json");
@@ -3109,6 +3135,18 @@ test("v0.1 rejects schema and node-definition semantic failures", async () => {
   const duplicatePortResult = validateNodeDefinitionV01(duplicatePortNode);
   assert.equal(duplicatePortResult.ok, false);
   assert.match(duplicatePortResult.errors.join("\n"), /duplicate port id/);
+
+  for (const payloadId of ["core.bool", "bool", "string"]) {
+    const payloadIdentityNode = await readJson("fixtures/node/v0.1/valid/render-clear-color.node.json");
+    payloadIdentityNode.id = payloadId;
+    const payloadIdentityNodeResult = validateNodeDefinitionV01(payloadIdentityNode);
+    assert.equal(payloadIdentityNodeResult.ok, false, payloadId);
+    assert.match(
+      payloadIdentityNodeResult.errors.join("\n"),
+      /payload identity node definition id/,
+      payloadId
+    );
+  }
 
   const badNodeGroup = await readJson("fixtures/node/v0.1/valid/dynamic-input-group.node.json");
   const noDefaultPortGroupNode = await readJson("fixtures/node/v0.1/valid/render-clear-color.node.json");

@@ -13,7 +13,6 @@
   "runtimeBehavior": "Clicking the object or receiving a non-set message on in emits one event.bang from out. set is accepted silently and does not emit.",
   "relatedNodes": [
     "core.float",
-    "core.bool",
     "core.message"
   ],
   "ports": [
@@ -27,8 +26,8 @@
     }
   ],
   "example": {
-    "title": "Trigger stored values",
-    "description": "Connect Bang to typed control boxes or messages to emit their stored payloads.",
+    "title": "Trigger stored messages",
+    "description": "Connect Bang to Message to emit a saved payload on demand.",
     "graph": "help/v0.1/nodes/core.bang.help.graph.json"
   }
 }

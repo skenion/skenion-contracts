@@ -785,6 +785,28 @@ function isLegacyControlPortType(type: string): boolean {
   ].includes(type) || type.startsWith("value.") || type.startsWith("value<");
 }
 
+function isPayloadIdentityNodeKind(kind: string): boolean {
+  return [
+    "value",
+    "data",
+    "payload",
+    "bool",
+    "string",
+    "core.bool",
+    "core.string",
+    "control.message.any",
+    "event.bang",
+    "asset.video",
+    "asset.image",
+    "asset.audio",
+    "gpu.texture2d"
+  ].includes(kind) ||
+    kind.startsWith("value.") ||
+    kind.startsWith("data.") ||
+    kind.startsWith("payload.") ||
+    kind.startsWith("control.");
+}
+
 type MessageSelectorPolicyPortV01 = Pick<PortSpecV01, "direction" | "type" | "accepts" | "messageSelectors">;
 
 function isSelectorAwareInputPort(port: MessageSelectorPolicyPortV01): boolean {
@@ -879,6 +901,15 @@ function analyzeFragmentSemantics(
       );
     }
     nodeIds.add(node.id);
+    if (isPayloadIdentityNodeKind(node.kind)) {
+      fragmentDiagnostic(
+        diagnostics,
+        "error",
+        "payload-node-kind",
+        `node ${node.id} uses payload identity ${node.kind} as an executable kind`,
+        { nodes: [node.id] }
+      );
+    }
 
     const portIds = new Set<string>();
     for (const port of node.ports) {
@@ -1146,6 +1177,10 @@ function validateNodeDefinitionV01Semantics(definition: NodeDefinitionManifestV0
     `port id on ${definition.id}`
   );
 
+  if (isPayloadIdentityNodeKind(definition.id)) {
+    errors.push(`payload identity node definition id: ${definition.id}`);
+  }
+
   for (const port of definition.ports) {
     if (isLegacyControlPortType(port.type)) {
       errors.push(`legacy port type on ${definition.id}.${port.id}: ${port.type}`);
@@ -1202,6 +1237,15 @@ export function analyzeGraphDocumentV01(graph: GraphDocumentV01): GraphValidatio
       diagnostic(diagnostics, "error", "duplicate-node-id", `duplicate node id: ${node.id}`, { nodes: [node.id] });
     }
     nodeIds.add(node.id);
+    if (isPayloadIdentityNodeKind(node.kind)) {
+      diagnostic(
+        diagnostics,
+        "error",
+        "payload-node-kind",
+        `node ${node.id} uses payload identity ${node.kind} as an executable kind`,
+        { nodes: [node.id] }
+      );
+    }
 
     const portIds = new Set<string>();
     for (const port of node.ports) {

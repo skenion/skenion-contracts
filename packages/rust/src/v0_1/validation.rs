@@ -376,6 +376,28 @@ fn is_legacy_control_port_type(port_type: &str) -> bool {
         || port_type.starts_with("value<")
 }
 
+fn is_payload_identity_node_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "value"
+            | "data"
+            | "payload"
+            | "bool"
+            | "string"
+            | "core.bool"
+            | "core.string"
+            | "control.message.any"
+            | "event.bang"
+            | "asset.video"
+            | "asset.image"
+            | "asset.audio"
+            | "gpu.texture2d"
+    ) || kind.starts_with("value.")
+        || kind.starts_with("data.")
+        || kind.starts_with("payload.")
+        || kind.starts_with("control.")
+}
+
 fn is_selector_aware_input_port(port: &PortSpecV01) -> bool {
     port.direction == PortDirectionV01::Input
         && (port.port_type == "control.message.any"
@@ -473,7 +495,19 @@ pub fn analyze_graph_fragment_v01(
                 None,
             );
         }
-
+        if is_payload_identity_node_kind(&node.kind) {
+            fragment_diagnostic(
+                &mut diagnostics,
+                "error",
+                "payload-node-kind",
+                format!(
+                    "node {} uses payload identity {} as an executable kind",
+                    node.id, node.kind
+                ),
+                Some(vec![node.id.clone()]),
+                None,
+            );
+        }
         let mut port_ids = HashSet::new();
         for port in &node.ports {
             if !port_ids.insert(port.id.clone()) {
@@ -858,6 +892,19 @@ pub fn analyze_graph_document_v01(graph: &GraphDocumentV01) -> GraphValidationRe
                 "error",
                 "duplicate-node-id",
                 format!("duplicate node id: {}", node.id),
+                Some(vec![node.id.clone()]),
+                None,
+            );
+        }
+        if is_payload_identity_node_kind(&node.kind) {
+            diagnostic(
+                &mut diagnostics,
+                "error",
+                "payload-node-kind",
+                format!(
+                    "node {} uses payload identity {} as an executable kind",
+                    node.id, node.kind
+                ),
                 Some(vec![node.id.clone()]),
                 None,
             );
@@ -2239,6 +2286,12 @@ pub fn validate_node_definition_v01(
             .collect(),
         &format!("port id on {}", definition.id),
     ));
+    if is_payload_identity_node_kind(&definition.id) {
+        errors.push(ValidationErrorV01::new(format!(
+            "payload identity node definition id: {}",
+            definition.id
+        )));
+    }
 
     for port in &definition.ports {
         if is_legacy_control_port_type(&port.port_type) {
@@ -5961,7 +6014,7 @@ mod tests {
                 },
                 {
                   "id": "bool_source",
-                  "kind": "core.bool",
+                  "kind": "test.bool-emitter",
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
@@ -6193,6 +6246,43 @@ mod tests {
                 "{legacy_type}"
             );
         }
+
+        for payload_identity in ["bool", "string"] {
+            let mut graph = base_graph();
+            graph.nodes[0].kind = payload_identity.to_owned();
+            let report = validate_graph_document_v01(&graph).expect_err("payload kind should fail");
+            assert!(
+                report.to_string().contains("payload-node-kind"),
+                "{payload_identity}"
+            );
+
+            let mut definition = node(
+                r#"{
+                  "schema": "skenion.node.definition",
+                  "schemaVersion": "0.1.0",
+                  "id": "test.node",
+                  "version": "0.1.0",
+                  "displayName": "Payload Identity",
+                  "category": "Test",
+                  "ports": [
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
+                  ],
+                  "execution": { "model": "control" },
+                  "state": { "persistent": false },
+                  "permissions": [],
+                  "capabilities": []
+                }"#,
+            );
+            definition.id = payload_identity.to_owned();
+            let report = validate_node_definition_v01(&definition)
+                .expect_err("payload node definition id should fail");
+            assert!(
+                report
+                    .to_string()
+                    .contains("payload identity node definition id"),
+                "{payload_identity}"
+            );
+        }
     }
 
     #[test]
@@ -6326,6 +6416,7 @@ mod tests {
         let mut invalid = valid;
         invalid.schema = "wrong".to_owned();
         invalid.schema_version = "9.9.9".to_owned();
+        invalid.id = "core.string".to_owned();
         invalid.permissions.push("network".to_owned());
         invalid.ports.push(invalid.ports[0].clone());
         invalid.ports[0].accepts = Some(vec![
@@ -6367,6 +6458,7 @@ mod tests {
         let text = report.to_string();
         assert!(text.contains("expected schema skenion.node.definition"));
         assert!(text.contains("expected schemaVersion 0.1.0"));
+        assert!(text.contains("payload identity node definition id"));
         assert!(text.contains("unsupported permission"));
         assert!(text.contains("duplicate port id"));
         assert!(text.contains("legacy accepted port type"));

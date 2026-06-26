@@ -12,9 +12,7 @@
     "text"
   ],
   "runtimeBehavior": "Click or bang on in emits the saved message payload. set ... on in updates runtime message text without output. Inspector edits are saved graph mutations.",
-  "relatedNodes": [
-    "core.string"
-  ],
+  "relatedNodes": [],
   "ports": [
     {
       "id": "in",
