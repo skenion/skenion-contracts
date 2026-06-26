@@ -18,7 +18,9 @@
     {
       "kind": "checksum",
       "status": "fail",
-      "diagnosticRefs": ["diag-checksum-mismatch"],
+      "diagnosticRefs": [
+        "diag-checksum-mismatch"
+      ],
       "message": "Artifact checksum evidence does not match."
     }
   ],
@@ -37,16 +39,22 @@
           "algorithm": "sha256",
           "value": "not-a-checksum"
         },
-        "evidenceRefs": ["native-attestation"]
+        "evidenceRefs": [
+          "native-attestation"
+        ]
       },
-      "evidenceRefs": ["native-attestation"]
+      "evidenceRefs": [
+        "native-attestation"
+      ]
     },
     {
       "id": "reject-checksum-mismatch",
       "order": 1,
       "kind": "reject",
       "packageId": "example/native-sensor",
-      "diagnosticRefs": ["diag-checksum-mismatch"]
+      "diagnosticRefs": [
+        "diag-checksum-mismatch"
+      ]
     }
   ],
   "diagnostics": [

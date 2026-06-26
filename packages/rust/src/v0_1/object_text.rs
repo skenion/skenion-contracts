@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use thiserror::Error;
 
+use super::types::MessageSelectorPolicyV01;
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
@@ -70,9 +72,13 @@ pub struct ObjectTextPortV01 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<ObjectTextPortRateV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub accepts: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub activation: Option<ObjectTextPortActivationV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_value: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_selectors: Option<MessageSelectorPolicyV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
@@ -117,6 +123,8 @@ pub enum ObjectTextValidationErrorV01 {
     SchemaMismatch(String),
     #[error("expected schemaVersion 0.1.0, found {0}")]
     SchemaVersionMismatch(String),
+    #[error("object text parse result semantic validation failed: {0}")]
+    Semantic(String),
 }
 
 pub fn validate_object_text_parse_result_v01(
@@ -132,7 +140,105 @@ pub fn validate_object_text_parse_result_v01(
             result.schema_version.clone(),
         ));
     }
+    let errors = object_text_parse_result_semantic_errors(result);
+    if !errors.is_empty() {
+        return Err(ObjectTextValidationErrorV01::Semantic(errors.join("; ")));
+    }
     Ok(())
+}
+
+fn is_selector_aware_object_text_input_port(port: &ObjectTextPortV01) -> bool {
+    port.direction == ObjectTextPortDirectionV01::Input
+        && (port.port_type == "control.message.any"
+            || port.accepts.as_ref().is_some_and(|accepted| {
+                accepted.iter().any(|value| value == "control.message.any")
+            }))
+}
+
+fn object_text_message_selector_policy_errors(
+    port: &ObjectTextPortV01,
+    label: &str,
+) -> Vec<String> {
+    let Some(policy) = &port.message_selectors else {
+        return if is_selector_aware_object_text_input_port(port) {
+            vec![format!(
+                "{label} selector-aware input port requires messageSelectors"
+            )]
+        } else {
+            Vec::new()
+        };
+    };
+
+    let mut errors = Vec::new();
+    if policy.accepted.is_empty() {
+        errors.push(format!(
+            "{label} messageSelectors.accepted must list at least one selector"
+        ));
+    }
+    for (field, selectors) in [
+        ("silent", &policy.silent),
+        ("trigger", &policy.trigger),
+        ("store", &policy.store),
+        ("emit", &policy.emit),
+    ] {
+        for selector in selectors.iter().flat_map(|values| values.iter()) {
+            if !policy.accepted.contains(selector) {
+                errors.push(format!(
+                    "{label} messageSelectors.{field} selector {selector} is not accepted"
+                ));
+            }
+        }
+    }
+    if policy
+        .trigger
+        .as_ref()
+        .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+    {
+        errors.push(format!(
+            "{label} messageSelectors.trigger must not include set"
+        ));
+    }
+    if policy
+        .emit
+        .as_ref()
+        .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+    {
+        errors.push(format!(
+            "{label} messageSelectors.emit must not include set"
+        ));
+    }
+    if policy.accepted.iter().any(|selector| selector == "set")
+        && !policy
+            .silent
+            .as_ref()
+            .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+        && !policy
+            .store
+            .as_ref()
+            .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+    {
+        errors.push(format!(
+            "{label} messageSelectors.set must be silent or store behavior"
+        ));
+    }
+
+    errors
+}
+
+fn object_text_parse_result_semantic_errors(result: &ObjectTextParseResultV01) -> Vec<String> {
+    result
+        .instance_ports
+        .iter()
+        .flat_map(|port| {
+            object_text_message_selector_policy_errors(
+                port,
+                &format!(
+                    "objectText instancePort {}.{}",
+                    result.class_symbol, port.id
+                ),
+            )
+        })
+        .collect()
 }
 
 fn diagnostic(code: &str, message: impl Into<String>) -> ObjectTextDiagnosticV01 {
@@ -282,8 +388,10 @@ fn input_port(
         direction: ObjectTextPortDirectionV01::Input,
         port_type: port_type.to_owned(),
         rate: Some(rate),
+        accepts: None,
         activation: Some(activation),
         default_value: None,
+        message_selectors: None,
         description: None,
     }
 }
@@ -294,41 +402,69 @@ fn output_port(id: &str, port_type: &str, rate: ObjectTextPortRateV01) -> Object
         direction: ObjectTextPortDirectionV01::Output,
         port_type: port_type.to_owned(),
         rate: Some(rate),
+        accepts: None,
         activation: None,
         default_value: None,
+        message_selectors: None,
         description: None,
+    }
+}
+
+fn numeric_trigger_message_selectors() -> MessageSelectorPolicyV01 {
+    let selectors = ["bang", "float", "int", "uint", "bool"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    MessageSelectorPolicyV01 {
+        accepted: selectors.clone(),
+        silent: None,
+        trigger: Some(selectors.clone()),
+        store: None,
+        emit: Some(selectors),
     }
 }
 
 fn control_ports(default_value: f64) -> Vec<ObjectTextPortV01> {
     let mut right = input_port(
         "right",
-        "number.float",
+        "control.number.float",
         ObjectTextPortRateV01::Control,
         ObjectTextPortActivationV01::Latched,
     );
     right.default_value = Some(numeric_json(default_value));
+    let mut hot = input_port(
+        "in",
+        "control.message.any",
+        ObjectTextPortRateV01::Control,
+        ObjectTextPortActivationV01::Trigger,
+    );
+    hot.message_selectors = Some(numeric_trigger_message_selectors());
     vec![
-        input_port(
-            "in",
-            "message.any",
-            ObjectTextPortRateV01::Control,
-            ObjectTextPortActivationV01::Trigger,
-        ),
+        hot,
         right,
-        output_port("out", "number.float", ObjectTextPortRateV01::Control),
+        output_port(
+            "out",
+            "control.number.float",
+            ObjectTextPortRateV01::Control,
+        ),
     ]
 }
 
 fn control_sqrt_ports() -> Vec<ObjectTextPortV01> {
+    let mut hot = input_port(
+        "in",
+        "control.message.any",
+        ObjectTextPortRateV01::Control,
+        ObjectTextPortActivationV01::Trigger,
+    );
+    hot.message_selectors = Some(numeric_trigger_message_selectors());
     vec![
-        input_port(
-            "in",
-            "message.any",
+        hot,
+        output_port(
+            "out",
+            "control.number.float",
             ObjectTextPortRateV01::Control,
-            ObjectTextPortActivationV01::Trigger,
         ),
-        output_port("out", "number.float", ObjectTextPortRateV01::Control),
     ]
 }
 
@@ -353,7 +489,7 @@ fn audio_binary_ports() -> Vec<ObjectTextPortV01> {
 fn audio_scalar_ports(default_value: f64) -> Vec<ObjectTextPortV01> {
     let mut right = input_port(
         "right",
-        "number.float",
+        "control.number.float",
         ObjectTextPortRateV01::Control,
         ObjectTextPortActivationV01::Latched,
     );
@@ -385,7 +521,7 @@ fn audio_unary_ports() -> Vec<ObjectTextPortV01> {
 fn oscillator_ports(default_value: f64) -> Vec<ObjectTextPortV01> {
     let mut frequency = input_port(
         "frequency",
-        "number.float",
+        "control.number.float",
         ObjectTextPortRateV01::Control,
         ObjectTextPortActivationV01::Latched,
     );

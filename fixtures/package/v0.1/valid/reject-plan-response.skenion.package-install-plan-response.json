@@ -18,13 +18,17 @@
     {
       "kind": "target-triple",
       "status": "fail",
-      "diagnosticRefs": ["diag-unsupported-target"],
+      "diagnosticRefs": [
+        "diag-unsupported-target"
+      ],
       "message": "No native artifact is available for the requested target."
     },
     {
       "kind": "provenance",
       "status": "fail",
-      "diagnosticRefs": ["diag-missing-artifact"],
+      "diagnosticRefs": [
+        "diag-missing-artifact"
+      ],
       "message": "The requested target has no artifact evidence to verify."
     }
   ],
@@ -34,7 +38,10 @@
       "order": 0,
       "kind": "reject",
       "packageId": "example/native-sensor",
-      "diagnosticRefs": ["diag-unsupported-target", "diag-missing-artifact"],
+      "diagnosticRefs": [
+        "diag-unsupported-target",
+        "diag-missing-artifact"
+      ],
       "reason": "Fail closed because the requested native target is unsupported."
     }
   ],

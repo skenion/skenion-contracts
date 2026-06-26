@@ -51,7 +51,7 @@
             "ops": [
               {
                 "op": "setNodeView",
-                "nodeId": "value_1",
+                "nodeId": "float_1",
                 "view": {
                   "x": 0,
                   "y": 0

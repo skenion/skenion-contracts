@@ -15,7 +15,7 @@
     }
   ],
   "execution": {
-    "model": "value",
+    "model": "control",
     "clock": "external"
   },
   "state": {

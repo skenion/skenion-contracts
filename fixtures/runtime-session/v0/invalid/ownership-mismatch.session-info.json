@@ -27,7 +27,9 @@
     "sessionAddressing": true,
     "eventReplay": true,
     "multiWindow": true,
-    "profiles": ["local-managed"],
+    "profiles": [
+      "local-managed"
+    ],
     "authPolicy": "deferred"
   },
   "eventReplay": {

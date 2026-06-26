@@ -10,7 +10,7 @@
       "id": "frequency",
       "direction": "input",
       "label": "Frequency",
-      "type": "number.float",
+      "type": "control.number.float",
       "required": false
     },
     {

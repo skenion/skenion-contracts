@@ -17,21 +17,55 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "store": [
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ]
+          }
         },
         {
           "id": "cold",
           "direction": "input",
           "label": "Cold",
-          "type": "number.float",
+          "type": "control.number.float",
           "required": false
         },
         {
           "id": "value",
           "direction": "output",
           "label": "Value",
-          "type": "number.float"
+          "type": "control.number.float"
         }
       ]
     },
@@ -54,21 +88,43 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "color"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "color"
+            ],
+            "store": [
+              "set",
+              "color"
+            ],
+            "emit": [
+              "bang",
+              "color"
+            ]
+          }
         },
         {
           "id": "cold",
           "direction": "input",
           "label": "Cold",
-          "type": "color",
+          "type": "control.color",
           "required": false
         },
         {
           "id": "value",
           "direction": "output",
           "label": "Color",
-          "type": "color"
+          "type": "control.color"
         }
       ]
     },
@@ -85,13 +141,13 @@
           "id": "speed",
           "direction": "input",
           "label": "Speed",
-          "type": "number.float"
+          "type": "control.number.float"
         },
         {
           "id": "tint",
           "direction": "input",
           "label": "Tint",
-          "type": "color"
+          "type": "control.color"
         },
         {
           "id": "out",

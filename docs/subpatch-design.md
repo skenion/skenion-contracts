@@ -30,7 +30,7 @@ boundary node contract:
 - child node registry requirements
 - optional help/example metadata
 
-Values cross the boundary only through declared inlet/outlet ports. Runtime
+Payloads cross the boundary only through declared inlet/outlet ports. Runtime
 control panels may inspect child addresses when a session exposes them, but graph
 execution may not implicitly read parent or sibling state.
 

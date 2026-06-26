@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DataFlowV01 {
-    Value,
+    Control,
     Event,
     Signal,
     Stream,
@@ -161,6 +161,21 @@ pub enum CycleValidationV01 {
     InvalidCycle,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageSelectorPolicyV01 {
+    pub accepted: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub silent: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trigger: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub emit: Option<Vec<String>>,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -189,6 +204,8 @@ pub struct PortSpecV01 {
     pub fan_out_policy: Option<FanOutPolicyV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trigger_mode: Option<TriggerModeV01>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_selectors: Option<MessageSelectorPolicyV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_value: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2516,7 +2533,7 @@ pub struct GraphValidationResultV01 {
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionModelV01 {
     Event,
-    Value,
+    Control,
     Frame,
     AudioBlock,
     VideoFrame,

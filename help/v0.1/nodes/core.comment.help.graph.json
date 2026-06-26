@@ -16,8 +16,19 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "messageSelectors": {
+            "accepted": [
+              "set"
+            ],
+            "silent": [
+              "set"
+            ],
+            "store": [
+              "set"
+            ]
+          }
         }
       ]
     },
@@ -33,8 +44,19 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "messageSelectors": {
+            "accepted": [
+              "set"
+            ],
+            "silent": [
+              "set"
+            ],
+            "store": [
+              "set"
+            ]
+          }
         }
       ]
     }

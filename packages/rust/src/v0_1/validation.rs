@@ -233,12 +233,21 @@ fn validate_package_checksum_v01(
 
 fn is_message_any_compatible(source_type: &DataTypeV01, target_type: &DataTypeV01) -> bool {
     if target_type.flow == DataFlowV01::Event {
-        return source_type.flow == DataFlowV01::Event
-            || (source_type.flow == DataFlowV01::Value && source_type.data_kind == "event.bang");
+        return source_type.flow == DataFlowV01::Event;
     }
 
-    if target_type.flow == DataFlowV01::Value {
-        return source_type.flow == DataFlowV01::Value
+    if target_type.flow == DataFlowV01::Control {
+        return (source_type.flow == DataFlowV01::Control
+            && matches!(
+                source_type.data_kind.as_str(),
+                "number.float"
+                    | "number.int"
+                    | "number.uint"
+                    | "bool"
+                    | "color"
+                    | "string"
+                    | "message.any"
+            ))
             || (source_type.flow == DataFlowV01::Event && source_type.data_kind == "event.bang");
     }
 
@@ -255,7 +264,7 @@ pub fn compatible_data_types_v01(source_type: &DataTypeV01, target_type: &DataTy
 
 pub fn type_label_v01(data_type: &DataTypeV01) -> String {
     let flow = match data_type.flow {
-        DataFlowV01::Value => "value",
+        DataFlowV01::Control => "control",
         DataFlowV01::Event => "event",
         DataFlowV01::Signal => "signal",
         DataFlowV01::Stream => "stream",
@@ -327,7 +336,8 @@ fn merge_policy_for(port: &PortSpecV01) -> MergePolicyV01 {
 }
 
 fn accepts(source: &PortSpecV01, target: &PortSpecV01) -> bool {
-    if target.port_type == "message.any" && is_control_message_port_type(&source.port_type) {
+    if target.port_type == "control.message.any" && is_control_message_port_type(&source.port_type)
+    {
         return true;
     }
     if source.port_type == target.port_type {
@@ -342,15 +352,104 @@ fn accepts(source: &PortSpecV01, target: &PortSpecV01) -> bool {
 fn is_control_message_port_type(port_type: &str) -> bool {
     matches!(
         port_type,
+        "control.message.any"
+            | "control.number.float"
+            | "control.number.int"
+            | "control.number.uint"
+            | "control.bool"
+            | "control.color"
+            | "control.string"
+    )
+}
+
+fn is_legacy_control_port_type(port_type: &str) -> bool {
+    matches!(
+        port_type,
         "message.any"
-            | "event.bang"
             | "number.float"
             | "number.int"
             | "number.uint"
             | "boolean"
             | "color"
             | "string"
-    )
+    ) || port_type.starts_with("value.")
+        || port_type.starts_with("value<")
+}
+
+fn is_selector_aware_input_port(port: &PortSpecV01) -> bool {
+    port.direction == PortDirectionV01::Input
+        && (port.port_type == "control.message.any"
+            || port.accepts.as_ref().is_some_and(|accepted| {
+                accepted.iter().any(|value| value == "control.message.any")
+            }))
+}
+
+fn message_selector_policy_errors(port: &PortSpecV01, label: &str) -> Vec<String> {
+    let Some(policy) = &port.message_selectors else {
+        return if is_selector_aware_input_port(port) {
+            vec![format!(
+                "{label} selector-aware input port requires messageSelectors"
+            )]
+        } else {
+            Vec::new()
+        };
+    };
+
+    let mut errors = Vec::new();
+    if policy.accepted.is_empty() {
+        errors.push(format!(
+            "{label} messageSelectors.accepted must list at least one selector"
+        ));
+    }
+
+    for (field, selectors) in [
+        ("silent", &policy.silent),
+        ("trigger", &policy.trigger),
+        ("store", &policy.store),
+        ("emit", &policy.emit),
+    ] {
+        for selector in selectors.iter().flat_map(|values| values.iter()) {
+            if !policy.accepted.contains(selector) {
+                errors.push(format!(
+                    "{label} messageSelectors.{field} selector {selector} is not accepted"
+                ));
+            }
+        }
+    }
+    if policy
+        .trigger
+        .as_ref()
+        .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+    {
+        errors.push(format!(
+            "{label} messageSelectors.trigger must not include set"
+        ));
+    }
+    if policy
+        .emit
+        .as_ref()
+        .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+    {
+        errors.push(format!(
+            "{label} messageSelectors.emit must not include set"
+        ));
+    }
+    if policy.accepted.iter().any(|selector| selector == "set")
+        && !policy
+            .silent
+            .as_ref()
+            .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+        && !policy
+            .store
+            .as_ref()
+            .is_some_and(|selectors| selectors.iter().any(|selector| selector == "set"))
+    {
+        errors.push(format!(
+            "{label} messageSelectors.set must be silent or store behavior"
+        ));
+    }
+
+    errors
 }
 
 pub fn analyze_graph_fragment_v01(
@@ -387,6 +486,48 @@ pub fn analyze_graph_fragment_v01(
                     None,
                 );
             }
+            if is_legacy_control_port_type(&port.port_type) {
+                fragment_diagnostic(
+                    &mut diagnostics,
+                    "error",
+                    "legacy-port-type",
+                    format!(
+                        "port {}.{} uses legacy control port type {}",
+                        node.id, port.id, port.port_type
+                    ),
+                    Some(vec![node.id.clone()]),
+                    None,
+                );
+            }
+            if let Some(accepted) = &port.accepts {
+                for accepted_type in accepted {
+                    if is_legacy_control_port_type(accepted_type) {
+                        fragment_diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "legacy-port-type",
+                            format!(
+                                "port {}.{} accepts legacy control port type {}",
+                                node.id, port.id, accepted_type
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+            }
+            for error in
+                message_selector_policy_errors(port, &format!("port {}.{}", node.id, port.id))
+            {
+                fragment_diagnostic(
+                    &mut diagnostics,
+                    "error",
+                    "message-selector-policy",
+                    error,
+                    Some(vec![node.id.clone()]),
+                    None,
+                );
+            }
             ports.insert(port_key(&node.id, &port.id), port.clone());
         }
     }
@@ -398,6 +539,24 @@ pub fn analyze_graph_fragment_v01(
                 "error",
                 "duplicate-edge-id",
                 format!("duplicate edge id: {}", edge.id),
+                None,
+                Some(vec![edge.id.clone()]),
+            );
+        }
+        if edge
+            .resolved_type
+            .as_ref()
+            .is_some_and(|port_type| is_legacy_control_port_type(port_type))
+        {
+            fragment_diagnostic(
+                &mut diagnostics,
+                "error",
+                "legacy-port-type",
+                format!(
+                    "edge {} uses legacy resolvedType {}",
+                    edge.id,
+                    edge.resolved_type.as_deref().unwrap_or_default()
+                ),
                 None,
                 Some(vec![edge.id.clone()]),
             );
@@ -512,19 +671,33 @@ fn port_family(port_type: &str) -> &str {
         .map_or(port_type, |(family, _)| family)
 }
 
+fn is_control_cycle_port_type(port_type: &str) -> bool {
+    matches!(
+        port_type,
+        "control.message.any"
+            | "event.bang"
+            | "control.number.float"
+            | "control.number.int"
+            | "control.number.uint"
+            | "control.bool"
+            | "control.color"
+            | "control.string"
+    ) || matches!(port_family(port_type), "control")
+}
+
 fn control_cycle_types(edges: &[EdgeSpecV01], ports: &HashMap<String, PortSpecV01>) -> bool {
     edges.iter().all(|edge| {
         let source_key = port_key(&edge.source.node_id, &edge.source.port_id);
         let target_key = port_key(&edge.target.node_id, &edge.target.port_id);
-        let source_family = ports
+        let source_type = ports
             .get(&source_key)
-            .map(|port| port_family(&port.port_type))
+            .map(|port| port.port_type.as_str())
             .unwrap_or_default();
-        let target_family = ports
+        let target_type = ports
             .get(&target_key)
-            .map(|port| port_family(&port.port_type))
+            .map(|port| port.port_type.as_str())
             .unwrap_or_default();
-        matches!(source_family, "value" | "control") && matches!(target_family, "value" | "control")
+        is_control_cycle_port_type(source_type) && is_control_cycle_port_type(target_type)
     })
 }
 
@@ -566,7 +739,7 @@ fn classify_cycle(
     };
     let message = match classification {
         CycleValidationV01::AmbiguousAlgebraicLoop => {
-            "control/value cycle requires explicit latch, delay, or feedback policy"
+            "control cycle requires explicit latch, delay, or feedback policy"
         }
         _ => "cycle requires explicit feedback policy",
     };
@@ -702,6 +875,48 @@ pub fn analyze_graph_document_v01(graph: &GraphDocumentV01) -> GraphValidationRe
                     None,
                 );
             }
+            if is_legacy_control_port_type(&port.port_type) {
+                diagnostic(
+                    &mut diagnostics,
+                    "error",
+                    "legacy-port-type",
+                    format!(
+                        "port {}.{} uses legacy control port type {}",
+                        node.id, port.id, port.port_type
+                    ),
+                    Some(vec![node.id.clone()]),
+                    None,
+                );
+            }
+            if let Some(accepted) = &port.accepts {
+                for accepted_type in accepted {
+                    if is_legacy_control_port_type(accepted_type) {
+                        diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "legacy-port-type",
+                            format!(
+                                "port {}.{} accepts legacy control port type {}",
+                                node.id, port.id, accepted_type
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+            }
+            for error in
+                message_selector_policy_errors(port, &format!("port {}.{}", node.id, port.id))
+            {
+                diagnostic(
+                    &mut diagnostics,
+                    "error",
+                    "message-selector-policy",
+                    error,
+                    Some(vec![node.id.clone()]),
+                    None,
+                );
+            }
             let key = port_key(&node.id, &port.id);
             ports.insert(key.clone(), port.clone());
             incoming.insert(key.clone(), Vec::new());
@@ -709,6 +924,74 @@ pub fn analyze_graph_document_v01(graph: &GraphDocumentV01) -> GraphValidationRe
         }
 
         for group in node.port_groups.as_deref().unwrap_or_default() {
+            if is_legacy_control_port_type(&group.port_type) {
+                diagnostic(
+                    &mut diagnostics,
+                    "error",
+                    "legacy-port-type",
+                    format!(
+                        "port group {}.{} uses legacy control port type {}",
+                        node.id, group.id, group.port_type
+                    ),
+                    Some(vec![node.id.clone()]),
+                    None,
+                );
+            }
+            if group
+                .default_port_spec
+                .as_ref()
+                .is_some_and(|port| is_legacy_control_port_type(&port.port_type))
+            {
+                diagnostic(
+                    &mut diagnostics,
+                    "error",
+                    "legacy-port-type",
+                    format!(
+                        "port group {}.{} default port uses legacy control port type {}",
+                        node.id,
+                        group.id,
+                        group
+                            .default_port_spec
+                            .as_ref()
+                            .map(|port| port.port_type.as_str())
+                            .unwrap_or_default()
+                    ),
+                    Some(vec![node.id.clone()]),
+                    None,
+                );
+            }
+            if let Some(default_port) = &group.default_port_spec {
+                if let Some(accepted) = &default_port.accepts {
+                    for accepted_type in accepted {
+                        if is_legacy_control_port_type(accepted_type) {
+                            diagnostic(
+                                &mut diagnostics,
+                                "error",
+                                "legacy-port-type",
+                                format!(
+                                    "port group {}.{} default port accepts legacy control port type {}",
+                                    node.id, group.id, accepted_type
+                                ),
+                                Some(vec![node.id.clone()]),
+                                None,
+                            );
+                        }
+                    }
+                }
+                for error in message_selector_policy_errors(
+                    default_port,
+                    &format!("port group {}.{} defaultPortSpec", node.id, group.id),
+                ) {
+                    diagnostic(
+                        &mut diagnostics,
+                        "error",
+                        "message-selector-policy",
+                        error,
+                        Some(vec![node.id.clone()]),
+                        None,
+                    );
+                }
+            }
             if let Some(max_ports) = group.max_ports {
                 if max_ports >= group.min_ports {
                     continue;
@@ -755,6 +1038,24 @@ pub fn analyze_graph_document_v01(graph: &GraphDocumentV01) -> GraphValidationRe
         let target_key = port_key(&edge.target.node_id, &edge.target.port_id);
         let source = ports.get(&source_key);
         let target = ports.get(&target_key);
+        if edge
+            .resolved_type
+            .as_ref()
+            .is_some_and(|port_type| is_legacy_control_port_type(port_type))
+        {
+            diagnostic(
+                &mut diagnostics,
+                "error",
+                "legacy-port-type",
+                format!(
+                    "edge {} uses legacy resolvedType {}",
+                    edge.id,
+                    edge.resolved_type.as_deref().unwrap_or_default()
+                ),
+                None,
+                Some(vec![edge.id.clone()]),
+            );
+        }
 
         if source.is_none() {
             diagnostic(
@@ -1939,7 +2240,61 @@ pub fn validate_node_definition_v01(
         &format!("port id on {}", definition.id),
     ));
 
+    for port in &definition.ports {
+        if is_legacy_control_port_type(&port.port_type) {
+            errors.push(ValidationErrorV01::new(format!(
+                "legacy port type on {}.{}: {}",
+                definition.id, port.id, port.port_type
+            )));
+        }
+        if let Some(accepted) = &port.accepts {
+            for accepted_type in accepted {
+                if is_legacy_control_port_type(accepted_type) {
+                    errors.push(ValidationErrorV01::new(format!(
+                        "legacy accepted port type on {}.{}: {}",
+                        definition.id, port.id, accepted_type
+                    )));
+                }
+            }
+        }
+        for error in
+            message_selector_policy_errors(port, &format!("port {}.{}", definition.id, port.id))
+        {
+            errors.push(ValidationErrorV01::new(error));
+        }
+    }
+
     for group in definition.port_groups.as_deref().unwrap_or_default() {
+        if is_legacy_control_port_type(&group.port_type) {
+            errors.push(ValidationErrorV01::new(format!(
+                "legacy port group type on {}.{}: {}",
+                definition.id, group.id, group.port_type
+            )));
+        }
+        if let Some(default_port) = &group.default_port_spec {
+            if is_legacy_control_port_type(&default_port.port_type) {
+                errors.push(ValidationErrorV01::new(format!(
+                    "legacy default port type on {}.{}: {}",
+                    definition.id, group.id, default_port.port_type
+                )));
+            }
+            if let Some(accepted) = &default_port.accepts {
+                for accepted_type in accepted {
+                    if is_legacy_control_port_type(accepted_type) {
+                        errors.push(ValidationErrorV01::new(format!(
+                            "legacy default accepted port type on {}.{}: {}",
+                            definition.id, group.id, accepted_type
+                        )));
+                    }
+                }
+            }
+            for error in message_selector_policy_errors(
+                default_port,
+                &format!("port group {}.{} defaultPortSpec", definition.id, group.id),
+            ) {
+                errors.push(ValidationErrorV01::new(error));
+            }
+        }
         if group.max_ports.is_some_and(|max| max < group.min_ports) {
             errors.push(ValidationErrorV01::new(format!(
                 "port group {}.{} maxPorts is less than minPorts",
@@ -3848,11 +4203,11 @@ mod tests {
               "nodes": [
                 {
                   "id": "source",
-                  "kind": "core.value",
+                  "kind": "core.float",
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "value.number" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 },
                 {
@@ -3861,7 +4216,7 @@ mod tests {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "in", "direction": "input", "type": "value.number" }
+                    { "id": "in", "direction": "input", "type": "control.number.float" }
                   ]
                 }
               ],
@@ -4297,12 +4652,12 @@ mod tests {
                     "schemaVersion": "0.1.0",
                     "nodes": [
                       {
-                        "id": "value_1",
+                        "id": "float_1",
                         "kind": "core.float",
                         "kindVersion": "0.1.0",
                         "params": { "value": 0.5 },
                         "ports": [
-                          { "id": "out", "direction": "output", "type": "number.float", "rate": "control" }
+                          { "id": "out", "direction": "output", "type": "control.number.float", "rate": "control" }
                         ]
                       }
                     ],
@@ -4328,7 +4683,7 @@ mod tests {
                 "ops": [
                   {
                     "op": "setNodeView",
-                    "nodeId": "value_1",
+                    "nodeId": "float_1",
                     "view": { "x": 0, "y": 0 }
                   }
                 ]
@@ -4480,23 +4835,24 @@ mod tests {
         let many = StringOrStringsV01::Many(vec!["f32".to_owned(), "i32".to_owned()]);
         assert_eq!(many.values(), vec!["f32", "i32"]);
 
-        let message_any = data_type(DataFlowV01::Event, "message.any");
+        let event_message_any = data_type(DataFlowV01::Event, "message.any");
         let bang_event = data_type(DataFlowV01::Event, "event.bang");
-        assert!(compatible_data_types_v01(&message_any, &bang_event));
+        assert!(compatible_data_types_v01(&event_message_any, &bang_event));
 
-        let bang_value = data_type(DataFlowV01::Value, "event.bang");
-        assert!(compatible_data_types_v01(&bang_value, &message_any));
-
-        let message_any_value = data_type(DataFlowV01::Value, "message.any");
-        assert!(compatible_data_types_v01(&message_any_value, &bang_value));
-        assert!(compatible_data_types_v01(&bang_event, &message_any_value));
+        let control_message_any = data_type(DataFlowV01::Control, "message.any");
+        let control_string = data_type(DataFlowV01::Control, "string");
+        assert!(compatible_data_types_v01(
+            &control_message_any,
+            &control_string
+        ));
+        assert!(compatible_data_types_v01(&bang_event, &control_message_any));
 
         let signal_any = data_type(DataFlowV01::Signal, "message.any");
         let signal_number = data_type(DataFlowV01::Signal, "number.float");
         assert!(!compatible_data_types_v01(&signal_any, &signal_number));
 
-        assert_eq!(type_label_v01(&bang_value), "value<event.bang>");
         assert_eq!(type_label_v01(&bang_event), "event<event.bang>");
+        assert_eq!(type_label_v01(&control_message_any), "control<message.any>");
         assert_eq!(
             type_label_v01(&data_type(DataFlowV01::Stream, "midi.event")),
             "stream<midi.event>"
@@ -4538,7 +4894,7 @@ mod tests {
             super::super::PortGroupSpecV01 {
                 id: "outputs".to_owned(),
                 direction: PortDirectionV01::Output,
-                port_type: "value.number".to_owned(),
+                port_type: "control.number.float".to_owned(),
                 min_ports: 1,
                 label: Some("Outputs".to_owned()),
                 rate: None,
@@ -4551,7 +4907,7 @@ mod tests {
             super::super::PortGroupSpecV01 {
                 id: "dynamic_outputs".to_owned(),
                 direction: PortDirectionV01::Output,
-                port_type: "value.number".to_owned(),
+                port_type: "control.number.float".to_owned(),
                 min_ports: 0,
                 label: None,
                 rate: None,
@@ -5012,7 +5368,7 @@ mod tests {
                     "kindVersion": "0.1.0",
                     "params": {},
                     "ports": [
-                      { "id": "out", "direction": "output", "type": "number.float" }
+                      { "id": "out", "direction": "output", "type": "control.number.float" }
                     ]
                   }
                 },
@@ -5093,18 +5449,18 @@ mod tests {
               "displayName": "Dynamic Group",
               "category": "Core",
               "ports": [
-                { "id": "sum", "direction": "output", "type": "number.float" }
+                { "id": "sum", "direction": "output", "type": "control.number.float" }
               ],
               "portGroups": [
                 {
                   "id": "inputs",
                   "direction": "input",
-                  "type": "number.float",
+                  "type": "control.number.float",
                   "minPorts": 1,
                   "maxPorts": 2
                 }
               ],
-              "execution": { "model": "value" },
+              "execution": { "model": "control" },
               "state": { "persistent": false },
               "permissions": [],
               "capabilities": []
@@ -5128,8 +5484,8 @@ mod tests {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "in", "direction": "input", "type": "value.number" },
-                    { "id": "out", "direction": "output", "type": "value.number" }
+                    { "id": "in", "direction": "input", "type": "control.number.float" },
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               ],
@@ -5167,8 +5523,8 @@ mod tests {
                     "kindVersion": "0.1.0",
                     "params": {},
                     "ports": [
-                      { "id": "in", "direction": "input", "type": "value.number" },
-                      { "id": "out", "direction": "output", "type": "value.number" }
+                      { "id": "in", "direction": "input", "type": "control.number.float" },
+                      { "id": "out", "direction": "output", "type": "control.number.float" }
                     ]
                   },
                   {
@@ -5177,8 +5533,8 @@ mod tests {
                     "kindVersion": "0.1.0",
                     "params": {},
                     "ports": [
-                      { "id": "in", "direction": "input", "type": "value.number" },
-                      { "id": "out", "direction": "output", "type": "value.number" }
+                      { "id": "in", "direction": "input", "type": "control.number.float" },
+                      { "id": "out", "direction": "output", "type": "control.number.float" }
                     ]
                   }
                 ],
@@ -5222,7 +5578,7 @@ mod tests {
                         "kindVersion": "0.1.0",
                         "params": {},
                         "ports": [
-                          { "id": "out", "direction": "output", "type": "number.float" }
+                          { "id": "out", "direction": "output", "type": "control.number.float" }
                         ]
                       },
                       {
@@ -5231,7 +5587,7 @@ mod tests {
                         "kindVersion": "0.1.0",
                         "params": {},
                         "ports": [
-                          { "id": "in", "direction": "input", "type": "number.float" }
+                          { "id": "in", "direction": "input", "type": "control.number.float" }
                         ]
                       }
                     ],
@@ -5280,7 +5636,7 @@ mod tests {
                         "kindVersion": "0.1.0",
                         "params": { "portId": "same" },
                         "ports": [
-                          { "id": "out", "direction": "output", "type": "number.float" }
+                          { "id": "out", "direction": "output", "type": "control.number.float" }
                         ]
                       },
                       {
@@ -5289,7 +5645,7 @@ mod tests {
                         "kindVersion": "0.1.0",
                         "params": { "portId": "same" },
                         "ports": [
-                          { "id": "out", "direction": "output", "type": "number.float" }
+                          { "id": "out", "direction": "output", "type": "control.number.float" }
                         ]
                       }
                     ],
@@ -5453,7 +5809,7 @@ mod tests {
 
         graph.nodes.push(GraphNodeV01 {
             id: "source_two".to_owned(),
-            kind: "core.value".to_owned(),
+            kind: "core.float".to_owned(),
             kind_version: "0.1.0".to_owned(),
             object_text: None,
             binding_ref: None,
@@ -5470,6 +5826,7 @@ mod tests {
                 merge_policy: None,
                 fan_out_policy: None,
                 trigger_mode: None,
+                message_selectors: None,
                 default_value: None,
                 latch: None,
                 required: None,
@@ -5532,12 +5889,12 @@ mod tests {
     }
 
     #[test]
-    fn message_any_inlets_accept_bang_events() {
+    fn control_ports_declare_numeric_accepts_and_bang_trigger_behavior() {
         let graph = graph(
             r#"{
               "schema": "skenion.graph",
               "schemaVersion": "0.1.0",
-              "id": "message-any-control-types",
+              "id": "control-accepts-and-bang-trigger",
               "revision": "1",
               "nodes": [
                 {
@@ -5550,66 +5907,52 @@ mod tests {
                   ]
                 },
                 {
-                  "id": "float_value",
-                  "kind": "core.float",
-                  "kindVersion": "0.1.0",
-                  "params": {},
-                  "ports": [
-                    { "id": "value", "direction": "output", "type": "number.float", "rate": "event" }
-                  ]
-                },
-                {
-                  "id": "int_value",
+                  "id": "int_source",
                   "kind": "core.int",
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "value", "direction": "output", "type": "number.int", "rate": "event" }
+                    { "id": "value", "direction": "output", "type": "control.number.int", "rate": "control" }
                   ]
                 },
                 {
-                  "id": "uint_value",
-                  "kind": "core.uint",
-                  "kindVersion": "0.1.0",
-                  "params": {},
-                  "ports": [
-                    { "id": "value", "direction": "output", "type": "number.uint", "rate": "event" }
-                  ]
-                },
-                {
-                  "id": "bool_value",
+                  "id": "bool_source",
                   "kind": "core.bool",
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "value", "direction": "output", "type": "boolean", "rate": "event" }
+                    { "id": "value", "direction": "output", "type": "control.bool", "rate": "control" }
                   ]
                 },
                 {
-                  "id": "color_value",
-                  "kind": "core.color",
+                  "id": "number_box",
+                  "kind": "core.float",
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "value", "direction": "output", "type": "color", "rate": "event" }
-                  ]
-                },
-                {
-                  "id": "string_value",
-                  "kind": "core.string",
-                  "kindVersion": "0.1.0",
-                  "params": {},
-                  "ports": [
-                    { "id": "value", "direction": "output", "type": "string", "rate": "event" }
-                  ]
-                },
-                {
-                  "id": "message",
-                  "kind": "core.message",
-                  "kindVersion": "0.1.0",
-                  "params": {},
-                  "ports": [
-                    { "id": "in", "direction": "input", "type": "message.any", "rate": "event", "maxConnections": 7, "mergePolicy": "ordered-events", "triggerMode": "trigger" }
+                    {
+                      "id": "in",
+                      "direction": "input",
+                      "type": "control.message.any",
+                      "rate": "control",
+                      "accepts": [
+                        "control.number.float",
+                        "control.number.int",
+                        "control.bool",
+                        "event.bang"
+                      ],
+                      "maxConnections": 3,
+                      "mergePolicy": "ordered-events",
+                      "triggerMode": "trigger",
+                      "messageSelectors": {
+                        "accepted": ["bang", "set", "float", "int", "bool"],
+                        "silent": ["set"],
+                        "trigger": ["bang", "float", "int", "bool"],
+                        "store": ["set", "float", "int", "bool"],
+                        "emit": ["bang", "float", "int", "bool"]
+                      },
+                      "latch": true
+                    }
                   ]
                 }
               ],
@@ -5617,43 +5960,131 @@ mod tests {
                 {
                   "id": "edge_button_message",
                   "source": { "nodeId": "button", "portId": "out" },
-                  "target": { "nodeId": "message", "portId": "in" }
+                  "target": { "nodeId": "number_box", "portId": "in" }
                 },
                 {
-                  "id": "edge_float_message",
-                  "source": { "nodeId": "float_value", "portId": "value" },
-                  "target": { "nodeId": "message", "portId": "in" }
+                  "id": "edge_int_number",
+                  "source": { "nodeId": "int_source", "portId": "value" },
+                  "target": { "nodeId": "number_box", "portId": "in" }
                 },
                 {
-                  "id": "edge_int_message",
-                  "source": { "nodeId": "int_value", "portId": "value" },
-                  "target": { "nodeId": "message", "portId": "in" }
-                },
-                {
-                  "id": "edge_uint_message",
-                  "source": { "nodeId": "uint_value", "portId": "value" },
-                  "target": { "nodeId": "message", "portId": "in" }
-                },
-                {
-                  "id": "edge_bool_message",
-                  "source": { "nodeId": "bool_value", "portId": "value" },
-                  "target": { "nodeId": "message", "portId": "in" }
-                },
-                {
-                  "id": "edge_color_message",
-                  "source": { "nodeId": "color_value", "portId": "value" },
-                  "target": { "nodeId": "message", "portId": "in" }
-                },
-                {
-                  "id": "edge_string_message",
-                  "source": { "nodeId": "string_value", "portId": "value" },
-                  "target": { "nodeId": "message", "portId": "in" }
+                  "id": "edge_bool_number",
+                  "source": { "nodeId": "bool_source", "portId": "value" },
+                  "target": { "nodeId": "number_box", "portId": "in" }
                 }
               ]
             }"#,
         );
 
-        validate_graph_document_v01(&graph).expect("event.bang should feed message.any");
+        validate_graph_document_v01(&graph)
+            .expect("numeric control accepts and explicit bang trigger should validate");
+
+        let mut missing_selector_policy = graph.clone();
+        missing_selector_policy.nodes[3].ports[0].message_selectors = None;
+        let report = validate_graph_document_v01(&missing_selector_policy)
+            .expect_err("selector-aware input should require messageSelectors");
+        assert!(report.to_string().contains("requires messageSelectors"));
+
+        let mut invalid_set_trigger = graph.clone();
+        if let Some(policy) = &mut invalid_set_trigger.nodes[3].ports[0].message_selectors {
+            policy.accepted = vec!["set".to_owned()];
+            policy.silent = None;
+            policy.trigger = Some(vec!["set".to_owned()]);
+            policy.store = None;
+            policy.emit = None;
+        }
+        let report = validate_graph_document_v01(&invalid_set_trigger)
+            .expect_err("set must not be trigger behavior");
+        let text = report.to_string();
+        assert!(text.contains("trigger must not include set"));
+        assert!(text.contains("set must be silent or store behavior"));
+
+        let mut without_bang_accept = graph.clone();
+        without_bang_accept.nodes[3].ports[0].accepts = Some(vec![
+            "control.number.float".to_owned(),
+            "control.number.int".to_owned(),
+            "control.bool".to_owned(),
+        ]);
+        let report = validate_graph_document_v01(&without_bang_accept)
+            .expect_err("bang requires an explicit accepted type");
+        assert!(report.to_string().contains("incompatible-type"));
+    }
+
+    #[test]
+    fn rejects_legacy_control_port_aliases_in_current_contracts() {
+        let legacy_types = [
+            "value.number",
+            "value<number.float>",
+            "number.float",
+            "number.int",
+            "number.uint",
+            "boolean",
+            "message.any",
+        ];
+
+        for legacy_type in legacy_types {
+            let mut graph = base_graph();
+            graph.nodes[0].ports[0].port_type = legacy_type.to_owned();
+            let report = validate_graph_document_v01(&graph).expect_err("legacy port should fail");
+            assert!(
+                report.to_string().contains("legacy-port-type"),
+                "{legacy_type}"
+            );
+
+            let mut graph = base_graph();
+            graph.nodes[1].ports[0].port_type = "control.message.any".to_owned();
+            graph.nodes[1].ports[0].accepts = Some(vec![legacy_type.to_owned()]);
+            let report =
+                validate_graph_document_v01(&graph).expect_err("legacy accepted type should fail");
+            assert!(
+                report.to_string().contains("legacy-port-type"),
+                "{legacy_type}"
+            );
+
+            let mut graph = base_graph();
+            graph.edges[0].resolved_type = Some(legacy_type.to_owned());
+            let report =
+                validate_graph_document_v01(&graph).expect_err("legacy resolvedType should fail");
+            assert!(
+                report.to_string().contains("legacy-port-type"),
+                "{legacy_type}"
+            );
+
+            let legacy_id: String = legacy_type
+                .chars()
+                .map(|character| {
+                    if character.is_ascii_alphanumeric() {
+                        character
+                    } else {
+                        '-'
+                    }
+                })
+                .collect();
+            let definition = node(&format!(
+                r#"{{
+                  "schema": "skenion.node.definition",
+                  "schemaVersion": "0.1.0",
+                  "id": "legacy.{}",
+                  "version": "0.1.0",
+                  "displayName": "Legacy",
+                  "category": "Test",
+                  "ports": [
+                    {{ "id": "in", "direction": "input", "type": "{}" }}
+                  ],
+                  "execution": {{ "model": "control" }},
+                  "state": {{ "persistent": false }},
+                  "permissions": [],
+                  "capabilities": []
+                }}"#,
+                legacy_id, legacy_type
+            ));
+            let report =
+                validate_node_definition_v01(&definition).expect_err("legacy node should fail");
+            assert!(
+                report.to_string().contains("legacy port type"),
+                "{legacy_type}"
+            );
+        }
     }
 
     #[test]
@@ -5662,7 +6093,7 @@ mod tests {
         graph.nodes[0].ports.push(PortSpecV01 {
             id: "in".to_owned(),
             direction: PortDirectionV01::Input,
-            port_type: "value.number".to_owned(),
+            port_type: "control.number.float".to_owned(),
             label: None,
             rate: None,
             accepts: None,
@@ -5671,6 +6102,7 @@ mod tests {
             merge_policy: None,
             fan_out_policy: None,
             trigger_mode: None,
+            message_selectors: None,
             default_value: None,
             latch: None,
             required: None,
@@ -5681,7 +6113,7 @@ mod tests {
         graph.nodes[1].ports.push(PortSpecV01 {
             id: "out".to_owned(),
             direction: PortDirectionV01::Output,
-            port_type: "value.number".to_owned(),
+            port_type: "control.number.float".to_owned(),
             label: None,
             rate: None,
             accepts: None,
@@ -5690,6 +6122,7 @@ mod tests {
             merge_policy: None,
             fan_out_policy: None,
             trigger_mode: None,
+            message_selectors: None,
             default_value: None,
             latch: None,
             required: None,
@@ -5790,7 +6223,7 @@ mod tests {
         invalid.port_groups = Some(vec![super::super::PortGroupSpecV01 {
             id: "bad".to_owned(),
             direction: PortDirectionV01::Input,
-            port_type: "value.number".to_owned(),
+            port_type: "control.number.float".to_owned(),
             min_ports: 2,
             label: None,
             rate: None,
@@ -5987,7 +6420,7 @@ mod tests {
                             {
                                 "id": "",
                                 "direction": "input",
-                                    "type": "number.float"
+                                    "type": "control.number.float"
                                 }
                             ]
                         },
@@ -6107,7 +6540,7 @@ mod tests {
             port_groups: Some(vec![super::super::PortGroupSpecV01 {
                 id: "bad".to_owned(),
                 direction: PortDirectionV01::Input,
-                port_type: "value.number".to_owned(),
+                port_type: "control.number.float".to_owned(),
                 min_ports: 2,
                 label: None,
                 rate: None,

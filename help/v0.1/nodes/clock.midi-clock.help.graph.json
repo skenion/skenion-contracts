@@ -30,7 +30,7 @@
           "id": "running",
           "direction": "output",
           "label": "Running",
-          "type": "boolean"
+          "type": "control.bool"
         }
       ]
     },

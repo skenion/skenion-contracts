@@ -24,7 +24,9 @@
           "algorithm": "sha256",
           "value": "not-sha256"
         },
-        "evidenceRefs": ["manifest-checksum"]
+        "evidenceRefs": [
+          "manifest-checksum"
+        ]
       }
     ],
     "evidence": [

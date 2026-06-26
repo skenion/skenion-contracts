@@ -30,7 +30,10 @@
         "displayName": "Skenion Examples",
         "summary": "Reusable example patch library.",
         "category": "patch",
-        "tags": ["examples", "patches"],
+        "tags": [
+          "examples",
+          "patches"
+        ],
         "license": "Apache-2.0",
         "contracts": {
           "line": "0.45",
@@ -47,7 +50,9 @@
               "description": "Simple oscillator patch."
             }
           ],
-          "capabilities": ["patch-library"]
+          "capabilities": [
+            "patch-library"
+          ]
         },
         "artifactEvidence": {
           "artifacts": [
@@ -58,7 +63,9 @@
                 "algorithm": "sha256",
                 "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
               },
-              "evidenceRefs": ["manifest-checksum"]
+              "evidenceRefs": [
+                "manifest-checksum"
+              ]
             }
           ],
           "evidence": [

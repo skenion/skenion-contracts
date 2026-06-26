@@ -10,7 +10,10 @@
     "range": ">=0.45.0 <0.46.0"
   },
   "runtimeAbiRange": ">=0.45.0 <0.46.0",
-  "targets": ["aarch64-apple-darwin", "x86_64-apple-darwin"],
+  "targets": [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin"
+  ],
   "provides": {
     "nodes": [
       {
@@ -26,8 +29,12 @@
     ]
   },
   "paths": {
-    "resources": ["resources/calibration.json"],
-    "docs": ["help/sensor-reading.md"]
+    "resources": [
+      "resources/calibration.json"
+    ],
+    "docs": [
+      "help/sensor-reading.md"
+    ]
   },
   "checksums": [
     {
@@ -67,7 +74,9 @@
         "algorithm": "sha256",
         "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
       },
-      "evidenceRefs": ["native-attestation"]
+      "evidenceRefs": [
+        "native-attestation"
+      ]
     }
   ]
 }

@@ -1,32 +1,32 @@
 # Control Routing
 
 skenion v0.1 uses object-owned typed routing for non-local control values.
-Value, message, panel, and annotation objects can publish to or receive from
-named channels through `sendName` and `receiveName` params. Standalone routing
-objects are not part of the builtin object model.
+Typed control, message, panel, and annotation objects can publish to or receive
+from named channels through `sendName` and `receiveName` params. Standalone
+routing objects are not part of the builtin object model.
 
 ## Object-Owned Channels
 
 The v0.1 channel key is:
 
 ```text
-<dataKind>:<name>
+<control-port-type>:<name>
 ```
 
 Examples:
 
 ```text
-number.float:speed
-number.int:iterations
-boolean:enabled
-color:tint
-string:status
-message.any:reset
+control.number.float:speed
+control.number.int:iterations
+control.bool:enabled
+control.color:tint
+control.string:status
+control.message.any:reset
 ```
 
 Generic graph dataflow is intentionally not part of v0.1, but control objects
-may use `message.any` on object inlets for Max/Pd-style coercion. A typed
-channel is still keyed by canonical data kind.
+may use `control.message.any` on object inlets for Max/Pd-style coercion. A typed
+channel is still keyed by its canonical control port type.
 
 ## Routing Params
 
@@ -40,10 +40,11 @@ Routing-capable objects may declare these graph params:
 ```
 
 When an object emits a value, Runtime also writes the emitted value to
-`<dataKind>:<sendName>` if `sendName` is non-empty. When Runtime receives a
+`<control-port-type>:<sendName>` if `sendName` is non-empty. When Runtime receives a
 compatible channel update for an object's `receiveName`, it may update that
 object's runtime state or dispatch the incoming message to an object handler.
-For `core.bang`, any compatible channel message triggers `out` as `event.bang`.
+For `core.bang`, compatible non-set channel messages trigger `out` as
+`event.bang`; `set ...` is accepted silently and does not emit.
 
 The graph must still use explicit edges for execution dependencies. Hidden
 shader or render reads from channel names are not part of v0.1.
@@ -61,13 +62,14 @@ Widget params choose the visible object style without changing the canonical
 node kind. These interactions are performance-time state changes, not graph
 edits:
 
-- `core.bang` accepts any incoming control message and emits `event.bang`
+- `core.bang` accepts incoming control messages; non-set messages emit
+  `event.bang`, while `set ...` is silent
 - `core.comment` accepts `set <text>` on `in` and updates runtime display text
   without output
 - `core.panel` accepts `set <hex>` on `in` and updates runtime panel color
   without output
-- `core.float` with `widget: "slider"` sends typed values to the hot `in` inlet
-  and emits `value<number.float>`
+- `core.float` with `widget: "slider"` sends typed payloads to the hot `in`
+  inlet and emits `control.number.float`
 - `core.bool` with `widget: "toggle"` handles `bang`, `0/1`, `off/on`,
   `false/true`, and `set` forms through its hot `in` inlet
 

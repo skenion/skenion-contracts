@@ -2,7 +2,7 @@
   "schema": "skenion.node.help",
   "schemaVersion": "0.1.0",
   "id": "core.color",
-  "summary": "Stores and emits an Color color control value.",
+  "summary": "Stores and emits a color control payload.",
   "description": "Use Color for color controls. Component values are normalized floats in graph and runtime payloads.",
   "helpGraph": "help/v0.1/nodes/core.color.help.graph.json",
   "tags": [
@@ -10,18 +10,18 @@
     "control",
     "color"
   ],
-  "runtimeBehavior": "in is the hot inlet: color values update and emit, bang emits the stored color, and set ... updates silently. cold updates silently.",
+  "runtimeBehavior": "in is the hot control.message.any inlet: color payloads update and emit, bang emits the stored color payload, and set ... updates silently. cold updates silently.",
   "relatedNodes": [
     "render.fullscreen-shader"
   ],
   "ports": [
     {
       "id": "in",
-      "description": "Hot inlet: color values update and emit; bang emits the stored color; set ... updates silently."
+      "description": "Hot inlet: color payloads update and emit; bang emits the stored color payload; set ... updates silently."
     },
     {
       "id": "cold",
-      "description": "Cold inlet: compatible color values or set ... update without emitting."
+      "description": "Cold inlet: compatible color payloads update without emitting."
     },
     {
       "id": "value",

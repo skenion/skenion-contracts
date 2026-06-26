@@ -20,14 +20,37 @@
     {
       "id": "in",
       "direction": "input",
-      "type": "message.any",
+      "type": "control.message.any",
       "rate": "control",
-      "activation": "trigger"
+      "activation": "trigger",
+      "messageSelectors": {
+        "accepted": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool"
+        ],
+        "trigger": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool"
+        ],
+        "emit": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool"
+        ]
+      }
     },
     {
       "id": "right",
       "direction": "input",
-      "type": "number.float",
+      "type": "control.number.float",
       "rate": "control",
       "activation": "latched",
       "defaultValue": 0.5
@@ -35,7 +58,7 @@
     {
       "id": "out",
       "direction": "output",
-      "type": "number.float",
+      "type": "control.number.float",
       "rate": "control"
     }
   ],

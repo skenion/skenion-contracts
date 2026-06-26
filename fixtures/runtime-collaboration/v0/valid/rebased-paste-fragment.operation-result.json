@@ -70,7 +70,7 @@
                 {
                   "id": "out",
                   "direction": "output",
-                  "type": "number.float",
+                  "type": "control.number.float",
                   "rate": "control"
                 }
               ]
@@ -84,7 +84,7 @@
                 {
                   "id": "in",
                   "direction": "input",
-                  "type": "number.float",
+                  "type": "control.number.float",
                   "rate": "control"
                 }
               ]
@@ -101,7 +101,7 @@
                 "nodeId": "macro-out",
                 "portId": "in"
               },
-              "resolvedType": "number.float"
+              "resolvedType": "control.number.float"
             }
           ]
         },
@@ -122,9 +122,16 @@
       {
         "code": "concurrent-paste-fragment",
         "message": "paste fragment ids were remapped after concurrent library paste",
-        "changeIds": ["paste-rebase-remap"],
-        "nodeIds": ["macro-1", "macro-out"],
-        "edgeIds": ["edge-macro-preview"]
+        "changeIds": [
+          "paste-rebase-remap"
+        ],
+        "nodeIds": [
+          "macro-1",
+          "macro-out"
+        ],
+        "edgeIds": [
+          "edge-macro-preview"
+        ]
       }
     ]
   },

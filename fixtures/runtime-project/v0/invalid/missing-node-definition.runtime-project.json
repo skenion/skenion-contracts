@@ -18,7 +18,7 @@
           {
             "id": "value",
             "direction": "output",
-            "type": "number.float"
+            "type": "control.number.float"
           }
         ]
       }
@@ -45,17 +45,17 @@
       "id": "core.int",
       "version": "0.1.0",
       "displayName": "Int",
-      "category": "Values",
+      "category": "Typed Controls",
       "ports": [
         {
           "id": "value",
           "direction": "output",
           "label": "Value",
-          "type": "number.int"
+          "type": "control.number.int"
         }
       ],
       "execution": {
-        "model": "value"
+        "model": "control"
       },
       "state": {
         "persistent": false

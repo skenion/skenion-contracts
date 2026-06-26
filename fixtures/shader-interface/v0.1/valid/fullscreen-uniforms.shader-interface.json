@@ -7,7 +7,7 @@
       "id": "speed",
       "label": "Speed",
       "type": {
-        "flow": "value",
+        "flow": "control",
         "dataKind": "number.float",
         "range": {
           "min": 0,
@@ -22,8 +22,8 @@
       "id": "enabled",
       "label": "Enabled",
       "type": {
-        "flow": "value",
-        "dataKind": "boolean"
+        "flow": "control",
+        "dataKind": "bool"
       },
       "default": true,
       "required": false
@@ -32,7 +32,7 @@
       "id": "iterations",
       "label": "Iterations",
       "type": {
-        "flow": "value",
+        "flow": "control",
         "dataKind": "number.int"
       },
       "default": 8,
@@ -42,7 +42,7 @@
       "id": "tint",
       "label": "Tint",
       "type": {
-        "flow": "value",
+        "flow": "control",
         "dataKind": "color"
       },
       "default": [

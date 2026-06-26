@@ -28,8 +28,19 @@
             {
               "id": "in",
               "direction": "input",
-              "type": "message.any",
-              "rate": "event"
+              "type": "control.message.any",
+              "rate": "event",
+              "messageSelectors": {
+                "accepted": [
+                  "set"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "store": [
+                  "set"
+                ]
+              }
             }
           ]
         }

@@ -22,8 +22,50 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "accepts": [
+            "control.string",
+            "event.bang"
+          ],
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool",
+              "string",
+              "color",
+              "symbol",
+              "list",
+              "anything"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool",
+              "string",
+              "color",
+              "symbol",
+              "list",
+              "anything"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool",
+              "string",
+              "color",
+              "symbol",
+              "list",
+              "anything"
+            ]
+          }
         },
         {
           "id": "out",
@@ -46,21 +88,51 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "accepts": [
+            "control.string",
+            "event.bang"
+          ],
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "string",
+              "symbol"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "string",
+              "symbol"
+            ],
+            "store": [
+              "set",
+              "string",
+              "symbol"
+            ],
+            "emit": [
+              "bang",
+              "string",
+              "symbol"
+            ]
+          }
         },
         {
           "id": "cold",
           "direction": "input",
           "label": "Cold",
-          "type": "string",
+          "type": "control.string",
           "required": false
         },
         {
           "id": "value",
           "direction": "output",
           "label": "Value",
-          "type": "string"
+          "type": "control.string"
         }
       ]
     }

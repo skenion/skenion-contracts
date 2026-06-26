@@ -1,4 +1,4 @@
-export type DataFlow = "value" | "event" | "signal" | "stream" | "resource";
+export type DataFlow = "control" | "event" | "signal" | "stream" | "resource";
 export type PortDirection = "input" | "output";
 export type PortActivation = "trigger" | "latched";
 export type AlphaPolicy = "error" | "white" | "black" | "luminance";
@@ -26,7 +26,7 @@ export type SemanticDataKindV01 =
   | "number.float"
   | "number.int"
   | "number.uint"
-  | "boolean"
+  | "bool"
   | "string"
   | "message.any"
   | "event.bang"
@@ -1328,6 +1328,14 @@ export type CycleValidationV01 =
   | "ambiguous-algebraic-loop"
   | "invalid-cycle";
 
+export interface MessageSelectorPolicyV01 {
+  accepted: string[];
+  silent?: string[];
+  trigger?: string[];
+  store?: string[];
+  emit?: string[];
+}
+
 export interface PortSpecV01 {
   id: string;
   direction: PortDirection;
@@ -1340,6 +1348,7 @@ export interface PortSpecV01 {
   mergePolicy?: MergePolicyV01;
   fanOutPolicy?: FanOutPolicyV01;
   triggerMode?: TriggerModeV01;
+  messageSelectors?: MessageSelectorPolicyV01;
   defaultValue?: unknown;
   latch?: boolean;
   required?: boolean;
@@ -2081,7 +2090,7 @@ export interface GraphValidationResultV01 {
 
 export type ExecutionModelV01 =
   | "event"
-  | "value"
+  | "control"
   | "frame"
   | "audio_block"
   | "video_frame"
@@ -2122,7 +2131,7 @@ export interface NodeDefinitionManifestV01 {
 }
 
 export type ShaderLanguageV01 = "wgsl";
-export type ShaderUniformDataKindV01 = "number.float" | "number.int" | "number.uint" | "boolean" | "color";
+export type ShaderUniformDataKindV01 = "number.float" | "number.int" | "number.uint" | "bool" | "color";
 
 export interface ShaderUniformV01 {
   id: string;
@@ -2209,8 +2218,10 @@ export interface ObjectTextPortV01 {
   direction: PortDirection;
   type: string;
   rate?: PortRateV01;
+  accepts?: string[];
   activation?: "trigger" | "latched" | "passive";
   defaultValue?: unknown;
+  messageSelectors?: MessageSelectorPolicyV01;
   description?: string;
 }
 

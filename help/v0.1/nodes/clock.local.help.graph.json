@@ -43,13 +43,13 @@
           "id": "phase",
           "direction": "output",
           "label": "Phase",
-          "type": "number.float"
+          "type": "control.number.float"
         },
         {
           "id": "tempo",
           "direction": "output",
           "label": "Tempo",
-          "type": "number.float"
+          "type": "control.number.float"
         }
       ]
     },

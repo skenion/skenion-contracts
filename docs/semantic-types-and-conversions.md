@@ -5,15 +5,15 @@ representations.
 
 ## Semantic Types
 
-Canonical control and shader data kinds describe the meaning of a value:
+Canonical control port types describe the meaning of a value:
 
-- `number.float`
-- `number.int`
-- `number.uint`
-- `boolean`
-- `string`
-- `color`
-- `message.any`
+- `control.number.float`
+- `control.number.int`
+- `control.number.uint`
+- `control.bool`
+- `control.string`
+- `control.color`
+- `control.message.any`
 - `event.bang`
 
 Representation-specific names such as `number.f32`, `number.i32`, or
@@ -23,10 +23,10 @@ Representation-specific names such as `number.f32`, `number.i32`, or
 
 Representations describe how a semantic value is stored or delivered:
 
-- `number.float`: `f64`, `f32`, `f16`, `f8.e4m3`, `f8.e5m2`, `ufloat16`, `ufloat8`
-- `number.int`: `i64`, `i32`, `i16`, `i8`
-- `number.uint`: `u64`, `u32`, `u16`, `u8`
-- `color`: `rgba32f`, `rgba16f`, `rgba8unorm`, `rgb8unorm`
+- `control.number.float`: `f64`, `f32`, `f16`, `f8.e4m3`, `f8.e5m2`, `ufloat16`, `ufloat8`
+- `control.number.int`: `i64`, `i32`, `i16`, `i8`
+- `control.number.uint`: `u64`, `u32`, `u16`, `u8`
+- `control.color`: `rgba32f`, `rgba16f`, `rgba8unorm`, `rgb8unorm`
 
 Node definitions and graph instance ports may use `format` to declare the
 chosen representation. If omitted, consumers should use the builtin default for

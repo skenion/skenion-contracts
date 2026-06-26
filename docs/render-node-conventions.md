@@ -34,12 +34,7 @@ Shape:
       "id": "out",
       "direction": "output",
       "label": "Out",
-      "type": {
-        "flow": "resource",
-        "dataKind": "gpu.texture2d",
-        "format": "rgba8unorm",
-        "colorSpace": "srgb"
-      }
+      "type": "gpu.texture2d"
     }
   ],
   "execution": {
@@ -76,13 +71,13 @@ Rules:
   management fields to the graph schema for this node.
 
 `render.clear-color` is a frame-clocked GPU pass that produces a
-`resource<gpu.texture2d>` output. Starting in v0.13, preview output should be
+`gpu.texture2d` output. Starting in v0.13, preview output should be
 selected by wiring `render.clear-color:out` into `render.output:in`.
 
 ## `core.color`
 
 `core.color` is a value source convention used by render nodes that accept
-`value<color>` controls.
+`control.color` controls.
 
 Canonical manifest:
 
@@ -132,12 +127,7 @@ Shape:
       "id": "out",
       "direction": "output",
       "label": "Out",
-      "type": {
-        "flow": "resource",
-        "dataKind": "gpu.texture2d",
-        "format": "rgba8unorm",
-        "colorSpace": "srgb"
-      }
+      "type": "gpu.texture2d"
     }
   ],
   "execution": {
@@ -173,7 +163,7 @@ Rules:
 - Uniform input ports are declared by line comments:
   `// @skenion.uniform <id> <dataKind> [attributes...]`.
 - Supported uniform data kinds are `number.float`, `number.int`,
-  `number.uint`, `boolean`, and `color`.
+  `number.uint`, `bool`, and `color`.
 - Uniform ids are port ids and WGSL field names. They are not types.
 - Reserved ids `out`, `in`, `set`, `bang`, and `value` are invalid.
 - `default`, `min`, `max`, `step`, and quoted `label` attributes may be used
@@ -188,7 +178,7 @@ Rules:
   and Runtime diagnostics.
 
 `render.fullscreen-shader` is a frame-clocked GPU pass that produces a
-`resource<gpu.texture2d>` output. Starting in v0.13, preview output should be
+`gpu.texture2d` output. Starting in v0.13, preview output should be
 selected by wiring `render.fullscreen-shader:out` into `render.output:in`.
 
 ### Dynamic Interface Sync
@@ -202,7 +192,7 @@ Example:
 
 ```wgsl
 // @skenion.uniform speed number.float default=0.5 min=0 max=2 step=0.01 label="Speed"
-// @skenion.uniform enabled boolean default=true label="Enabled"
+// @skenion.uniform enabled bool default=true label="Enabled"
 // @skenion.uniform iterations number.int default=8 min=1 max=32 step=1 label="Iterations"
 // @skenion.uniform tint color default=[1,0.2,0.1,1] label="Tint"
 @fragment
@@ -218,11 +208,11 @@ fn fs_main() -> @location(0) vec4<f32> {
 Generated graph instance ports:
 
 ```text
-speed      value<number.float>
-enabled    value<boolean>
-iterations value<number.int>
-tint       value<color>
-out        resource<gpu.texture2d>
+speed      control.number.float
+enabled    control.bool
+iterations control.number.int
+tint       control.color
+out        gpu.texture2d
 ```
 
 ### WGSL ABI
@@ -254,7 +244,7 @@ Generated scalar layout rules:
 
 - `number.float`: `f32`, alignment 4, size 4.
 - `number.int`: `i32`, alignment 4, size 4.
-- `boolean`: stored as `u32`; use `sk_bool`.
+- `bool`: stored as `u32`; use `sk_bool`.
 - `color`: `vec4<f32>`, alignment 16, size 16.
 
 The ABI is still intentionally small. Do not add GLSL, texture inputs, video,
@@ -282,13 +272,8 @@ Node definition:
       "id": "in",
       "direction": "input",
       "label": "In",
-      "type": {
-        "flow": "resource",
-        "dataKind": "gpu.texture2d",
-        "format": "rgba8unorm",
-        "colorSpace": "srgb"
-      },
-      "activation": "latched"
+      "type": "gpu.texture2d",
+      "required": true
     }
   ],
   "execution": {
@@ -308,7 +293,7 @@ Node definition:
 Rules:
 
 - `render.output` selects the final local preview surface source.
-- `render.output:in` accepts `resource<gpu.texture2d>` render outputs.
+- `render.output:in` accepts `gpu.texture2d` render outputs.
 - v0.13 supports one effective output. If multiple `render.output` nodes exist,
   runtimes should select deterministically and report a diagnostic.
 - If no `render.output` node exists, runtimes must report that no active render

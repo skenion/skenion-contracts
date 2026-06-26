@@ -12,6 +12,8 @@
   "state": {
     "persistent": false
   },
-  "permissions": ["network"],
+  "permissions": [
+    "network"
+  ],
   "capabilities": []
 }

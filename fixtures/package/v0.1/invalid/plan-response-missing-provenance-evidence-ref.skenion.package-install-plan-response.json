@@ -18,7 +18,9 @@
     {
       "kind": "provenance",
       "status": "fail",
-      "diagnosticRefs": ["diag-missing-provenance-evidence"],
+      "diagnosticRefs": [
+        "diag-missing-provenance-evidence"
+      ],
       "message": "Required provenance evidence is missing."
     }
   ],
@@ -28,7 +30,9 @@
       "order": 0,
       "kind": "reject",
       "packageId": "example/native-sensor",
-      "diagnosticRefs": ["diag-missing-provenance-evidence"]
+      "diagnosticRefs": [
+        "diag-missing-provenance-evidence"
+      ]
     }
   ],
   "diagnostics": [

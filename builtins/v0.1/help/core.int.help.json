@@ -2,7 +2,7 @@
   "schema": "skenion.node.help",
   "schemaVersion": "0.1.0",
   "id": "core.int",
-  "summary": "Stores and emits a signed integer control value.",
+  "summary": "Stores and emits a signed integer control payload.",
   "description": "Use Int for discrete numeric controls such as counts, selected indices, and integer mode values.",
   "helpGraph": "help/v0.1/nodes/core.int.help.graph.json",
   "tags": [
@@ -10,22 +10,22 @@
     "control",
     "integer"
   ],
-  "runtimeBehavior": "in is the hot inlet: typed values update and emit, bang emits the stored integer, and set ... updates silently. cold updates silently.",
+  "runtimeBehavior": "in is the hot control.message.any inlet: typed payloads update and emit, bang emits the stored integer payload, and set ... updates silently. cold updates silently.",
   "relatedNodes": [
     "render.fullscreen-shader"
   ],
   "ports": [
     {
       "id": "in",
-      "description": "Hot inlet: typed integer values update and emit; bang emits the stored value; set ... updates silently."
+      "description": "Hot inlet: typed integer payloads update and emit; bang emits the stored payload; set ... updates silently."
     },
     {
       "id": "cold",
-      "description": "Cold inlet: compatible integer values or set ... update without emitting."
+      "description": "Cold inlet: compatible integer payloads update without emitting."
     },
     {
       "id": "value",
-      "description": "Outputs the current value."
+      "description": "Outputs the current payload."
     }
   ],
   "params": [

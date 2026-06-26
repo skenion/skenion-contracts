@@ -180,6 +180,9 @@ export const graphV01Schema = {
             "latched"
           ]
         },
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "defaultValue": true,
         "latch": {
           "type": "boolean"
@@ -200,6 +203,38 @@ export const graphV01Schema = {
         }
       },
       "additionalProperties": false
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": [
+        "accepted"
+      ],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
     },
     "portGroup": {
       "type": "object",
@@ -4240,6 +4275,9 @@ export const nodeDefinitionV01Schema = {
             "latched"
           ]
         },
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "defaultValue": true,
         "latch": {
           "type": "boolean"
@@ -4260,6 +4298,38 @@ export const nodeDefinitionV01Schema = {
         }
       },
       "additionalProperties": false
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": [
+        "accepted"
+      ],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
     },
     "portGroup": {
       "type": "object",
@@ -4331,7 +4401,7 @@ export const nodeDefinitionV01Schema = {
         "model": {
           "enum": [
             "event",
-            "value",
+            "control",
             "frame",
             "audio_block",
             "video_frame",
@@ -4453,14 +4523,14 @@ export const shaderInterfaceV01Schema = {
       ],
       "properties": {
         "flow": {
-          "const": "value"
+          "const": "control"
         },
         "dataKind": {
           "enum": [
             "number.float",
             "number.int",
             "number.uint",
-            "boolean",
+            "bool",
             "color"
           ]
         },
@@ -4901,6 +4971,9 @@ export const objectTextParseResultV01Schema = {
             "io"
           ]
         },
+        "accepts": {
+          "$ref": "#/$defs/typeList"
+        },
         "activation": {
           "enum": [
             "trigger",
@@ -4909,11 +4982,56 @@ export const objectTextParseResultV01Schema = {
           ]
         },
         "defaultValue": true,
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "description": {
           "type": "string"
         }
       },
       "additionalProperties": false
+    },
+    "typeList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": [
+        "accepted"
+      ],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
     },
     "diagnostic": {
       "type": "object",

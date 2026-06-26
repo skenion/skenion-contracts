@@ -9,7 +9,9 @@
     "range": ">=0.45.0 <0.46.0"
   },
   "runtimeAbiRange": ">=0.45.0 <0.46.0",
-  "targets": ["aarch64-apple-darwin"],
+  "targets": [
+    "aarch64-apple-darwin"
+  ],
   "provides": {},
   "paths": {},
   "checksums": [
@@ -42,7 +44,9 @@
         "algorithm": "sha256",
         "value": "9999999999999999999999999999999999999999999999999999999999999999"
       },
-      "evidenceRefs": ["missing-native-attestation"]
+      "evidenceRefs": [
+        "missing-native-attestation"
+      ]
     }
   ]
 }

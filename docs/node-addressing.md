@@ -19,8 +19,8 @@ The pre-v1 address forms are:
 Examples:
 
 ```text
-node:value_1/param:value
-node:value_1/port:value
+node:float_1/param:value
+node:float_1/port:value
 node:shader_1/port:speed
 node:toggle_1/state:value
 ```
@@ -29,8 +29,8 @@ node:toggle_1/state:value
 
 Inspector and control panels may read values by address:
 
-- graph params, such as `node:value_1/param:value`
-- runtime output/control state, such as `node:value_1/state:value`
+- graph params, such as `node:float_1/param:value`
+- runtime output/control state, such as `node:float_1/state:value`
 - port metadata and diagnostics, such as `node:shader_1/port:speed`
 
 Runtime graph execution must not read another node through an address unless the
@@ -43,11 +43,11 @@ The runtime control API may expose read requests by structured address:
 
 ```json
 {
-  "nodeId": "value_1",
+  "nodeId": "float_1",
   "target": "state",
   "id": "value"
 }
 ```
 
-This is equivalent to `node:value_1/state:value`. It is intended for Studio
+This is equivalent to `node:float_1/state:value`. It is intended for Studio
 inspectors and remote controls, not for implicit graph execution.

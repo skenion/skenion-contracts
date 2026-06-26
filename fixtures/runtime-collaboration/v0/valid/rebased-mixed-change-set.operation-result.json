@@ -68,13 +68,13 @@
               {
                 "id": "in",
                 "direction": "input",
-                "type": "number.float",
+                "type": "control.number.float",
                 "rate": "control"
               },
               {
                 "id": "out",
                 "direction": "output",
-                "type": "number.float",
+                "type": "control.number.float",
                 "rate": "control"
               }
             ]
@@ -116,7 +116,7 @@
               "nodeId": "gain",
               "portId": "in"
             },
-            "resolvedType": "number.float"
+            "resolvedType": "control.number.float"
           }
         }
       ],
@@ -126,26 +126,42 @@
       {
         "code": "concurrent-node-add",
         "message": "filter-a was added after a concurrent namespace reservation",
-        "changeIds": ["change-rebased-add-filter"],
-        "nodeIds": ["filter-a"]
+        "changeIds": [
+          "change-rebased-add-filter"
+        ],
+        "nodeIds": [
+          "filter-a"
+        ]
       },
       {
         "code": "concurrent-node-move",
         "message": "gain position was transformed onto the latest server position",
-        "changeIds": ["change-rebased-move-gain"],
-        "nodeIds": ["gain"]
+        "changeIds": [
+          "change-rebased-move-gain"
+        ],
+        "nodeIds": [
+          "gain"
+        ]
       },
       {
         "code": "concurrent-node-delete",
         "message": "old-preview delete was retained as a tombstone-compatible deletion",
-        "changeIds": ["change-rebased-delete-preview"],
-        "nodeIds": ["old-preview"]
+        "changeIds": [
+          "change-rebased-delete-preview"
+        ],
+        "nodeIds": [
+          "old-preview"
+        ]
       },
       {
         "code": "concurrent-edge-connect",
         "message": "edge-filter-gain was connected after port endpoint remap",
-        "changeIds": ["change-rebased-connect-filter"],
-        "edgeIds": ["edge-filter-gain"]
+        "changeIds": [
+          "change-rebased-connect-filter"
+        ],
+        "edgeIds": [
+          "edge-filter-gain"
+        ]
       }
     ]
   },

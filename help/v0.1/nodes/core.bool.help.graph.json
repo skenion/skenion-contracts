@@ -9,7 +9,7 @@
       "kind": "core.comment",
       "kindVersion": "0.1.0",
       "params": {
-        "text": "Bool re-emits its stored boolean on bang. It does not flip state."
+        "text": "Bool re-emits its stored bool payload on bang. It does not flip state."
       },
       "ports": []
     },
@@ -22,8 +22,38 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "accepts": [
+            "control.number.float",
+            "control.number.int",
+            "control.number.uint",
+            "control.bool",
+            "event.bang"
+          ],
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ]
+          }
         },
         {
           "id": "out",
@@ -35,7 +65,7 @@
       "kind": "core.bang"
     },
     {
-      "id": "value_1",
+      "id": "bool_1",
       "kind": "core.bool",
       "kindVersion": "0.1.0",
       "params": {
@@ -46,21 +76,62 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "accepts": [
+            "control.number.float",
+            "control.number.int",
+            "control.number.uint",
+            "control.bool",
+            "event.bang"
+          ],
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "store": [
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ]
+          }
         },
         {
           "id": "cold",
           "direction": "input",
           "label": "Cold",
-          "type": "boolean",
+          "type": "control.bool",
           "required": false
         },
         {
           "id": "value",
           "direction": "output",
           "label": "Value",
-          "type": "boolean"
+          "type": "control.bool"
         }
       ]
     },
@@ -76,21 +147,55 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "store": [
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ]
+          }
         },
         {
           "id": "cold",
           "direction": "input",
           "label": "Cold",
-          "type": "boolean",
+          "type": "control.bool",
           "required": false
         },
         {
           "id": "value",
           "direction": "output",
           "label": "Value",
-          "type": "boolean"
+          "type": "control.bool"
         }
       ],
       "kind": "core.bool"
@@ -104,14 +209,14 @@
         "portId": "out"
       },
       "target": {
-        "nodeId": "value_1",
+        "nodeId": "bool_1",
         "portId": "in"
       }
     },
     {
       "id": "edge-2",
       "source": {
-        "nodeId": "value_1",
+        "nodeId": "bool_1",
         "portId": "value"
       },
       "target": {

@@ -442,10 +442,10 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
           "displayName": "Duplicate Port",
           "category": "Core",
           "ports": [
-            { "id": "value", "direction": "input", "type": "number.float" },
-            { "id": "value", "direction": "output", "type": "number.float" }
+            { "id": "value", "direction": "input", "type": "control.number.float" },
+            { "id": "value", "direction": "output", "type": "control.number.float" }
           ],
-          "execution": { "model": "value" },
+          "execution": { "model": "control" },
           "state": { "persistent": false },
           "permissions": [],
           "capabilities": []
@@ -478,7 +478,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "number.float", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.number.float", "rate": "control" }
               ]
             },
             {
@@ -487,7 +487,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "number.int", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.number.int", "rate": "control" }
               ]
             },
             {
@@ -496,7 +496,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "number.uint", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.number.uint", "rate": "control" }
               ]
             },
             {
@@ -505,7 +505,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "boolean", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.bool", "rate": "control" }
               ]
             },
             {
@@ -514,7 +514,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "color", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.color", "rate": "control" }
               ]
             },
             {
@@ -523,7 +523,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "string", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.string", "rate": "control" }
               ]
             },
             {
@@ -532,7 +532,30 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "in", "direction": "input", "type": "message.any", "rate": "event", "maxConnections": 7, "mergePolicy": "ordered-events" }
+                {
+                  "id": "in",
+                  "direction": "input",
+                  "type": "control.message.any",
+                  "accepts": [
+                    "control.number.float",
+                    "control.number.int",
+                    "control.number.uint",
+                    "control.bool",
+                    "control.color",
+                    "control.string",
+                    "event.bang"
+                  ],
+	                  "rate": "control",
+	                  "maxConnections": 7,
+	                  "mergePolicy": "ordered-events",
+	                  "messageSelectors": {
+	                    "accepted": ["bang", "set", "float", "int", "uint", "bool", "string", "color", "symbol", "list", "anything"],
+	                    "silent": ["set"],
+	                    "trigger": ["bang", "float", "int", "uint", "bool", "string", "color", "symbol", "list", "anything"],
+	                    "store": ["set"],
+	                    "emit": ["bang", "float", "int", "uint", "bool", "string", "color", "symbol", "list", "anything"]
+	                  }
+	                }
               ]
             }
           ],
@@ -638,8 +661,8 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "in", "direction": "input", "type": "value.number" },
-                { "id": "out", "direction": "output", "type": "value.number" }
+                { "id": "in", "direction": "input", "type": "control.number.float" },
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             },
             {
@@ -648,8 +671,8 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "in", "direction": "input", "type": "value.number" },
-                { "id": "out", "direction": "output", "type": "value.number" }
+                { "id": "in", "direction": "input", "type": "control.number.float" },
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             }
           ],
@@ -737,7 +760,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
                                             "kindVersion": "",
                                             "params": {},
                                             "ports": [
-                                                { "id": "", "direction": "input", "type": "number.float" }
+                                                { "id": "", "direction": "input", "type": "control.number.float" }
                                             ]
                                         },
                                         {
@@ -962,9 +985,9 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "id": "in",
                   "direction": "input",
                   "type": "render.frame",
-                  "accepts": ["value.number"]
+                  "accepts": ["control.number.float"]
                 },
-                { "id": "out", "direction": "output", "type": "value.number" }
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             }
           ],
@@ -1014,7 +1037,7 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "number.float" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               },
@@ -1133,7 +1156,7 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "number.float" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               ],
@@ -1197,12 +1220,12 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
 	                        "schemaVersion": "0.1.0",
 	                        "nodes": [
 	                          {
-	                            "id": "value_2",
+	                            "id": "float_2",
 	                            "kind": "core.float",
 	                            "kindVersion": "0.1.0",
 	                            "params": { "value": 0.75 },
 	                            "ports": [
-	                              { "id": "out", "direction": "output", "type": "number.float", "rate": "control" }
+	                              { "id": "out", "direction": "output", "type": "control.number.float", "rate": "control" }
 	                            ]
 	                          }
 	                        ],
@@ -1215,10 +1238,10 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "viewPatch": {
                     "baseViewRevision": 2,
                     "ops": [
-                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 10, "y": 20 } },
+                      { "op": "setNodeView", "nodeId": "float_2", "view": { "x": 10, "y": 20 } },
                       {
                         "op": "moveNodeView",
-                        "nodeId": "value_2",
+                        "nodeId": "float_2",
                         "from": { "x": 10, "y": 20 },
                         "to": { "x": 20, "y": 30 }
                       }
@@ -1231,7 +1254,7 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "viewPatch": {
                     "baseViewRevision": 3,
                     "ops": [
-                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 0, "y": 0 } }
+                      { "op": "setNodeView", "nodeId": "float_2", "view": { "x": 0, "y": 0 } }
                     ]
                   },
                   "clientId": "studio-main"
@@ -1984,11 +2007,11 @@ fn parses_object_text_parse_result_fixtures() {
         let parsed = serde_json::from_slice::<ObjectTextParseResultV01>(
             &fs::read(&file).expect("fixture should be readable"),
         );
-        assert!(
-            parsed.is_err(),
-            "{} should be structurally invalid",
-            file.display()
-        );
+        let Ok(result) = parsed else {
+            continue;
+        };
+        validate_object_text_parse_result_v01(&result)
+            .expect_err("structurally valid invalid fixture should be semantically invalid");
     }
 
     for input in [

@@ -25,9 +25,15 @@
     ]
   },
   "paths": {
-    "patches": ["patches/oscillator.skenion.json"],
-    "docs": ["help/oscillator.md"],
-    "tests": ["tests/oscillator.snapshot.json"]
+    "patches": [
+      "patches/oscillator.skenion.json"
+    ],
+    "docs": [
+      "help/oscillator.md"
+    ],
+    "tests": [
+      "tests/oscillator.snapshot.json"
+    ]
   },
   "checksums": [
     {

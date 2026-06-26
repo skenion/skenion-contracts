@@ -16,14 +16,18 @@
   "idRemap": {
     "nodeIdMap": {},
     "edgeIdMap": {},
-    "omittedEdgeIds": ["edge-stale"]
+    "omittedEdgeIds": [
+      "edge-stale"
+    ]
   },
   "diagnostics": [
     {
       "severity": "warning",
       "code": "interface-drift",
       "message": "Edge endpoints no longer match the selected provider interface.",
-      "edges": ["edge-stale"],
+      "edges": [
+        "edge-stale"
+      ],
       "interfacePolicy": "preserve-diagnostic",
       "interfaceDetail": {
         "edgeId": "edge-stale",
@@ -42,7 +46,12 @@
           "limit": 1,
           "actual": 2
         },
-        "recoveryActions": ["drop-edge", "reconnect", "restore-port", "replace-provider"]
+        "recoveryActions": [
+          "drop-edge",
+          "reconnect",
+          "restore-port",
+          "replace-provider"
+        ]
       }
     }
   ]

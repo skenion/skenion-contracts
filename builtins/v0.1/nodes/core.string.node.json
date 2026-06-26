@@ -4,31 +4,49 @@
   "id": "core.string",
   "version": "0.1.0",
   "displayName": "String",
-  "category": "Values",
+  "category": "Typed Controls",
   "ports": [
     {
       "id": "in",
       "direction": "input",
       "label": "In",
-      "type": "message.any",
-      "required": false
+      "type": "control.message.any",
+      "required": false,
+      "accepts": [
+        "control.string",
+        "event.bang"
+      ],
+      "triggerMode": "trigger",
+      "messageSelectors": {
+        "accepted": ["bang", "set", "string", "symbol"],
+        "silent": ["set"],
+        "trigger": ["bang", "string", "symbol"],
+        "store": ["set", "string", "symbol"],
+        "emit": ["bang", "string", "symbol"]
+      },
+      "latch": true
     },
     {
       "id": "cold",
       "direction": "input",
       "label": "Cold",
-      "type": "string",
-      "required": false
+      "type": "control.string",
+      "required": false,
+      "accepts": [
+        "control.string"
+      ],
+      "triggerMode": "passive",
+      "latch": true
     },
     {
       "id": "value",
       "direction": "output",
       "label": "Value",
-      "type": "string"
+      "type": "control.string"
     }
   ],
   "execution": {
-    "model": "value"
+    "model": "control"
   },
   "state": {
     "persistent": false

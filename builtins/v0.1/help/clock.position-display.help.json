@@ -17,7 +17,7 @@
   "ports": [
     {
       "id": "clock",
-      "description": "Accepts value<clock.state> from clock.local or future external clock source objects."
+      "description": "Accepts clock.state from clock.local or future external clock source objects."
     }
   ],
   "example": {

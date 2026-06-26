@@ -32,21 +32,43 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "color"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "color"
+            ],
+            "store": [
+              "set",
+              "color"
+            ],
+            "emit": [
+              "bang",
+              "color"
+            ]
+          }
         },
         {
           "id": "cold",
           "direction": "input",
           "label": "Cold",
-          "type": "color",
+          "type": "control.color",
           "required": false
         },
         {
           "id": "value",
           "direction": "output",
           "label": "Color",
-          "type": "color"
+          "type": "control.color"
         }
       ]
     },
@@ -63,7 +85,7 @@
           "id": "tint",
           "direction": "input",
           "label": "Tint",
-          "type": "color"
+          "type": "control.color"
         },
         {
           "id": "out",

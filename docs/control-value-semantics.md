@@ -1,33 +1,35 @@
 # Control Value Semantics
 
-skenion value nodes are stateful control nodes. This document defines the pre-v1
-typed value behavior used by built-in value nodes and runtime control events.
+skenion typed control objects are stateful control boxes. This document defines
+the pre-v1 typed atom/control behavior used by built-in control objects and
+runtime control events.
 
-## Typed Value Nodes
+## Typed Control Objects
 
-The canonical v0.1 typed value nodes are:
+The canonical v0.1 typed control objects are:
 
-- `core.float` for `value<number.float>`
-- `core.int` for `value<number.int>`
-- `core.uint` for `value<number.uint>`
-- `core.bool` for `value<boolean>`
-- `core.color` for `value<color>`
-- `core.string` for `value<string>`
+- `core.float` for `control.number.float` payloads
+- `core.int` for `control.number.int` payloads
+- `core.uint` for `control.number.uint` payloads
+- `core.bool` for `control.bool` payloads
+- `core.color` for `control.color` payloads
+- `core.string` for `control.string` payloads
 
-Each typed value node has the same control surface:
+Each typed control object has the same control surface:
 
-- `in` is the hot `message.any` inlet. A typed value message updates the stored
-  value and emits it; `bang` emits the current stored value; `set ...` updates
-  silently.
-- `cold` is the cold inlet. A compatible typed value or `set ...` updates the
-  stored value without emitting.
-- `value` emits the current stored value.
+- `in` is the hot `control.message.any` inlet. A compatible typed control
+  payload updates the stored payload and emits it; `bang` emits the current
+  stored payload; `set ...` updates silently.
+- `cold` is the cold inlet. A compatible typed control payload updates the
+  stored payload without emitting.
+- `value` emits the current stored payload. The port id is payload/state naming;
+  it does not make the object a value object.
 
 `core.bool` is also the canonical toggle object when `params.widget` is
 `"toggle"` or `"checkbox"`. In that widget mode, a `bang` interaction flips the
-stored boolean and emits the new value. There is no separate toggle node.
+stored bool and emits the new payload. There is no separate toggle node.
 
-This is the Max/MSP-style value-box model:
+This is the Max/MSP-style typed control box model:
 
 ```text
 set 32
@@ -56,7 +58,7 @@ patches unless a later user action explicitly edits the graph.
 
 ## Range Metadata
 
-`number.float` is a generic floating-point value type and must not globally imply
+`control.number.float` is a generic floating-point control payload and must not globally imply
 `0..1`. Range constraints belong to a specific shader uniform, UI widget,
 clamp/map node, or later interface metadata. Runtime shader demos may clamp
 values at the uniform extraction boundary, but the canonical `core.float`
@@ -65,7 +67,7 @@ builtin itself stays unconstrained.
 ## Comments And Messages
 
 `core.comment` is a persisted graph annotation and runtime text object. It has
-one hot `in` inlet for `event<message.any>`. `set <text>` updates the runtime
+one hot `in` inlet for `control.message.any`. `set <text>` updates the runtime
 display text silently. Inspector text edits remain saved graph mutations.
 
 `core.message` is the first simple message-box form. It stores message box text
@@ -74,7 +76,9 @@ banged or clicked. `set ...` on `in` updates the runtime message text silently.
 `pack`/`unpack` and richer message transforms are deferred until the typed
 control graph is stable.
 
-Bang is a message selector/event. It is not a stored runtime value.
+Bang is a message selector and the pure trigger edge type `event.bang`. It is
+not a stored runtime value and is not represented as `control.bang` or boolean
+state.
 
 Object-owned `sendName`/`receiveName` routing and widget controls are documented
 in `docs/control-routing.md`.
@@ -84,7 +88,7 @@ in `docs/control-routing.md`.
 This is a pre-v1 contract. Breaking built-in node shape changes are allowed
 while skenion is still converging on the runtime/editor control model.
 
-The previous value-object surface with separate visual `bang` and `set` input
-ports is removed. Canonical value objects expose only `in`, `cold`, and
-`value`; `bang` and `set` remain `ControlMessage.selector` values handled by
-the receiving object.
+The previous generic value-object surface with separate visual `bang` and `set`
+input ports is removed. Canonical typed control objects expose only `in`,
+`cold`, and `value`; `bang` and `set` remain `ControlMessage.selector` values
+handled by the receiving object.

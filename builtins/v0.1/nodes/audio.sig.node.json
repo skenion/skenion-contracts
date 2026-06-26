@@ -3,15 +3,22 @@
   "schemaVersion": "0.1.0",
   "id": "audio.sig",
   "version": "0.1.0",
-  "displayName": "Signal Value",
+  "displayName": "Control to Signal",
   "category": "Audio",
   "ports": [
     {
       "id": "in",
       "direction": "input",
       "label": "In",
-      "type": "message.any",
-      "required": false
+      "type": "control.number.float",
+      "required": false,
+      "accepts": [
+        "control.number.float",
+        "control.number.int",
+        "control.number.uint",
+        "control.bool"
+      ],
+      "triggerMode": "latched"
     },
     {
       "id": "out",

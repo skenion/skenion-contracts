@@ -10,8 +10,25 @@
       "id": "seed",
       "direction": "input",
       "label": "Seed",
-      "type": "message.any",
-      "required": false
+      "type": "control.message.any",
+      "required": false,
+      "messageSelectors": {
+        "accepted": [
+          "set",
+          "float",
+          "int",
+          "uint"
+        ],
+        "silent": [
+          "set"
+        ],
+        "store": [
+          "set",
+          "float",
+          "int",
+          "uint"
+        ]
+      }
     },
     {
       "id": "out",

@@ -19,15 +19,15 @@
   "ports": [
     {
       "id": "state",
-      "description": "Outputs value<clock.state> with MIDI Clock capability and authority metadata."
+      "description": "Outputs clock.state with MIDI Clock capability and authority metadata."
     },
     {
       "id": "tick",
-      "description": "Outputs event<event.bang> for each MIDI Timing Clock tick."
+      "description": "Outputs event.bang for each MIDI Timing Clock tick."
     },
     {
       "id": "running",
-      "description": "Outputs boolean transport state from MIDI Start, Stop, and Continue."
+      "description": "Outputs bool transport state from MIDI Start, Stop, and Continue."
     }
   ],
   "params": [

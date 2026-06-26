@@ -12,7 +12,10 @@
       "participant-a": 3,
       "participant-b": 2
     },
-    "observedOperationIds": ["op-prior-a", "op-prior-b"]
+    "observedOperationIds": [
+      "op-prior-a",
+      "op-prior-b"
+    ]
   },
   "payload": {
     "kind": "changeSet",
@@ -37,13 +40,13 @@
             {
               "id": "in",
               "direction": "input",
-              "type": "number.float",
+              "type": "control.number.float",
               "rate": "control"
             },
             {
               "id": "out",
               "direction": "output",
-              "type": "number.float",
+              "type": "control.number.float",
               "rate": "control"
             }
           ]
@@ -79,7 +82,7 @@
             "nodeId": "gain",
             "portId": "in"
           },
-          "resolvedType": "number.float"
+          "resolvedType": "control.number.float"
         }
       },
       {

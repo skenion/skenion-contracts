@@ -5,17 +5,17 @@
   "revision": "1",
   "nodes": [
     {
-      "id": "value_1",
-      "kind": "core.value-number",
+      "id": "float_1",
+      "kind": "core.float",
       "kindVersion": "0.1.0",
       "params": {
         "value": 0.5
       },
       "ports": [
         {
-          "id": "out",
+          "id": "value",
           "direction": "output",
-          "type": "value.number",
+          "type": "control.number.float",
           "rate": "control"
         }
       ]
@@ -29,7 +29,7 @@
         {
           "id": "in",
           "direction": "input",
-          "type": "value.number",
+          "type": "control.number.float",
           "rate": "control"
         }
       ]
@@ -43,7 +43,7 @@
         {
           "id": "in",
           "direction": "input",
-          "type": "value.number",
+          "type": "control.number.float",
           "rate": "control"
         }
       ]
@@ -51,28 +51,28 @@
   ],
   "edges": [
     {
-      "id": "edge_value_meter_a",
+      "id": "edge_float_meter_a",
       "source": {
-        "nodeId": "value_1",
-        "portId": "out"
+        "nodeId": "float_1",
+        "portId": "value"
       },
       "target": {
         "nodeId": "meter_a",
         "portId": "in"
       },
-      "resolvedType": "value.number"
+      "resolvedType": "control.number.float"
     },
     {
-      "id": "edge_value_meter_b",
+      "id": "edge_float_meter_b",
       "source": {
-        "nodeId": "value_1",
-        "portId": "out"
+        "nodeId": "float_1",
+        "portId": "value"
       },
       "target": {
         "nodeId": "meter_b",
         "portId": "in"
       },
-      "resolvedType": "value.number"
+      "resolvedType": "control.number.float"
     }
   ]
 }

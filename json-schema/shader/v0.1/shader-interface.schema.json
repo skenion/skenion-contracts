@@ -72,14 +72,14 @@
       ],
       "properties": {
         "flow": {
-          "const": "value"
+          "const": "control"
         },
         "dataKind": {
           "enum": [
             "number.float",
             "number.int",
             "number.uint",
-            "boolean",
+            "bool",
             "color"
           ]
         },

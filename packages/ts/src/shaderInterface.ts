@@ -17,7 +17,7 @@ const SUPPORTED_TYPES = new Set<ShaderUniformDataKindV01>([
   "number.float",
   "number.int",
   "number.uint",
-  "boolean",
+  "bool",
   "color"
 ]);
 
@@ -187,7 +187,7 @@ function isSupportedType(value: string): value is ShaderUniformDataKindV01 {
 }
 
 function dataTypeFor(dataKind: ShaderUniformDataKindV01, attributes: Map<string, string>): DataTypeV01 {
-  const type: DataTypeV01 = { flow: "value", dataKind };
+  const type: DataTypeV01 = { flow: "control", dataKind };
   if (dataKind === "number.float") {
     type.format = "f32";
   } else if (dataKind === "number.int") {
@@ -305,7 +305,7 @@ function parseDefault(
       ? { ok: true, value: parsed }
       : { ok: false, message: `invalid number.uint default: ${value}` };
   }
-  if (dataKind === "boolean") {
+  if (dataKind === "bool") {
     if (value === "true") {
       return { ok: true, value: true };
     }
