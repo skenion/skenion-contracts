@@ -2371,6 +2371,36 @@ pub struct ProjectDocumentV01 {
     pub help: Option<serde_json::Map<String, Value>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeProjectRequestV01 {
+    pub schema: String,
+    pub schema_version: String,
+    pub id: String,
+    pub revision: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<ProjectMetadataV01>,
+    pub graph: GraphDocumentV01,
+    pub view_state: ViewStateV01,
+    pub patch_library: Vec<PatchDefinitionV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub package_dependencies: Vec<ProjectPackageDependencyV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub package_lock: Vec<ProjectPackageLockEntryV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resource_lock: Vec<ProjectResourceLockEntryV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub object_bindings: Vec<ProjectObjectBindingV01>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tutorial: Option<serde_json::Map<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help: Option<serde_json::Map<String, Value>>,
+    pub nodes: Vec<NodeDefinitionManifestV01>,
+}
+
+pub type RuntimeProjectRequest = RuntimeProjectRequestV01;
+
 fn string_param(node: &GraphNodeV01, key: &str) -> Option<String> {
     node.params
         .get(key)

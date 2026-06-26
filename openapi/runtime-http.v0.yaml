@@ -1019,8 +1019,10 @@ components:
               items:
                 $ref: "#/components/schemas/RuntimeIoInlineFrame"
           additionalProperties: false
+    RuntimeProjectRequestV01:
+      $ref: "../json-schema/runtime/v0/project-request.schema.json"
     ProjectRequest:
-      $ref: "#/components/schemas/ProjectDocumentV01"
+      $ref: "#/components/schemas/RuntimeProjectRequestV01"
     RunProjectRequest:
       allOf:
         - $ref: "#/components/schemas/ProjectRequest"

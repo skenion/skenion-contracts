@@ -290,7 +290,12 @@ export interface RuntimeLogSnapshotResponse {
 }
 
 export type RuntimeProjectSnapshot = ProjectDocumentV01;
-export type RuntimeProjectRequest = ProjectDocumentV01;
+
+export interface RuntimeProjectRequestV01 extends ProjectDocumentV01 {
+  nodes: NodeDefinitionManifestV01[];
+}
+
+export type RuntimeProjectRequest = RuntimeProjectRequestV01;
 
 export interface RuntimePlan {
   graphId: string;

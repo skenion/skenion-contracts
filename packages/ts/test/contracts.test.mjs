@@ -33,6 +33,7 @@ import {
   projectV01Schema,
   runtimeCollaborationV0Schema,
   runtimeOperationV0Schema,
+  runtimeProjectRequestV0Schema,
   runtimeSessionV0Schema,
   parseObjectTextV01,
   representationForDataType,
@@ -67,6 +68,8 @@ import {
   validatePasteGraphFragmentResponse,
   validateProjectDocument,
   validateProjectDocumentV01,
+  validateRuntimeProjectRequest,
+  validateRuntimeProjectRequestV01,
   validateCompatibilityMatrixV01,
   validateRuntimeCollaborationEventEnvelope,
   validateRuntimeCollaborationOperationBatch,
@@ -121,6 +124,8 @@ test("exports active schema contracts", () => {
   assert.equal(getBuiltinNodeHelpGraph("render.output")?.id, "help-render-output");
   assert.equal(graphV01Schema.properties.schemaVersion.const, "0.1.0");
   assert.equal(projectV01Schema.properties.schemaVersion.const, "0.1.0");
+  assert.equal(runtimeProjectRequestV0Schema.required.includes("nodes"), true);
+  assert.equal(runtimeProjectRequestV0Schema.properties.nodes.minItems, 1);
   assert.equal(viewStateV01Schema.properties.schemaVersion.const, "0.1.0");
   assert.equal(nodeDefinitionV01Schema.properties.schemaVersion.const, "0.1.0");
   assert.equal(objectTextParseResultV01Schema.properties.schema.const, "skenion.object-text.parse-result");
@@ -998,6 +1003,7 @@ test("documents runtime HTTP endpoints that use Contracts DTOs", async () => {
     "RuntimeIoDeviceDescriptor",
     "RuntimeIoBindingConfig",
     "RuntimeIoDiagnostic",
+    "RuntimeProjectRequestV01",
     "RuntimeSessionInfoResponse",
     "RuntimeConnectionProfile",
     "RuntimeSessionCapabilitySet",
@@ -1035,6 +1041,8 @@ test("documents runtime HTTP endpoints that use Contracts DTOs", async () => {
   assert.match(openApi, /authPolicy:/);
   assert.match(openApi, /sessions\.events\.stream/);
   assert.match(openApi, /sessionId:/);
+  assert.match(openApi, /ProjectRequest:\n\s+\$ref: "#\/components\/schemas\/RuntimeProjectRequestV01"/);
+  assert.match(openApi, /RuntimeProjectRequestV01:\n\s+\$ref: "\.\.\/json-schema\/runtime\/v0\/project-request\.schema\.json"/);
   assert.match(openApi, /RuntimeProjectSnapshot:\n\s+\$ref: "#\/components\/schemas\/ProjectDocumentV01"/);
   assert.match(openApi, /RuntimeMutationRequest:[\s\S]*?operation:\n\s+\$ref: "#\/components\/schemas\/RuntimeOperationEnvelope"/);
   assert.match(openApi, /RuntimeDiagnostic:[\s\S]*?code:\n\s+type: string[\s\S]*?details:\n\s+description: Arbitrary JSON diagnostic metadata\./);
@@ -2434,6 +2442,34 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   const graphInvalidPatchResult = validatePatchDefinitionV01(graphInvalidPatch);
   assert.equal(graphInvalidPatchResult.ok, false);
   assert.match(graphInvalidPatchResult.errors.join("\n"), /duplicate node id/);
+});
+
+test("validates runtime project request nodes envelope", async () => {
+  const validRequest = await readJson("fixtures/runtime-project/v0/valid/project-with-nodes.runtime-project.json");
+  const validResult = validateRuntimeProjectRequestV01(validRequest);
+  assert.equal(validateRuntimeProjectRequest(validRequest).ok, true);
+  assert.equal(validResult.ok, true);
+  assert.equal(validateProjectDocumentV01(validRequest).ok, false);
+
+  const missingNodes = await readJson("fixtures/runtime-project/v0/invalid/missing-nodes.runtime-project.json");
+  const missingNodesResult = validateRuntimeProjectRequestV01(missingNodes);
+  assert.equal(missingNodesResult.ok, false);
+  assert.match(missingNodesResult.errors.join("\n"), /nodes/);
+
+  const emptyNodes = await readJson("fixtures/runtime-project/v0/invalid/empty-nodes.runtime-project.json");
+  const emptyNodesResult = validateRuntimeProjectRequestV01(emptyNodes);
+  assert.equal(emptyNodesResult.ok, false);
+  assert.match(emptyNodesResult.errors.join("\n"), /fewer than 1|at least one node definition/);
+
+  const missingDefinition = await readJson("fixtures/runtime-project/v0/invalid/missing-node-definition.runtime-project.json");
+  const missingDefinitionResult = validateRuntimeProjectRequestV01(missingDefinition);
+  assert.equal(missingDefinitionResult.ok, false);
+  assert.match(missingDefinitionResult.errors.join("\n"), /missing node definition: core\.float@0\.1\.0/);
+
+  const mismatch = await readJson("fixtures/runtime-project/v0/invalid/node-definition-version-mismatch.runtime-project.json");
+  const mismatchResult = validateRuntimeProjectRequestV01(mismatch);
+  assert.equal(mismatchResult.ok, false);
+  assert.match(mismatchResult.errors.join("\n"), /node definition version mismatch: core\.float@0\.1\.0/);
 });
 
 test("derives v0.1 patch contracts from core inlet and outlet boundary nodes", async () => {

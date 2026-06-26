@@ -20,6 +20,7 @@ import {
   projectV01Schema,
   runtimeCollaborationV0Schema,
   runtimeOperationV0Schema,
+  runtimeProjectRequestV0Schema,
   runtimeSessionV0Schema,
   shaderInterfaceV01Schema,
   viewStateV01Schema
@@ -64,6 +65,7 @@ import type {
   RuntimeCollaborationPresenceEnvelope,
   RuntimeCollaborationSelectionEnvelope,
   RuntimeOperationEnvelope,
+  RuntimeProjectRequestV01,
   RuntimeSessionEvent,
   RuntimeSessionInfoResponse,
   ShaderInterfaceV01,
@@ -88,6 +90,7 @@ ajv.addSchema(graphV01Schema);
 ajv.addSchema(graphFragmentV01Schema);
 ajv.addSchema(viewStateV01Schema);
 ajv.addSchema(projectV01Schema);
+ajv.addSchema(runtimeProjectRequestV0Schema);
 ajv.addSchema(runtimeOperationV0Schema);
 ajv.addSchema(runtimeSessionV0Schema);
 const graphV01Validator = ajv.compile(graphV01Schema);
@@ -151,6 +154,7 @@ const nodeDefinitionV01Validator = ajv.compile(nodeDefinitionV01Schema);
 const shaderInterfaceV01Validator = ajv.compile(shaderInterfaceV01Schema);
 const viewStateV01Validator = ajv.compile(viewStateV01Schema);
 const projectV01Validator = ajv.compile(projectV01Schema);
+const runtimeProjectRequestV0Validator = ajv.compile(runtimeProjectRequestV0Schema);
 const patchDefinitionV01Validator = ajv.compile({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://skenion.dev/schemas/project/v0.1/patch-definition.schema.json",
@@ -1617,6 +1621,93 @@ function validateProjectObjectBindingStatusInvariants(document: unknown): string
 
 export function validateProjectDocument(document: unknown): ValidationResult<ProjectDocumentV01> {
   return validateProjectDocumentV01(document);
+}
+
+function projectDocumentFromRuntimeProjectRequest(request: RuntimeProjectRequestV01): ProjectDocumentV01 {
+  const { nodes: _nodes, ...projectDocument } = request;
+  return projectDocument;
+}
+
+function requiresRuntimeNodeDefinition(kind: string): boolean {
+  return kind !== "core.inlet" && kind !== "core.outlet";
+}
+
+function validateRuntimeProjectRequestNodeDefinitions(request: RuntimeProjectRequestV01): string[] {
+  const errors = duplicateErrors(
+    request.nodes.map((definition) => `${definition.id}@${definition.version}`),
+    "runtime project node definition"
+  );
+  const definitionKeys = new Set<string>();
+  const versionsById = new Map<string, Set<string>>();
+
+  for (const definition of request.nodes) {
+    definitionKeys.add(`${definition.id}@${definition.version}`);
+    const versions = versionsById.get(definition.id) ?? new Set<string>();
+    versions.add(definition.version);
+    versionsById.set(definition.id, versions);
+  }
+
+  const validateGraphNodes = (graph: GraphDocumentV01, label: string) => {
+    for (const node of graph.nodes) {
+      if (!requiresRuntimeNodeDefinition(node.kind)) {
+        continue;
+      }
+      const requiredKey = `${node.kind}@${node.kindVersion}`;
+      if (definitionKeys.has(requiredKey)) {
+        continue;
+      }
+
+      const providedVersions = versionsById.get(node.kind);
+      if (providedVersions && providedVersions.size > 0) {
+        errors.push(
+          `node definition version mismatch: ${requiredKey} (${label} node ${node.id}; provided versions: ${[...providedVersions].sort().join(", ")})`
+        );
+      } else {
+        errors.push(`missing node definition: ${requiredKey} (${label} node ${node.id})`);
+      }
+    }
+  };
+
+  validateGraphNodes(request.graph, "root graph");
+  for (const patch of request.patchLibrary) {
+    validateGraphNodes(patch.graph, `patch ${patch.id}`);
+  }
+
+  return errors;
+}
+
+export function validateRuntimeProjectRequestV01(
+  document: unknown
+): ValidationResult<RuntimeProjectRequestV01> {
+  if (!runtimeProjectRequestV0Validator(document)) {
+    return { ok: false, errors: schemaErrors(runtimeProjectRequestV0Validator.errors as ErrorObject[]) };
+  }
+
+  const request = document as RuntimeProjectRequestV01;
+  const projectResult = validateProjectDocumentV01(projectDocumentFromRuntimeProjectRequest(request));
+  if (!projectResult.ok) {
+    return { ok: false, errors: projectResult.errors };
+  }
+
+  const errors = [
+    ...request.nodes.flatMap((definition) =>
+      validateNodeDefinitionV01Semantics(definition).map(
+        (error) => `runtime project node ${definition.id}@${definition.version}: ${error}`
+      )
+    ),
+    ...validateRuntimeProjectRequestNodeDefinitions(request)
+  ];
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: request };
+}
+
+export function validateRuntimeProjectRequest(
+  document: unknown
+): ValidationResult<RuntimeProjectRequestV01> {
+  return validateRuntimeProjectRequestV01(document);
 }
 
 export function validateRuntimeOperationEnvelope(

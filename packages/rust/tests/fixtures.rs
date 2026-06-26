@@ -12,13 +12,13 @@ use skenion_contracts::{
     RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationBatch,
     RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
     RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
-    RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeSessionEvent,
-    RuntimeSessionInfoResponse, analyze_graph_document_v01, analyze_graph_fragment_v01,
-    parse_object_text_v01, validate_graph_document_v01, validate_graph_fragment_v01,
-    validate_node_definition_v01, validate_object_text_parse_result_v01,
-    validate_package_discovery_response_v01, validate_package_install_plan_request_v01,
-    validate_package_install_plan_response_v01, validate_package_listing_v01,
-    validate_package_manifest_v01, validate_package_root_v01,
+    RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeProjectRequestV01,
+    RuntimeSessionEvent, RuntimeSessionInfoResponse, analyze_graph_document_v01,
+    analyze_graph_fragment_v01, parse_object_text_v01, validate_graph_document_v01,
+    validate_graph_fragment_v01, validate_node_definition_v01,
+    validate_object_text_parse_result_v01, validate_package_discovery_response_v01,
+    validate_package_install_plan_request_v01, validate_package_install_plan_response_v01,
+    validate_package_listing_v01, validate_package_manifest_v01, validate_package_root_v01,
     validate_paste_graph_fragment_response, validate_patch_definition_v01,
     validate_project_document_v01, validate_runtime_collaboration_event_envelope,
     validate_runtime_collaboration_operation_batch,
@@ -27,7 +27,8 @@ use skenion_contracts::{
     validate_runtime_collaboration_operation_result,
     validate_runtime_collaboration_presence_envelope,
     validate_runtime_collaboration_selection_envelope, validate_runtime_operation_envelope,
-    validate_runtime_session_event, validate_runtime_session_info_response,
+    validate_runtime_project_request_v01, validate_runtime_session_event,
+    validate_runtime_session_info_response,
 };
 
 fn collect_json_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
@@ -1622,6 +1623,56 @@ fn validates_v01_project_patch_library_fixtures() {
             file.display()
         );
     }
+}
+
+#[test]
+fn validates_runtime_project_request_fixtures() {
+    let valid: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/valid/project-with-nodes.runtime-project.json"
+    ))
+    .expect("runtime project request should parse");
+    validate_runtime_project_request_v01(&valid).expect("runtime project request should validate");
+
+    let missing_nodes: Result<RuntimeProjectRequestV01, _> = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/missing-nodes.runtime-project.json"
+    ));
+    assert!(missing_nodes.is_err());
+
+    let empty_nodes: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/empty-nodes.runtime-project.json"
+    ))
+    .expect("runtime project request with empty nodes should parse");
+    let empty_nodes_report = validate_runtime_project_request_v01(&empty_nodes)
+        .expect_err("empty runtime project nodes should fail");
+    assert!(
+        empty_nodes_report
+            .to_string()
+            .contains("requires at least one node definition")
+    );
+
+    let missing_definition: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/missing-node-definition.runtime-project.json"
+    ))
+    .expect("runtime project request with wrong nodes should parse");
+    let missing_definition_report = validate_runtime_project_request_v01(&missing_definition)
+        .expect_err("missing runtime project node definition should fail");
+    assert!(
+        missing_definition_report
+            .to_string()
+            .contains("missing node definition: core.float@0.1.0")
+    );
+
+    let mismatch: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/node-definition-version-mismatch.runtime-project.json"
+    ))
+    .expect("runtime project request with mismatched node version should parse");
+    let mismatch_report = validate_runtime_project_request_v01(&mismatch)
+        .expect_err("runtime project node definition version mismatch should fail");
+    assert!(
+        mismatch_report
+            .to_string()
+            .contains("node definition version mismatch: core.float@0.1.0")
+    );
 }
 
 fn project_document_fixture(relative: &str) -> ProjectDocumentV01 {

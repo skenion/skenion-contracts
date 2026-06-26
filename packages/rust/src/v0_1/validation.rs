@@ -30,9 +30,9 @@ use super::{
     RuntimeCollaborationPresenceEnvelope, RuntimeCollaborationSelectionEnvelope,
     RuntimeConnectionProfile, RuntimeConnectionProfileMode, RuntimeDiagnostic, RuntimeHistory,
     RuntimeHistoryEntry, RuntimeMutationRequest, RuntimeOperationEnvelope, RuntimeOwnershipMode,
-    RuntimeSessionEvent, RuntimeSessionInfoResponse, RuntimeSessionSnapshot,
-    RuntimeViewPatchOperation, SKENION_PACKAGE_MANIFEST_FILE_NAME, ViewStateV01,
-    derive_patch_contract_v01,
+    RuntimeProjectRequestV01, RuntimeSessionEvent, RuntimeSessionInfoResponse,
+    RuntimeSessionSnapshot, RuntimeViewPatchOperation, SKENION_PACKAGE_MANIFEST_FILE_NAME,
+    ViewStateV01, derive_patch_contract_v01,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2176,6 +2176,135 @@ pub fn validate_project_document_v01(
         }
     }
     errors.extend(project_package_reference_errors(project));
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationReportV01::new(errors))
+    }
+}
+
+fn project_document_from_runtime_project_request(
+    request: &RuntimeProjectRequestV01,
+) -> ProjectDocumentV01 {
+    ProjectDocumentV01 {
+        schema: request.schema.clone(),
+        schema_version: request.schema_version.clone(),
+        id: request.id.clone(),
+        revision: request.revision.clone(),
+        metadata: request.metadata.clone(),
+        graph: request.graph.clone(),
+        view_state: request.view_state.clone(),
+        patch_library: request.patch_library.clone(),
+        package_dependencies: request.package_dependencies.clone(),
+        package_lock: request.package_lock.clone(),
+        resource_lock: request.resource_lock.clone(),
+        object_bindings: request.object_bindings.clone(),
+        tutorial: request.tutorial.clone(),
+        help: request.help.clone(),
+    }
+}
+
+fn requires_runtime_node_definition(kind: &str) -> bool {
+    !matches!(kind, "core.inlet" | "core.outlet")
+}
+
+fn runtime_project_graph_node_definition_errors(
+    graph: &GraphDocumentV01,
+    label: &str,
+    definition_keys: &HashSet<String>,
+    versions_by_id: &HashMap<String, BTreeSet<String>>,
+) -> Vec<ValidationErrorV01> {
+    let mut errors = Vec::new();
+
+    for node in &graph.nodes {
+        if !requires_runtime_node_definition(&node.kind) {
+            continue;
+        }
+        let required_key = format!("{}@{}", node.kind, node.kind_version);
+        if definition_keys.contains(&required_key) {
+            continue;
+        }
+
+        if let Some(provided_versions) = versions_by_id.get(&node.kind) {
+            errors.push(ValidationErrorV01::new(format!(
+                "node definition version mismatch: {required_key} ({label} node {}; provided versions: {})",
+                node.id,
+                provided_versions
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )));
+        } else {
+            errors.push(ValidationErrorV01::new(format!(
+                "missing node definition: {required_key} ({label} node {})",
+                node.id
+            )));
+        }
+    }
+
+    errors
+}
+
+pub fn validate_runtime_project_request_v01(
+    request: &RuntimeProjectRequestV01,
+) -> Result<(), ValidationReportV01> {
+    let mut errors = Vec::new();
+    let project = project_document_from_runtime_project_request(request);
+
+    if let Err(report) = validate_project_document_v01(&project) {
+        errors.extend(report.errors);
+    }
+
+    if request.nodes.is_empty() {
+        errors.push(ValidationErrorV01::new(
+            "runtime project request requires at least one node definition",
+        ));
+    }
+
+    let definition_key_values = request
+        .nodes
+        .iter()
+        .map(|definition| format!("{}@{}", definition.id, definition.version))
+        .collect::<Vec<_>>();
+    errors.extend(duplicate_errors(
+        definition_key_values.iter().map(String::as_str).collect(),
+        "runtime project node definition",
+    ));
+
+    let definition_keys = definition_key_values.into_iter().collect::<HashSet<_>>();
+    let mut versions_by_id = HashMap::<String, BTreeSet<String>>::new();
+    for definition in &request.nodes {
+        versions_by_id
+            .entry(definition.id.clone())
+            .or_default()
+            .insert(definition.version.clone());
+
+        if let Err(report) = validate_node_definition_v01(definition) {
+            errors.extend(report.errors.into_iter().map(|error| {
+                ValidationErrorV01::new(format!(
+                    "runtime project node {}@{}: {}",
+                    definition.id, definition.version, error.message
+                ))
+            }));
+        }
+    }
+
+    errors.extend(runtime_project_graph_node_definition_errors(
+        &request.graph,
+        "root graph",
+        &definition_keys,
+        &versions_by_id,
+    ));
+    for patch in &request.patch_library {
+        errors.extend(runtime_project_graph_node_definition_errors(
+            &patch.graph,
+            &format!("patch {}", patch.id),
+            &definition_keys,
+            &versions_by_id,
+        ));
+    }
 
     if errors.is_empty() {
         Ok(())

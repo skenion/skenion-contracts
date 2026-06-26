@@ -243,6 +243,56 @@ function validateProjectV01Semantics(file, project) {
   }
 }
 
+function requiresRuntimeNodeDefinition(kind) {
+  return kind !== "core.inlet" && kind !== "core.outlet";
+}
+
+function validateRuntimeProjectRequestSemantics(file, request) {
+  validateProjectV01Semantics(file, request);
+
+  duplicateCheck(
+    file,
+    request.nodes.map((definition) => `${definition.id}@${definition.version}`),
+    "runtime project node definition"
+  );
+
+  const definitionKeys = new Set();
+  const versionsById = new Map();
+  for (const definition of request.nodes) {
+    validateNodeDefinitionV01Semantics(file, definition);
+    definitionKeys.add(`${definition.id}@${definition.version}`);
+    const versions = versionsById.get(definition.id) ?? new Set();
+    versions.add(definition.version);
+    versionsById.set(definition.id, versions);
+  }
+
+  const validateGraphNodes = (graph, label) => {
+    for (const node of graph.nodes) {
+      if (!requiresRuntimeNodeDefinition(node.kind)) {
+        continue;
+      }
+      const requiredKey = `${node.kind}@${node.kindVersion}`;
+      if (definitionKeys.has(requiredKey)) {
+        continue;
+      }
+
+      const providedVersions = versionsById.get(node.kind);
+      if (providedVersions?.size > 0) {
+        fail(
+          file,
+          `node definition version mismatch: ${requiredKey} (${label} node ${node.id}; provided versions: ${[...providedVersions].sort().join(", ")})`
+        );
+      }
+      fail(file, `missing node definition: ${requiredKey} (${label} node ${node.id})`);
+    }
+  };
+
+  validateGraphNodes(request.graph, "root graph");
+  for (const patch of request.patchLibrary) {
+    validateGraphNodes(patch.graph, `patch ${patch.id}`);
+  }
+}
+
 function validatePackageManifestV01Semantics(file, manifest) {
   duplicateCheck(file, (manifest.provides.patches ?? []).map((provided) => provided.id), "provided patch id");
   duplicateCheck(file, (manifest.provides.nodes ?? []).map((provided) => provided.id), "provided node id");
@@ -1095,6 +1145,9 @@ function validateCompatibilityMatrixSemantics(file, matrix) {
 }
 
 function selectValidator(file, document, validators) {
+  if (isRuntimeProjectRequestFixture(file)) {
+    return validators.runtimeProjectRequestV0;
+  }
   if (document.schema === "skenion.graph" && document.schemaVersion === "0.1.0") {
     return validators.graphV01;
   }
@@ -1191,6 +1244,10 @@ function validateDocument(file, document, validators) {
   }
   if (document.schema === "skenion.graph.fragment" && document.schemaVersion === "0.1.0") {
     validateGraphFragmentV01Semantics(file, document);
+  }
+  if (isRuntimeProjectRequestFixture(file)) {
+    validateRuntimeProjectRequestSemantics(file, document);
+    return;
   }
   if (document.schema === "skenion.runtime.operation" && document.schemaVersion === "0.1.0") {
     validateGraphFragmentV01Semantics(file, document.request.fragment);
@@ -1448,6 +1505,10 @@ function normalizedPath(file) {
   return file.split(path.sep).join("/");
 }
 
+function isRuntimeProjectRequestFixture(file) {
+  return normalizedPath(file).startsWith("fixtures/runtime-project/v0/");
+}
+
 function isExplicitlyLoadedSchemaFile(file) {
   const normalized = normalizedPath(file);
   return [
@@ -1472,6 +1533,7 @@ await readFile("openapi/runtime-http.v0.yaml", "utf8");
 const ajv = new Ajv2020({ allErrors: true });
 const graphV01Schema = await readJson("json-schema/graph/v0.1/graph.schema.json");
 const graphFragmentV01Schema = await readJson("json-schema/graph/v0.1/fragment.schema.json");
+const runtimeProjectRequestV0Schema = await readJson("json-schema/runtime/v0/project-request.schema.json");
 const runtimeOperationV0Schema = await readJson("json-schema/runtime/v0/operation.schema.json");
 const runtimeSessionV0Schema = await readJson("json-schema/runtime/v0/session.schema.json");
 const runtimeCollaborationV0Schema = await readJson("json-schema/runtime/v0/collaboration.schema.json");
@@ -1487,6 +1549,7 @@ const packageInstallPlanResponseV01Schema = await readJson("json-schema/package/
 const compatibilityMatrixV01Schema = await readJson("json-schema/compatibility-matrix/v0.1/compatibility-matrix.schema.json");
 ajv.addSchema(graphV01Schema);
 ajv.addSchema(graphFragmentV01Schema);
+ajv.addSchema(runtimeProjectRequestV0Schema);
 ajv.addSchema(runtimeOperationV0Schema);
 ajv.addSchema(viewStateV01Schema);
 ajv.addSchema(nodeDefinitionV01Schema);
@@ -1499,6 +1562,7 @@ ajv.addSchema(compatibilityMatrixV01Schema);
 const validators = {
   graphV01: ajv.compile(graphV01Schema),
   graphFragmentV01: ajv.compile(graphFragmentV01Schema),
+  runtimeProjectRequestV0: ajv.compile(runtimeProjectRequestV0Schema),
   runtimeOperationV0: ajv.compile(runtimeOperationV0Schema),
   runtimeSessionInfo: ajv.compile(runtimeSessionV0Schema),
   runtimeSessionEvent: ajv.compile({
