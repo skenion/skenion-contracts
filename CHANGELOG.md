@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.51.0](https://github.com/skenion/skenion-contracts/compare/v0.50.0...v0.51.0) (2026-06-26)
+
+
+### Features
+
+* **contracts:** define control message semantics ([836a23e](https://github.com/skenion/skenion-contracts/commit/836a23e417a225d175d2689d4f9b1b93203013ce))
+
 ## [0.50.0](https://github.com/skenion/skenion-contracts/compare/v0.49.0...v0.50.0) (2026-06-26)
 
 
