@@ -5,6 +5,18 @@ momentum as the source of truth: before committing, pushing, opening a PR, or
 writing PR close keywords, check the relevant GitHub milestone and issue with
 `/opt/homebrew/bin/gh`.
 
+## Generated Dependency Metadata
+
+Lockfiles and package manifests are repo-owned dependency metadata. This
+includes `Cargo.lock`, `package.json`, `pnpm-lock.yaml`, generated package
+version constants, and comparable dependency outputs.
+
+If a build, test, generator, or package manager in this repo updates those files
+for a legitimate reason, include and commit that churn with the Contracts slice.
+Do not revert dependency metadata merely because it is generated. If the change
+is in another repo or outside the assigned write-set, leave it alone and report
+it only if it blocks verification.
+
 ## Strict v0 Contract Policy
 
 Skenion v0 does not support legacy, deprecated, or import-only compatibility
@@ -85,6 +97,15 @@ criteria. If the gate fails, the manager must send concrete fixes back to a
 worker, then run the gate again until the slice passes or a real blocker is
 recorded in the issue. The manager may only make trivial documentation,
 context, issue, or status corrections directly.
+
+Worker and reviewer reports must be brief by default. Routine PASS reports,
+progress summaries, and commit-readiness notes should use only: PASS/FAIL,
+blocking findings, non-blocking follow-ups that change the next action,
+verification summary, and next action. Do not include long code-line tours,
+exhaustive source references, or repeated evidence in ordinary reports.
+File/line references are required for bugs, FAIL reviews, CI failures, security
+or data-loss risks, and explicit audit requests; otherwise keep them minimal.
+The goal is fast decision-making, not transcript-sized reports.
 
 Default code quality requirements:
 
