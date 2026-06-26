@@ -2,36 +2,36 @@
   "schema": "skenion.node.help",
   "schemaVersion": "0.1.0",
   "id": "core.bool",
-  "summary": "Stores and emits a boolean control value.",
-  "description": "Use Bool for an explicit true/false value. With the default value-box widget, bang emits the current value. With widget=toggle or widget=checkbox, bang flips the stored value and emits the new value.",
+  "summary": "Stores and emits a bool control payload.",
+  "description": "Use Bool for an explicit true/false control atom. With the default bool box widget, bang emits the current payload. With widget=toggle or widget=checkbox, bang flips the stored bool and emits the new payload.",
   "helpGraph": "help/v0.1/nodes/core.bool.help.graph.json",
   "tags": [
     "value",
     "control",
-    "boolean"
+    "bool"
   ],
-  "runtimeBehavior": "in is the hot inlet. Value-box widgets emit stored value on bang; toggle/checkbox widgets flip and emit on bang. cold updates silently.",
+  "runtimeBehavior": "in is the hot control.message.any inlet. Bool box widgets emit the stored payload on bang; toggle/checkbox widgets flip and emit on bang. cold updates silently.",
   "relatedNodes": [
     "render.fullscreen-shader"
   ],
   "ports": [
     {
       "id": "in",
-      "description": "Hot inlet: values update and emit; bang emits or toggles depending on widget; set ... updates silently."
+      "description": "Hot inlet: bool-compatible payloads update and emit; bang emits or toggles depending on widget; set ... updates silently."
     },
     {
       "id": "cold",
-      "description": "Cold inlet: compatible boolean values or set ... update without emitting."
+      "description": "Cold inlet: compatible bool payloads update without emitting."
     },
     {
       "id": "value",
-      "description": "Outputs the current value."
+      "description": "Outputs the current payload."
     }
   ],
   "params": [
     {
       "id": "value",
-      "description": "Saved default boolean value."
+      "description": "Saved default bool payload."
     },
     {
       "id": "sendName",
@@ -43,7 +43,7 @@
     },
     {
       "id": "widget",
-      "description": "Optional display widget. Use toggle or checkbox for Max/Pd-style boolean toggling."
+      "description": "Optional display widget. Use toggle or checkbox for Max/Pd-style bool toggling."
     }
   ],
   "example": {

@@ -13,27 +13,27 @@
         {
           "id": "a",
           "direction": "input",
-          "type": "value.number",
+          "type": "control.number.float",
           "rate": "control",
           "triggerMode": "passive"
         },
         {
           "id": "b",
           "direction": "input",
-          "type": "value.number",
+          "type": "control.number.float",
           "rate": "control",
           "triggerMode": "passive"
         },
         {
           "id": "sum",
           "direction": "output",
-          "type": "value.number",
+          "type": "control.number.float",
           "rate": "control"
         },
         {
           "id": "diff",
           "direction": "output",
-          "type": "value.number",
+          "type": "control.number.float",
           "rate": "control"
         }
       ]

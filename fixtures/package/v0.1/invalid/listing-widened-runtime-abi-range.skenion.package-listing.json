@@ -7,7 +7,10 @@
   "summary": "Native sensor node package with a widened Runtime ABI range.",
   "description": "A schema-valid listing that must fail semantic validation because runtimeAbiRange spans more than the current v0 compatibility line.",
   "category": "mixed",
-  "tags": ["native", "sensor"],
+  "tags": [
+    "native",
+    "sensor"
+  ],
   "license": "Apache-2.0",
   "homepageUrl": "https://skenion.dev/packages/native-sensor",
   "repositoryUrl": "https://github.com/skenion/native-sensor",
@@ -18,7 +21,9 @@
   "runtimeAbiRange": ">=0.45.0 <0.47.0",
   "targetSupport": {
     "kind": "targeted",
-    "targets": ["aarch64-apple-darwin"],
+    "targets": [
+      "aarch64-apple-darwin"
+    ],
     "summary": "Native artifacts are currently published for macOS arm64."
   },
   "provides": {
@@ -28,7 +33,9 @@
         "description": "Native object entrypoint for sensor readings."
       }
     ],
-    "capabilities": ["native-object"]
+    "capabilities": [
+      "native-object"
+    ]
   },
   "artifactEvidence": {
     "artifacts": [
@@ -39,7 +46,9 @@
           "algorithm": "sha256",
           "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         },
-        "evidenceRefs": ["manifest-checksum"]
+        "evidenceRefs": [
+          "manifest-checksum"
+        ]
       },
       {
         "kind": "native-artifact",
@@ -49,7 +58,9 @@
           "algorithm": "sha256",
           "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         },
-        "evidenceRefs": ["native-attestation"]
+        "evidenceRefs": [
+          "native-attestation"
+        ]
       }
     ],
     "evidence": [

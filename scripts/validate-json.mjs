@@ -243,6 +243,56 @@ function validateProjectV01Semantics(file, project) {
   }
 }
 
+function requiresRuntimeNodeDefinition(kind) {
+  return kind !== "core.inlet" && kind !== "core.outlet";
+}
+
+function validateRuntimeProjectRequestSemantics(file, request) {
+  validateProjectV01Semantics(file, request);
+
+  duplicateCheck(
+    file,
+    request.nodes.map((definition) => `${definition.id}@${definition.version}`),
+    "runtime project node definition"
+  );
+
+  const definitionKeys = new Set();
+  const versionsById = new Map();
+  for (const definition of request.nodes) {
+    validateNodeDefinitionV01Semantics(file, definition);
+    definitionKeys.add(`${definition.id}@${definition.version}`);
+    const versions = versionsById.get(definition.id) ?? new Set();
+    versions.add(definition.version);
+    versionsById.set(definition.id, versions);
+  }
+
+  const validateGraphNodes = (graph, label) => {
+    for (const node of graph.nodes) {
+      if (!requiresRuntimeNodeDefinition(node.kind)) {
+        continue;
+      }
+      const requiredKey = `${node.kind}@${node.kindVersion}`;
+      if (definitionKeys.has(requiredKey)) {
+        continue;
+      }
+
+      const providedVersions = versionsById.get(node.kind);
+      if (providedVersions?.size > 0) {
+        fail(
+          file,
+          `node definition version mismatch: ${requiredKey} (${label} node ${node.id}; provided versions: ${[...providedVersions].sort().join(", ")})`
+        );
+      }
+      fail(file, `missing node definition: ${requiredKey} (${label} node ${node.id})`);
+    }
+  };
+
+  validateGraphNodes(request.graph, "root graph");
+  for (const patch of request.patchLibrary) {
+    validateGraphNodes(patch.graph, `patch ${patch.id}`);
+  }
+}
+
 function validatePackageManifestV01Semantics(file, manifest) {
   duplicateCheck(file, (manifest.provides.patches ?? []).map((provided) => provided.id), "provided patch id");
   duplicateCheck(file, (manifest.provides.nodes ?? []).map((provided) => provided.id), "provided node id");
@@ -612,22 +662,80 @@ function edgeEnabled(edge) {
 
 function v01ControlMessagePortType(type) {
   return [
+    "control.message.any",
+    "control.number.float",
+    "control.number.int",
+    "control.number.uint",
+    "control.bool",
+    "control.color",
+    "control.string"
+  ].includes(type);
+}
+
+function portTypeAccepts(source, target) {
+  if (target.type === "control.message.any" && v01ControlMessagePortType(source.type)) {
+    return true;
+  }
+  return source.type === target.type || target.accepts?.includes(source.type) === true;
+}
+
+function legacyControlPortType(type) {
+  return [
     "message.any",
-    "event.bang",
     "number.float",
     "number.int",
     "number.uint",
     "boolean",
     "color",
     "string"
-  ].includes(type);
+  ].includes(type) || String(type).startsWith("value.") || String(type).startsWith("value<");
 }
 
-function portTypeAccepts(source, target) {
-  if (target.type === "message.any" && v01ControlMessagePortType(source.type)) {
-    return true;
+function selectorAwareInputPort(port) {
+  return port.direction === "input" && (
+    port.type === "control.message.any" ||
+    port.accepts?.includes("control.message.any") === true
+  );
+}
+
+function validateMessageSelectorPolicy(file, port, label) {
+  if (!port.messageSelectors) {
+    if (selectorAwareInputPort(port)) {
+      fail(file, `${label} selector-aware input port requires messageSelectors`);
+    }
+    return;
   }
-  return source.type === target.type || target.accepts?.includes(source.type) === true;
+  const accepted = port.messageSelectors.accepted ?? [];
+  if (accepted.length === 0) {
+    fail(file, `${label} messageSelectors.accepted must list at least one selector`);
+  }
+  const acceptedSet = new Set(accepted);
+  for (const field of ["silent", "trigger", "store", "emit"]) {
+    for (const selector of port.messageSelectors[field] ?? []) {
+      if (!acceptedSet.has(selector)) {
+        fail(file, `${label} messageSelectors.${field} selector ${selector} is not accepted`);
+      }
+    }
+  }
+  if (port.messageSelectors.trigger?.includes("set")) {
+    fail(file, `${label} messageSelectors.trigger must not include set`);
+  }
+  if (port.messageSelectors.emit?.includes("set")) {
+    fail(file, `${label} messageSelectors.emit must not include set`);
+  }
+  if (
+    acceptedSet.has("set") &&
+    !port.messageSelectors.silent?.includes("set") &&
+    !port.messageSelectors.store?.includes("set")
+  ) {
+    fail(file, `${label} messageSelectors.set must be silent or store behavior`);
+  }
+}
+
+function validateObjectTextParseResultSemantics(file, result) {
+  for (const port of result.instancePorts ?? []) {
+    validateMessageSelectorPolicy(file, port, `objectText instancePort ${result.classSymbol}.${port.id}`);
+  }
 }
 
 function inputMaxConnections(port) {
@@ -648,16 +756,15 @@ function typeFamily(type) {
   return type.split(".")[0] ?? type;
 }
 
+function controlCyclePortType(type) {
+  return type === "event.bang" || v01ControlMessagePortType(type) || typeFamily(type) === "control";
+}
+
 function controlCycleTypes(edges, ports) {
   return edges.every((edge) => {
     const source = ports.get(portSpecKey(edge.source.nodeId, edge.source.portId));
     const target = ports.get(portSpecKey(edge.target.nodeId, edge.target.portId));
-    const sourceFamily = source ? typeFamily(source.type) : "";
-    const targetFamily = target ? typeFamily(target.type) : "";
-    return (
-      (sourceFamily === "value" || sourceFamily === "control") &&
-      (targetFamily === "value" || targetFamily === "control")
-    );
+    return controlCyclePortType(source?.type ?? "") && controlCyclePortType(target?.type ?? "");
   });
 }
 
@@ -738,11 +845,34 @@ function validateGraphV01Semantics(file, graph) {
       `port id on ${node.id}`
     );
     for (const group of node.portGroups ?? []) {
+      if (legacyControlPortType(group.type)) {
+        fail(file, `port group ${node.id}.${group.id} uses legacy control port type ${group.type}`);
+      }
+      if (legacyControlPortType(group.defaultPortSpec?.type ?? "")) {
+        fail(file, `port group ${node.id}.${group.id} default port uses legacy control port type ${group.defaultPortSpec.type}`);
+      }
+      for (const acceptedType of group.defaultPortSpec?.accepts ?? []) {
+        if (legacyControlPortType(acceptedType)) {
+          fail(file, `port group ${node.id}.${group.id} default port accepts legacy control port type ${acceptedType}`);
+        }
+      }
+      if (group.defaultPortSpec) {
+        validateMessageSelectorPolicy(file, group.defaultPortSpec, `port group ${node.id}.${group.id} defaultPortSpec`);
+      }
       if (group.maxPorts !== undefined && group.maxPorts < group.minPorts) {
         fail(file, `port group ${node.id}.${group.id} maxPorts is less than minPorts`);
       }
     }
     for (const port of node.ports) {
+      if (legacyControlPortType(port.type)) {
+        fail(file, `port ${node.id}.${port.id} uses legacy control port type ${port.type}`);
+      }
+      for (const acceptedType of port.accepts ?? []) {
+        if (legacyControlPortType(acceptedType)) {
+          fail(file, `port ${node.id}.${port.id} accepts legacy control port type ${acceptedType}`);
+        }
+      }
+      validateMessageSelectorPolicy(file, port, `port ${node.id}.${port.id}`);
       const key = portSpecKey(node.id, port.id);
       ports.set(key, port);
       incoming.set(key, []);
@@ -767,6 +897,9 @@ function validateGraphV01Semantics(file, graph) {
     const targetKey = portSpecKey(edge.target.nodeId, edge.target.portId);
     const source = ports.get(sourceKey);
     const target = ports.get(targetKey);
+    if (legacyControlPortType(edge.resolvedType ?? "")) {
+      fail(file, `edge ${edge.id} uses legacy resolvedType ${edge.resolvedType}`);
+    }
     if (!source) {
       fail(file, `edge ${edge.id} references missing source port ${sourceKey}`);
     }
@@ -820,7 +953,7 @@ function validateGraphV01Semantics(file, graph) {
     }
     const feedback = cycleEdges.find((edge) => edge.feedback?.enabled === true);
     if (!feedback && controlCycleTypes(cycleEdges, ports)) {
-      fail(file, "ambiguous-algebraic-loop: control/value cycle requires explicit latch, delay, or feedback policy");
+      fail(file, "ambiguous-algebraic-loop: control cycle requires explicit latch, delay, or feedback policy");
     }
     if (!feedback) {
       fail(file, "invalid-cycle: cycle requires explicit feedback policy");
@@ -844,6 +977,15 @@ function validateGraphFragmentV01Semantics(file, fragment) {
       `port id on ${node.id}`
     );
     for (const port of node.ports) {
+      if (legacyControlPortType(port.type)) {
+        fail(file, `port ${node.id}.${port.id} uses legacy control port type ${port.type}`);
+      }
+      for (const acceptedType of port.accepts ?? []) {
+        if (legacyControlPortType(acceptedType)) {
+          fail(file, `port ${node.id}.${port.id} accepts legacy control port type ${acceptedType}`);
+        }
+      }
+      validateMessageSelectorPolicy(file, port, `port ${node.id}.${port.id}`);
       ports.set(portSpecKey(node.id, port.id), port);
     }
   }
@@ -862,6 +1004,9 @@ function validateGraphFragmentV01Semantics(file, fragment) {
     const targetKey = portSpecKey(edge.target.nodeId, edge.target.portId);
     const source = ports.get(sourceKey);
     const target = ports.get(targetKey);
+    if (legacyControlPortType(edge.resolvedType ?? "")) {
+      fail(file, `edge ${edge.id} uses legacy resolvedType ${edge.resolvedType}`);
+    }
     if (!source) {
       fail(file, `edge ${edge.id} references missing source port ${sourceKey}`);
     }
@@ -888,9 +1033,35 @@ function validateNodeDefinitionV01Semantics(file, definition) {
   );
 
   for (const group of definition.portGroups ?? []) {
+    if (legacyControlPortType(group.type)) {
+      fail(file, `legacy port group type on ${definition.id}.${group.id}: ${group.type}`);
+    }
+    if (legacyControlPortType(group.defaultPortSpec?.type ?? "")) {
+      fail(file, `legacy default port type on ${definition.id}.${group.id}: ${group.defaultPortSpec.type}`);
+    }
+    for (const acceptedType of group.defaultPortSpec?.accepts ?? []) {
+      if (legacyControlPortType(acceptedType)) {
+        fail(file, `legacy default accepted port type on ${definition.id}.${group.id}: ${acceptedType}`);
+      }
+    }
+    if (group.defaultPortSpec) {
+      validateMessageSelectorPolicy(file, group.defaultPortSpec, `port group ${definition.id}.${group.id} defaultPortSpec`);
+    }
     if (group.maxPorts !== undefined && group.maxPorts < group.minPorts) {
       fail(file, `port group ${definition.id}.${group.id} maxPorts is less than minPorts`);
     }
+  }
+
+  for (const port of definition.ports) {
+    if (legacyControlPortType(port.type)) {
+      fail(file, `legacy port type on ${definition.id}.${port.id}: ${port.type}`);
+    }
+    for (const acceptedType of port.accepts ?? []) {
+      if (legacyControlPortType(acceptedType)) {
+        fail(file, `legacy accepted port type on ${definition.id}.${port.id}: ${acceptedType}`);
+      }
+    }
+    validateMessageSelectorPolicy(file, port, `port ${definition.id}.${port.id}`);
   }
 
   for (const permission of definition.permissions) {
@@ -1095,6 +1266,9 @@ function validateCompatibilityMatrixSemantics(file, matrix) {
 }
 
 function selectValidator(file, document, validators) {
+  if (isRuntimeProjectRequestFixture(file)) {
+    return validators.runtimeProjectRequestV0;
+  }
   if (document.schema === "skenion.graph" && document.schemaVersion === "0.1.0") {
     return validators.graphV01;
   }
@@ -1192,6 +1366,10 @@ function validateDocument(file, document, validators) {
   if (document.schema === "skenion.graph.fragment" && document.schemaVersion === "0.1.0") {
     validateGraphFragmentV01Semantics(file, document);
   }
+  if (isRuntimeProjectRequestFixture(file)) {
+    validateRuntimeProjectRequestSemantics(file, document);
+    return;
+  }
   if (document.schema === "skenion.runtime.operation" && document.schemaVersion === "0.1.0") {
     validateGraphFragmentV01Semantics(file, document.request.fragment);
   }
@@ -1221,6 +1399,9 @@ function validateDocument(file, document, validators) {
   }
   if (document.schema === "skenion.project" && document.schemaVersion === "0.1.0") {
     validateProjectV01Semantics(file, document);
+  }
+  if (document.schema === "skenion.object-text.parse-result" && document.schemaVersion === "0.1.0") {
+    validateObjectTextParseResultSemantics(file, document);
   }
   if (document.schema === "skenion.package.manifest" && document.schemaVersion === "0.1.0") {
     validatePackageManifestV01Semantics(file, document);
@@ -1268,31 +1449,31 @@ function validateBuiltinManifest(file, manifest) {
   if (!Array.isArray(manifest.nodes) || manifest.nodes.length === 0) {
     fail(file, "nodes must be a non-empty array");
   }
-  if (!Array.isArray(manifest.canonicalDataKinds) || manifest.canonicalDataKinds.length === 0) {
-    fail(file, "canonicalDataKinds must be a non-empty array");
+  if (!Array.isArray(manifest.canonicalTypes) || manifest.canonicalTypes.length === 0) {
+    fail(file, "canonicalTypes must be a non-empty array");
   }
 
   for (const node of manifest.nodes) {
     requireString(file, node, "node id");
   }
-  for (const dataKind of manifest.canonicalDataKinds) {
-    requireString(file, dataKind, "canonical data kind");
+  for (const type of manifest.canonicalTypes) {
+    requireString(file, type, "canonical type");
   }
 
   duplicateCheck(file, manifest.nodes, "builtin node id");
-  duplicateCheck(file, manifest.canonicalDataKinds, "canonical data kind");
+  duplicateCheck(file, manifest.canonicalTypes, "canonical type");
 
-  for (const [dataKind, representations] of Object.entries(manifest.representations ?? {})) {
-    if (!manifest.canonicalDataKinds.includes(dataKind)) {
-      fail(file, `representation key is not a canonical data kind: ${dataKind}`);
+  for (const [type, representations] of Object.entries(manifest.representations ?? {})) {
+    if (!manifest.canonicalTypes.includes(type)) {
+      fail(file, `representation key is not a canonical type: ${type}`);
     }
     if (!Array.isArray(representations) || representations.length === 0) {
-      fail(file, `representations for ${dataKind} must be a non-empty array`);
+      fail(file, `representations for ${type} must be a non-empty array`);
     }
     for (const representation of representations) {
-      requireString(file, representation, `representation for ${dataKind}`);
+      requireString(file, representation, `representation for ${type}`);
     }
-    duplicateCheck(file, representations, `representation for ${dataKind}`);
+    duplicateCheck(file, representations, `representation for ${type}`);
   }
 }
 
@@ -1305,13 +1486,13 @@ function validateBuiltinNodeDefinition(file, definition, id, manifest) {
     fail(file, `node definition is not listed in builtins manifest: ${definition.id}`);
   }
 
-  const canonicalDataKinds = new Set(manifest.canonicalDataKinds);
+  const canonicalTypes = new Set(manifest.canonicalTypes);
   for (const port of definition.ports) {
-    if (!canonicalDataKinds.has(port.type)) {
+    if (!canonicalTypes.has(port.type)) {
       fail(file, `port ${definition.id}.${port.id} uses non-canonical type ${port.type}`);
     }
     for (const acceptedType of port.accepts ?? []) {
-      if (!canonicalDataKinds.has(acceptedType)) {
+      if (!canonicalTypes.has(acceptedType)) {
         fail(file, `port ${definition.id}.${port.id} accepts non-canonical type ${acceptedType}`);
       }
     }
@@ -1448,6 +1629,10 @@ function normalizedPath(file) {
   return file.split(path.sep).join("/");
 }
 
+function isRuntimeProjectRequestFixture(file) {
+  return normalizedPath(file).startsWith("fixtures/runtime-project/v0/");
+}
+
 function isExplicitlyLoadedSchemaFile(file) {
   const normalized = normalizedPath(file);
   return [
@@ -1472,6 +1657,7 @@ await readFile("openapi/runtime-http.v0.yaml", "utf8");
 const ajv = new Ajv2020({ allErrors: true });
 const graphV01Schema = await readJson("json-schema/graph/v0.1/graph.schema.json");
 const graphFragmentV01Schema = await readJson("json-schema/graph/v0.1/fragment.schema.json");
+const runtimeProjectRequestV0Schema = await readJson("json-schema/runtime/v0/project-request.schema.json");
 const runtimeOperationV0Schema = await readJson("json-schema/runtime/v0/operation.schema.json");
 const runtimeSessionV0Schema = await readJson("json-schema/runtime/v0/session.schema.json");
 const runtimeCollaborationV0Schema = await readJson("json-schema/runtime/v0/collaboration.schema.json");
@@ -1487,6 +1673,7 @@ const packageInstallPlanResponseV01Schema = await readJson("json-schema/package/
 const compatibilityMatrixV01Schema = await readJson("json-schema/compatibility-matrix/v0.1/compatibility-matrix.schema.json");
 ajv.addSchema(graphV01Schema);
 ajv.addSchema(graphFragmentV01Schema);
+ajv.addSchema(runtimeProjectRequestV0Schema);
 ajv.addSchema(runtimeOperationV0Schema);
 ajv.addSchema(viewStateV01Schema);
 ajv.addSchema(nodeDefinitionV01Schema);
@@ -1499,6 +1686,7 @@ ajv.addSchema(compatibilityMatrixV01Schema);
 const validators = {
   graphV01: ajv.compile(graphV01Schema),
   graphFragmentV01: ajv.compile(graphFragmentV01Schema),
+  runtimeProjectRequestV0: ajv.compile(runtimeProjectRequestV0Schema),
   runtimeOperationV0: ajv.compile(runtimeOperationV0Schema),
   runtimeSessionInfo: ajv.compile(runtimeSessionV0Schema),
   runtimeSessionEvent: ajv.compile({

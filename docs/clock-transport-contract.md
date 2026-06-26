@@ -5,7 +5,7 @@ skenion Docs [Clock And Transport model](https://github.com/skenion/skenion-docs
 
 ## Contract Decisions
 
-- `clock.state` is a semantic data kind carried as `flow: "value"`.
+- `clock.state` is a semantic data kind carried as `flow: "control"`.
 - skenion does not define a user-facing global master transport.
 - Runtime internals still have substrate clocks for host time, audio sample
   time, and render frame time.
@@ -39,16 +39,16 @@ External sources do not provide equivalent data:
 
 `clock.local` publishes:
 
-- `sync: value<clock.state>`
-- `reset: event<event.bang>`
-- `state: value<clock.state>`
-- `tick: event<event.bang>`
-- `phase: value<number.float>`
-- `tempo: value<number.float>`
+- `sync: clock.state`
+- `reset: event.bang`
+- `state: clock.state`
+- `tick: event.bang`
+- `phase: control.number.float`
+- `tempo: control.number.float`
 
 `clock.position-display` publishes:
 
-- `clock: value<clock.state>`
+- `clock: clock.state`
 
 These are contract surfaces only. Runtime scheduling and external clock input
 objects are later milestones; they are graph nodes/objects, not Runtime-global

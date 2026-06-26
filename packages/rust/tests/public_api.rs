@@ -56,7 +56,7 @@ fn data_type(flow: DataFlowV01, data_kind: &str) -> DataTypeV01 {
 
 #[test]
 fn serializes_optional_contract_fields_as_absent() {
-    let mut number = data_type(DataFlowV01::Value, "number.float");
+    let mut number = data_type(DataFlowV01::Control, "number.float");
     number.range = Some(NumberRangeV01 {
         min: Some(0.0),
         max: None,
@@ -67,7 +67,7 @@ fn serializes_optional_contract_fields_as_absent() {
     assert_eq!(
         serialized_type,
         serde_json::json!({
-            "flow": "value",
+            "flow": "control",
             "dataKind": "number.float",
             "range": { "min": 0.0 }
         })
@@ -86,7 +86,7 @@ fn serializes_optional_contract_fields_as_absent() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "out", "direction": "output", "type": "number.float" }
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             }
           ],
@@ -97,7 +97,7 @@ fn serializes_optional_contract_fields_as_absent() {
     let serialized_graph = serde_json::to_string(&graph).expect("graph should serialize");
 
     assert!(!serialized_graph.contains("null"));
-    assert!(serialized_graph.contains(r#""type":"number.float""#));
+    assert!(serialized_graph.contains(r#""type":"control.number.float""#));
     assert!(validate_graph_document_v01(&graph).is_ok());
 }
 
@@ -306,7 +306,7 @@ fn parses_public_graph_fragment_paste_contracts() {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "number.float" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               ],
@@ -563,9 +563,9 @@ fn validates_public_remaining_collaboration_coverage_paths() {
                   "id": "in",
                   "direction": "input",
                   "type": "render.frame",
-                  "accepts": ["value.number"]
+                  "accepts": ["control.number.float"]
                 },
-                { "id": "out", "direction": "output", "type": "value.number" }
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             }
           ],
@@ -615,7 +615,7 @@ fn validates_public_remaining_collaboration_coverage_paths() {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "number.float" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               },
@@ -793,7 +793,7 @@ fn validates_public_remaining_collaboration_coverage_paths() {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "number.float" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               ],
@@ -857,12 +857,12 @@ fn validates_public_remaining_collaboration_coverage_paths() {
 	                        "schemaVersion": "0.1.0",
 	                        "nodes": [
 	                          {
-	                            "id": "value_2",
+	                            "id": "float_2",
 	                            "kind": "core.float",
 	                            "kindVersion": "0.1.0",
 	                            "params": { "value": 0.75 },
 	                            "ports": [
-	                              { "id": "out", "direction": "output", "type": "number.float", "rate": "control" }
+	                              { "id": "out", "direction": "output", "type": "control.number.float", "rate": "control" }
 	                            ]
 	                          }
 	                        ],
@@ -875,10 +875,10 @@ fn validates_public_remaining_collaboration_coverage_paths() {
                   "viewPatch": {
                     "baseViewRevision": 2,
                     "ops": [
-                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 10, "y": 20 } },
+                      { "op": "setNodeView", "nodeId": "float_2", "view": { "x": 10, "y": 20 } },
                       {
                         "op": "moveNodeView",
-                        "nodeId": "value_2",
+                        "nodeId": "float_2",
                         "from": { "x": 10, "y": 20 },
                         "to": { "x": 20, "y": 30 }
                       }
@@ -891,7 +891,7 @@ fn validates_public_remaining_collaboration_coverage_paths() {
                   "viewPatch": {
                     "baseViewRevision": 3,
                     "ops": [
-                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 0, "y": 0 } }
+                      { "op": "setNodeView", "nodeId": "float_2", "view": { "x": 0, "y": 0 } }
                     ]
                   },
                   "clientId": "studio-main"
@@ -1030,10 +1030,10 @@ fn reports_public_validation_errors() {
           "displayName": "Duplicate Port",
           "category": "Core",
           "ports": [
-            { "id": "value", "direction": "input", "type": "number.float" },
-            { "id": "value", "direction": "output", "type": "number.float" }
+            { "id": "value", "direction": "input", "type": "control.number.float" },
+            { "id": "value", "direction": "output", "type": "control.number.float" }
           ],
-          "execution": { "model": "value" },
+          "execution": { "model": "control" },
           "state": { "persistent": false },
           "permissions": [],
           "capabilities": []
@@ -1057,20 +1057,20 @@ fn parses_extension_manifest_contract_surface() {
           "kind": "core-package",
           "provides": {
             "help": [
-              { "nodeId": "core.value", "markdownPath": "help/value.md" }
+              { "nodeId": "core.float", "markdownPath": "help/float.md" }
             ]
           },
           "permissions": [],
           "tests": [
-            { "id": "value-baseline", "kind": "node", "target": "core.value", "fixturePath": "tests/value.input.json" }
+            { "id": "float-baseline", "kind": "node", "target": "core.float", "fixturePath": "tests/float.input.json" }
           ]
         }"#,
     )
     .expect("extension manifest should parse");
 
     assert_eq!(manifest.kind, ExtensionKindV01::CorePackage);
-    assert_eq!(manifest.provides.help[0].node_id, "core.value");
-    assert_eq!(manifest.tests[0].id, "value-baseline");
+    assert_eq!(manifest.provides.help[0].node_id, "core.float");
+    assert_eq!(manifest.tests[0].id, "float-baseline");
 }
 
 #[test]
@@ -2289,7 +2289,7 @@ fn validates_public_object_text_parse_results() {
           "params": { "right": 0.5 },
           "instancePorts": [
             { "id": "in", "direction": "input", "type": "signal.audio", "rate": "audio", "activation": "latched" },
-            { "id": "right", "direction": "input", "type": "number.float", "rate": "control", "activation": "latched", "defaultValue": 0.5 },
+            { "id": "right", "direction": "input", "type": "control.number.float", "rate": "control", "activation": "latched", "defaultValue": 0.5 },
             { "id": "out", "direction": "output", "type": "signal.audio", "rate": "audio" }
           ],
           "displayText": "*~ 0.5",
@@ -2319,6 +2319,117 @@ fn validates_public_object_text_parse_results() {
         parsed.params.get("frequency"),
         Some(&serde_json::json!(440))
     );
+
+    let mut missing_selectors = parse_object_text_v01("+ 1");
+    missing_selectors.instance_ports[0].message_selectors = None;
+    let missing_selectors_error = validate_object_text_parse_result_v01(&missing_selectors)
+        .expect_err("control.message.any object text port without selectors should fail");
+    assert!(
+        missing_selectors_error
+            .to_string()
+            .contains("requires messageSelectors")
+    );
+
+    let mut accepting_message_any = parse_object_text_v01("+ 1");
+    accepting_message_any.instance_ports[0].port_type = "control.number.float".to_owned();
+    accepting_message_any.instance_ports[0].accepts = Some(vec!["control.message.any".to_owned()]);
+    accepting_message_any.instance_ports[0].message_selectors = None;
+    let accepting_message_any_error = validate_object_text_parse_result_v01(&accepting_message_any)
+        .expect_err("object text port accepting control.message.any without selectors should fail");
+    assert!(
+        accepting_message_any_error
+            .to_string()
+            .contains("requires messageSelectors")
+    );
+
+    let mut empty_selector_set = parse_object_text_v01("+ 1");
+    let policy = empty_selector_set.instance_ports[0]
+        .message_selectors
+        .as_mut()
+        .expect("numeric object text should declare selector policy");
+    policy.accepted.clear();
+    let empty_selector_error = validate_object_text_parse_result_v01(&empty_selector_set)
+        .expect_err("empty selector policy should fail");
+    assert!(
+        empty_selector_error
+            .to_string()
+            .contains("accepted must list at least one selector")
+    );
+
+    let mut unaccepted_trigger = parse_object_text_v01("+ 1");
+    let policy = unaccepted_trigger.instance_ports[0]
+        .message_selectors
+        .as_mut()
+        .expect("numeric object text should declare selector policy");
+    policy.accepted = vec!["float".to_owned()];
+    policy.trigger = Some(vec!["int".to_owned()]);
+    let unaccepted_trigger_error = validate_object_text_parse_result_v01(&unaccepted_trigger)
+        .expect_err("selector behavior outside accepted set should fail");
+    assert!(
+        unaccepted_trigger_error
+            .to_string()
+            .contains("messageSelectors.trigger selector int is not accepted")
+    );
+
+    let mut set_as_emit = parse_object_text_v01("+ 1");
+    let policy = set_as_emit.instance_ports[0]
+        .message_selectors
+        .as_mut()
+        .expect("numeric object text should declare selector policy");
+    policy.accepted = vec!["set".to_owned()];
+    policy.silent = Some(vec!["set".to_owned()]);
+    policy.trigger = None;
+    policy.store = None;
+    policy.emit = Some(vec!["set".to_owned()]);
+    let set_emit_error = validate_object_text_parse_result_v01(&set_as_emit)
+        .expect_err("set must not be emit behavior");
+    assert!(
+        set_emit_error
+            .to_string()
+            .contains("messageSelectors.emit must not include set")
+    );
+
+    let mut set_as_trigger = parse_object_text_v01("+ 1");
+    let policy = set_as_trigger.instance_ports[0]
+        .message_selectors
+        .as_mut()
+        .expect("numeric object text should declare selector policy");
+    policy.accepted = vec!["set".to_owned()];
+    policy.silent = None;
+    policy.trigger = Some(vec!["set".to_owned()]);
+    policy.store = None;
+    policy.emit = None;
+    let set_trigger_error = validate_object_text_parse_result_v01(&set_as_trigger)
+        .expect_err("set must not be trigger behavior");
+    let set_trigger_text = set_trigger_error.to_string();
+    assert!(set_trigger_text.contains("messageSelectors.trigger must not include set"));
+    assert!(set_trigger_text.contains("messageSelectors.set must be silent or store behavior"));
+
+    let mut set_as_silent = parse_object_text_v01("+ 1");
+    let policy = set_as_silent.instance_ports[0]
+        .message_selectors
+        .as_mut()
+        .expect("numeric object text should declare selector policy");
+    policy.accepted = vec!["set".to_owned()];
+    policy.silent = Some(vec!["set".to_owned()]);
+    policy.trigger = None;
+    policy.store = None;
+    policy.emit = None;
+    validate_object_text_parse_result_v01(&set_as_silent)
+        .expect("set should be valid as silent selector behavior");
+
+    let mut set_as_store = parse_object_text_v01("+ 1");
+    let policy = set_as_store.instance_ports[0]
+        .message_selectors
+        .as_mut()
+        .expect("numeric object text should declare selector policy");
+    policy.accepted = vec!["set".to_owned()];
+    policy.silent = None;
+    policy.trigger = None;
+    policy.store = Some(vec!["set".to_owned()]);
+    policy.emit = None;
+    validate_object_text_parse_result_v01(&set_as_store)
+        .expect("set should be valid as store selector behavior");
 }
 
 #[test]
@@ -2619,12 +2730,39 @@ fn validates_public_type_helpers() {
     let mut target = data_type(DataFlowV01::Signal, "number.float");
 
     assert_eq!(type_label_v01(&source), "signal<number.float>");
+    assert_eq!(
+        StringOrStringsV01::One("f32".to_owned()).values(),
+        vec!["f32"]
+    );
+    assert_eq!(
+        StringOrStringsV01::Many(vec!["f32".to_owned(), "i16".to_owned()]).values(),
+        vec!["f32", "i16"]
+    );
     target.format = Some(StringOrStringsV01::One("f32".to_owned()));
     assert!(!compatible_data_types_v01(&source, &target));
     source.format = Some(StringOrStringsV01::One("f32".to_owned()));
     assert!(compatible_data_types_v01(&source, &target));
-    target.data_kind = "boolean".to_owned();
+    target.data_kind = "bool".to_owned();
     assert!(!compatible_data_types_v01(&source, &target));
+
+    let control_message_any = data_type(DataFlowV01::Control, "message.any");
+    for data_kind in [
+        "number.float",
+        "number.int",
+        "number.uint",
+        "bool",
+        "color",
+        "string",
+        "message.any",
+    ] {
+        assert!(
+            compatible_data_types_v01(
+                &data_type(DataFlowV01::Control, data_kind),
+                &control_message_any,
+            ),
+            "{data_kind} should be compatible with control message.any"
+        );
+    }
 }
 
 #[test]
@@ -2642,7 +2780,7 @@ fn reports_public_graph_semantic_errors() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "out", "direction": "output", "type": "number.float" }
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             },
             {
@@ -2806,7 +2944,7 @@ fn derives_public_v01_patch_contract_fallback_port_ids() {
                     "kindVersion": "0.1.0",
                     "params": {},
                     "ports": [
-                      { "id": "out", "direction": "output", "type": "number.float" }
+                      { "id": "out", "direction": "output", "type": "control.number.float" }
                     ]
                   },
                   {
@@ -2815,8 +2953,8 @@ fn derives_public_v01_patch_contract_fallback_port_ids() {
                     "kindVersion": "0.1.0",
                     "params": {},
                     "ports": [
-                      { "id": "first", "direction": "output", "type": "number.float" },
-                      { "id": "second", "direction": "output", "type": "number.float" }
+                      { "id": "first", "direction": "output", "type": "control.number.float" },
+                      { "id": "second", "direction": "output", "type": "control.number.float" }
                     ]
                   },
                   {
@@ -2825,7 +2963,7 @@ fn derives_public_v01_patch_contract_fallback_port_ids() {
                     "kindVersion": "0.1.0",
                     "params": {},
                     "ports": [
-                      { "id": "in", "direction": "input", "type": "number.float" }
+                      { "id": "in", "direction": "input", "type": "control.number.float" }
                     ]
                   }
                 ],
@@ -2877,11 +3015,11 @@ fn reports_public_v01_project_and_patch_definition_errors() {
             "nodes": [
                 {
                     "id": "source",
-                    "kind": "core.value",
+                    "kind": "core.float",
                     "kindVersion": "0.1.0",
                     "params": {},
                     "ports": [
-                        { "id": "out", "direction": "output", "type": "value.number" }
+                        { "id": "out", "direction": "output", "type": "control.number.float" }
                     ]
                 },
                 {
@@ -2927,7 +3065,7 @@ fn reports_public_v01_project_and_patch_definition_errors() {
                             "kindVersion": "0.1.0",
                             "params": { "portId": "same" },
                             "ports": [
-                                { "id": "out", "direction": "output", "type": "value.number" }
+                                { "id": "out", "direction": "output", "type": "control.number.float" }
                             ]
                         },
                         {
@@ -2936,7 +3074,7 @@ fn reports_public_v01_project_and_patch_definition_errors() {
                             "kindVersion": "0.1.0",
                             "params": { "portId": "same" },
                             "ports": [
-                                { "id": "out", "direction": "output", "type": "value.number" }
+                                { "id": "out", "direction": "output", "type": "control.number.float" }
                             ]
                         },
                         {

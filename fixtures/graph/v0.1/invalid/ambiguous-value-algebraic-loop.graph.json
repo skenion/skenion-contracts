@@ -6,37 +6,60 @@
   "nodes": [
     {
       "id": "a",
-      "kind": "core.value-transform",
+      "kind": "core.operator.add",
       "kindVersion": "0.1.0",
       "params": {},
       "ports": [
         {
           "id": "in",
           "direction": "input",
-          "type": "value.number"
+          "type": "control.message.any",
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ]
+          }
         },
         {
           "id": "out",
           "direction": "output",
-          "type": "value.number"
+          "type": "control.message.any"
         }
       ]
     },
     {
       "id": "b",
-      "kind": "core.value-transform",
+      "kind": "core.operator.add",
       "kindVersion": "0.1.0",
       "params": {},
       "ports": [
         {
           "id": "in",
           "direction": "input",
-          "type": "value.number"
+          "type": "control.number.float"
         },
         {
           "id": "out",
           "direction": "output",
-          "type": "value.number"
+          "type": "control.number.float"
         }
       ]
     }

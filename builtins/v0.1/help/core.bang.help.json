@@ -10,7 +10,7 @@
     "trigger",
     "control"
   ],
-  "runtimeBehavior": "Clicking the object or receiving any message on in emits one event.bang from out.",
+  "runtimeBehavior": "Clicking the object or receiving a non-set message on in emits one event.bang from out. set is accepted silently and does not emit.",
   "relatedNodes": [
     "core.float",
     "core.bool",
@@ -19,7 +19,7 @@
   "ports": [
     {
       "id": "in",
-      "description": "Accepts any control message and converts it to a bang trigger."
+      "description": "Accepts control messages. Non-set messages convert to a bang trigger; set is silent."
     },
     {
       "id": "out",
@@ -28,7 +28,7 @@
   ],
   "example": {
     "title": "Trigger stored values",
-    "description": "Connect Bang to value nodes or messages to emit their stored payloads.",
+    "description": "Connect Bang to typed control boxes or messages to emit their stored payloads.",
     "graph": "help/v0.1/nodes/core.bang.help.graph.json"
   }
 }

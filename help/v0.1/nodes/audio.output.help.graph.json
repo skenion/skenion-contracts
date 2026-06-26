@@ -15,7 +15,7 @@
         {
           "id": "frequency",
           "direction": "input",
-          "type": "number.float"
+          "type": "control.number.float"
         },
         {
           "id": "out",

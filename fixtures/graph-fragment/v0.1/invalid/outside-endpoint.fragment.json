@@ -12,7 +12,7 @@
         {
           "id": "out",
           "direction": "output",
-          "type": "number.float",
+          "type": "control.number.float",
           "rate": "control"
         }
       ]

@@ -36,7 +36,7 @@
   ],
   "example": {
     "title": "Sync shader inputs",
-    "description": "Analyze annotations, sync generated input ports, connect typed value nodes, and feed Render Output.",
+    "description": "Analyze annotations, sync generated input ports, connect typed control boxes, and feed Render Output.",
     "graph": "help/v0.1/nodes/render.fullscreen-shader.help.graph.json"
   }
 }

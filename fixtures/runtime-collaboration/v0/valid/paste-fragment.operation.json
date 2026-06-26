@@ -38,7 +38,7 @@
               {
                 "id": "out",
                 "direction": "output",
-                "type": "number.float",
+                "type": "control.number.float",
                 "rate": "control"
               }
             ]
@@ -52,7 +52,7 @@
               {
                 "id": "in",
                 "direction": "input",
-                "type": "number.float",
+                "type": "control.number.float",
                 "rate": "control"
               }
             ]
@@ -69,7 +69,7 @@
               "nodeId": "sink",
               "portId": "in"
             },
-            "resolvedType": "number.float"
+            "resolvedType": "control.number.float"
           }
         ]
       },

@@ -13,11 +13,16 @@
     "ranges": [
       {
         "kind": "nodes",
-        "nodeIds": ["source", "gain"]
+        "nodeIds": [
+          "source",
+          "gain"
+        ]
       },
       {
         "kind": "edges",
-        "edgeIds": ["edge-source-gain"]
+        "edgeIds": [
+          "edge-source-gain"
+        ]
       },
       {
         "kind": "text",

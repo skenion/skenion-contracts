@@ -6,7 +6,7 @@ export interface BuiltinManifestV01 {
   schemaVersion: "0.1.0";
   version: "0.1";
   nodes: string[];
-  canonicalDataKinds: string[];
+  canonicalTypes: string[];
   representations: Record<string, string[]>;
 }
 
@@ -92,23 +92,8 @@ export const builtinManifestV01 = {
     "audio.clock-bridge",
     "audio.resample"
   ],
-  "canonicalDataKinds": [
-    "number.float",
-    "number.int",
-    "number.uint",
-    "boolean",
-    "string",
-    "message.any",
-    "event.bang",
-    "clock.state",
-    "asset.video",
-    "video.frame",
-    "gpu.texture2d",
-    "color",
-    "signal.audio"
-  ],
   "representations": {
-    "number.float": [
+    "control.number.float": [
       "f64",
       "f32",
       "f16",
@@ -117,25 +102,40 @@ export const builtinManifestV01 = {
       "ufloat16",
       "ufloat8"
     ],
-    "number.int": [
+    "control.number.int": [
       "i64",
       "i32",
       "i16",
       "i8"
     ],
-    "number.uint": [
+    "control.number.uint": [
       "u64",
       "u32",
       "u16",
       "u8"
     ],
-    "color": [
+    "control.color": [
       "rgba32f",
       "rgba16f",
       "rgba8unorm",
       "rgb8unorm"
     ]
-  }
+  },
+  "canonicalTypes": [
+    "control.number.float",
+    "control.number.int",
+    "control.number.uint",
+    "control.bool",
+    "control.string",
+    "control.message.any",
+    "event.bang",
+    "clock.state",
+    "asset.video",
+    "video.frame",
+    "gpu.texture2d",
+    "control.color",
+    "signal.audio"
+  ]
 } satisfies BuiltinManifestV01;
 
 export const builtinNodeDefinitionsV01 = [
@@ -263,8 +263,25 @@ export const builtinNodeDefinitionsV01 = [
         "id": "seed",
         "direction": "input",
         "label": "Seed",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "messageSelectors": {
+          "accepted": [
+            "set",
+            "float",
+            "int",
+            "uint"
+          ],
+          "silent": [
+            "set"
+          ],
+          "store": [
+            "set",
+            "float",
+            "int",
+            "uint"
+          ]
+        }
       },
       {
         "id": "out",
@@ -498,7 +515,7 @@ export const builtinNodeDefinitionsV01 = [
         "id": "frequency",
         "direction": "input",
         "label": "Frequency",
-        "type": "number.float",
+        "type": "control.number.float",
         "required": false
       },
       {
@@ -574,7 +591,7 @@ export const builtinNodeDefinitionsV01 = [
         "id": "frequency",
         "direction": "input",
         "label": "Frequency",
-        "type": "number.float",
+        "type": "control.number.float",
         "required": false
       },
       {
@@ -642,15 +659,22 @@ export const builtinNodeDefinitionsV01 = [
     "schemaVersion": "0.1.0",
     "id": "audio.sig",
     "version": "0.1.0",
-    "displayName": "Signal Value",
+    "displayName": "Control to Signal",
     "category": "Audio",
     "ports": [
       {
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "latched"
       },
       {
         "id": "out",
@@ -693,14 +717,26 @@ export const builtinNodeDefinitionsV01 = [
         "id": "trigger",
         "direction": "input",
         "label": "Trigger",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang"
+          ],
+          "trigger": [
+            "bang"
+          ]
+        }
       },
       {
-        "id": "value",
+        "id": "sample",
         "direction": "output",
-        "label": "Value",
-        "type": "number.float"
+        "label": "Sample",
+        "type": "control.number.float"
       }
     ],
     "execution": {
@@ -756,17 +792,17 @@ export const builtinNodeDefinitionsV01 = [
         "id": "phase",
         "direction": "output",
         "label": "Phase",
-        "type": "number.float"
+        "type": "control.number.float"
       },
       {
         "id": "tempo",
         "direction": "output",
         "label": "Tempo",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value",
+      "model": "control",
       "clock": "beat"
     },
     "state": {
@@ -804,11 +840,11 @@ export const builtinNodeDefinitionsV01 = [
         "id": "running",
         "direction": "output",
         "label": "Running",
-        "type": "boolean"
+        "type": "control.bool"
       }
     ],
     "execution": {
-      "model": "value",
+      "model": "control",
       "clock": "external"
     },
     "state": {
@@ -840,7 +876,7 @@ export const builtinNodeDefinitionsV01 = [
       }
     ],
     "execution": {
-      "model": "value",
+      "model": "control",
       "clock": "external"
     },
     "state": {
@@ -866,8 +902,60 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "control.string",
+          "control.color",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool",
+            "string",
+            "color",
+            "symbol",
+            "list",
+            "anything"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool",
+            "string",
+            "color",
+            "symbol",
+            "list",
+            "anything"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool",
+            "string",
+            "color",
+            "symbol",
+            "list",
+            "anything"
+          ]
+        }
       },
       {
         "id": "out",
@@ -894,31 +982,82 @@ export const builtinNodeDefinitionsV01 = [
     "id": "core.bool",
     "version": "0.1.0",
     "displayName": "Bool",
-    "category": "Values",
+    "category": "Typed Controls",
     "ports": [
       {
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "store": [
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        },
+        "latch": true
       },
       {
         "id": "cold",
         "direction": "input",
         "label": "Cold",
-        "type": "boolean",
-        "required": false
+        "type": "control.bool",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive",
+        "latch": true
       },
       {
         "id": "value",
         "direction": "output",
         "label": "Value",
-        "type": "boolean"
+        "type": "control.bool"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -935,31 +1074,64 @@ export const builtinNodeDefinitionsV01 = [
     "id": "core.color",
     "version": "0.1.0",
     "displayName": "Color",
-    "category": "Values",
+    "category": "Typed Controls",
     "ports": [
       {
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.color",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "color"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "color"
+          ],
+          "store": [
+            "set",
+            "color"
+          ],
+          "emit": [
+            "bang",
+            "color"
+          ]
+        },
+        "latch": true
       },
       {
         "id": "cold",
         "direction": "input",
         "label": "Cold",
-        "type": "color",
-        "required": false
+        "type": "control.color",
+        "required": false,
+        "accepts": [
+          "control.color"
+        ],
+        "triggerMode": "passive",
+        "latch": true
       },
       {
         "id": "value",
         "direction": "output",
         "label": "Color",
-        "type": "color"
+        "type": "control.color"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -982,8 +1154,19 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "messageSelectors": {
+          "accepted": [
+            "set"
+          ],
+          "silent": [
+            "set"
+          ],
+          "store": [
+            "set"
+          ]
+        }
       }
     ],
     "execution": {
@@ -1004,31 +1187,82 @@ export const builtinNodeDefinitionsV01 = [
     "id": "core.float",
     "version": "0.1.0",
     "displayName": "Float",
-    "category": "Values",
+    "category": "Typed Controls",
     "ports": [
       {
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "store": [
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        },
+        "latch": true
       },
       {
         "id": "cold",
         "direction": "input",
         "label": "Cold",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive",
+        "latch": true
       },
       {
         "id": "value",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1079,31 +1313,82 @@ export const builtinNodeDefinitionsV01 = [
     "id": "core.int",
     "version": "0.1.0",
     "displayName": "Int",
-    "category": "Values",
+    "category": "Typed Controls",
     "ports": [
       {
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "store": [
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        },
+        "latch": true
       },
       {
         "id": "cold",
         "direction": "input",
         "label": "Cold",
-        "type": "number.int",
-        "required": false
+        "type": "control.number.int",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive",
+        "latch": true
       },
       {
         "id": "value",
         "direction": "output",
         "label": "Value",
-        "type": "number.int"
+        "type": "control.number.int"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1126,18 +1411,74 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "control.string",
+          "control.color",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool",
+            "string",
+            "color",
+            "symbol",
+            "list",
+            "anything"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool",
+            "string",
+            "color",
+            "symbol",
+            "list",
+            "anything"
+          ],
+          "store": [
+            "set"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool",
+            "string",
+            "color",
+            "symbol",
+            "list",
+            "anything"
+          ]
+        },
+        "latch": true
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Message",
-        "type": "message.any"
+        "type": "control.message.any"
       }
     ],
     "execution": {
-      "model": "event"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1160,25 +1501,64 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "right",
         "direction": "input",
         "label": "Right",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive"
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1200,25 +1580,64 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "right",
         "direction": "input",
         "label": "Right",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive"
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1240,25 +1659,64 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "right",
         "direction": "input",
         "label": "Right",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive"
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1280,25 +1738,64 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "right",
         "direction": "input",
         "label": "Right",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive"
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1320,25 +1817,64 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "right",
         "direction": "input",
         "label": "Right",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive"
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1360,25 +1896,64 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "right",
         "direction": "input",
         "label": "Right",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive"
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1400,18 +1975,50 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1433,25 +2040,64 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang",
+          "control.message.any"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        }
       },
       {
         "id": "right",
         "direction": "input",
         "label": "Right",
-        "type": "number.float",
-        "required": false
+        "type": "control.number.float",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive"
       },
       {
         "id": "out",
         "direction": "output",
         "label": "Value",
-        "type": "number.float"
+        "type": "control.number.float"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1473,12 +2119,23 @@ export const builtinNodeDefinitionsV01 = [
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "messageSelectors": {
+          "accepted": [
+            "set"
+          ],
+          "silent": [
+            "set"
+          ],
+          "store": [
+            "set"
+          ]
+        }
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1523,31 +2180,68 @@ export const builtinNodeDefinitionsV01 = [
     "id": "core.string",
     "version": "0.1.0",
     "displayName": "String",
-    "category": "Values",
+    "category": "Typed Controls",
     "ports": [
       {
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.string",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "string",
+            "symbol"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "string",
+            "symbol"
+          ],
+          "store": [
+            "set",
+            "string",
+            "symbol"
+          ],
+          "emit": [
+            "bang",
+            "string",
+            "symbol"
+          ]
+        },
+        "latch": true
       },
       {
         "id": "cold",
         "direction": "input",
         "label": "Cold",
-        "type": "string",
-        "required": false
+        "type": "control.string",
+        "required": false,
+        "accepts": [
+          "control.string"
+        ],
+        "triggerMode": "passive",
+        "latch": true
       },
       {
         "id": "value",
         "direction": "output",
         "label": "Value",
-        "type": "string"
+        "type": "control.string"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1564,31 +2258,82 @@ export const builtinNodeDefinitionsV01 = [
     "id": "core.uint",
     "version": "0.1.0",
     "displayName": "UInt",
-    "category": "Values",
+    "category": "Typed Controls",
     "ports": [
       {
         "id": "in",
         "direction": "input",
         "label": "In",
-        "type": "message.any",
-        "required": false
+        "type": "control.message.any",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool",
+          "event.bang"
+        ],
+        "triggerMode": "trigger",
+        "messageSelectors": {
+          "accepted": [
+            "bang",
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "silent": [
+            "set"
+          ],
+          "trigger": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "store": [
+            "set",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ],
+          "emit": [
+            "bang",
+            "float",
+            "int",
+            "uint",
+            "bool"
+          ]
+        },
+        "latch": true
       },
       {
         "id": "cold",
         "direction": "input",
         "label": "Cold",
-        "type": "number.uint",
-        "required": false
+        "type": "control.number.uint",
+        "required": false,
+        "accepts": [
+          "control.number.float",
+          "control.number.int",
+          "control.number.uint",
+          "control.bool"
+        ],
+        "triggerMode": "passive",
+        "latch": true
       },
       {
         "id": "value",
         "direction": "output",
         "label": "Value",
-        "type": "number.uint"
+        "type": "control.number.uint"
       }
     ],
     "execution": {
-      "model": "value"
+      "model": "control"
     },
     "state": {
       "persistent": false
@@ -1956,7 +2701,7 @@ export const builtinNodeHelpV01 = [
     "schemaVersion": "0.1.0",
     "id": "audio.sig",
     "summary": "Pd-style sig~ control-to-signal crossing.",
-    "description": "Signal Value copies the current control value into each audio block. It is a block-aligned crossing from control to audio.",
+    "description": "Control to Signal copies the current control value into each audio block. It is a block-aligned crossing from control to audio.",
     "helpGraph": "help/v0.1/nodes/audio.sig.help.graph.json",
     "tags": [
       "audio",
@@ -1996,27 +2741,27 @@ export const builtinNodeHelpV01 = [
     "ports": [
       {
         "id": "sync",
-        "description": "Optional value<clock.state> input used by future follow/sync policies."
+        "description": "Optional clock.state input used by future follow/sync policies."
       },
       {
         "id": "reset",
-        "description": "Optional event<event.bang> input that resets local phase/position."
+        "description": "Optional event.bang input that resets local phase/position."
       },
       {
         "id": "state",
-        "description": "Outputs value<clock.state> with source capability and authority metadata."
+        "description": "Outputs clock.state with source capability and authority metadata."
       },
       {
         "id": "tick",
-        "description": "Outputs event<event.bang> for discrete musical ticks."
+        "description": "Outputs event.bang for discrete musical ticks."
       },
       {
         "id": "phase",
-        "description": "Outputs normalized number.float phase in the current cycle."
+        "description": "Outputs normalized control.number.float phase in the current cycle."
       },
       {
         "id": "tempo",
-        "description": "Outputs tempo as number.float in BPM."
+        "description": "Outputs tempo as control.number.float in BPM."
       }
     ],
     "params": [
@@ -2056,15 +2801,15 @@ export const builtinNodeHelpV01 = [
     "ports": [
       {
         "id": "state",
-        "description": "Outputs value<clock.state> with MIDI Clock capability and authority metadata."
+        "description": "Outputs clock.state with MIDI Clock capability and authority metadata."
       },
       {
         "id": "tick",
-        "description": "Outputs event<event.bang> for each MIDI Timing Clock tick."
+        "description": "Outputs event.bang for each MIDI Timing Clock tick."
       },
       {
         "id": "running",
-        "description": "Outputs boolean transport state from MIDI Start, Stop, and Continue."
+        "description": "Outputs bool transport state from MIDI Start, Stop, and Continue."
       }
     ],
     "params": [
@@ -2106,7 +2851,7 @@ export const builtinNodeHelpV01 = [
     "ports": [
       {
         "id": "clock",
-        "description": "Accepts value<clock.state> from clock.local or future external clock source objects."
+        "description": "Accepts clock.state from clock.local or future external clock source objects."
       }
     ],
     "example": {
@@ -2127,7 +2872,7 @@ export const builtinNodeHelpV01 = [
       "trigger",
       "control"
     ],
-    "runtimeBehavior": "Clicking the object or receiving any message on in emits one event.bang from out.",
+    "runtimeBehavior": "Clicking the object or receiving a non-set message on in emits one event.bang from out. set is accepted silently and does not emit.",
     "relatedNodes": [
       "core.float",
       "core.bool",
@@ -2136,7 +2881,7 @@ export const builtinNodeHelpV01 = [
     "ports": [
       {
         "id": "in",
-        "description": "Accepts any control message and converts it to a bang trigger."
+        "description": "Accepts control messages. Non-set messages convert to a bang trigger; set is silent."
       },
       {
         "id": "out",
@@ -2145,7 +2890,7 @@ export const builtinNodeHelpV01 = [
     ],
     "example": {
       "title": "Trigger stored values",
-      "description": "Connect Bang to value nodes or messages to emit their stored payloads.",
+      "description": "Connect Bang to typed control boxes or messages to emit their stored payloads.",
       "graph": "help/v0.1/nodes/core.bang.help.graph.json"
     }
   },
@@ -2153,36 +2898,36 @@ export const builtinNodeHelpV01 = [
     "schema": "skenion.node.help",
     "schemaVersion": "0.1.0",
     "id": "core.bool",
-    "summary": "Stores and emits a boolean control value.",
-    "description": "Use Bool for an explicit true/false value. With the default value-box widget, bang emits the current value. With widget=toggle or widget=checkbox, bang flips the stored value and emits the new value.",
+    "summary": "Stores and emits a bool control payload.",
+    "description": "Use Bool for an explicit true/false control atom. With the default bool box widget, bang emits the current payload. With widget=toggle or widget=checkbox, bang flips the stored bool and emits the new payload.",
     "helpGraph": "help/v0.1/nodes/core.bool.help.graph.json",
     "tags": [
       "value",
       "control",
-      "boolean"
+      "bool"
     ],
-    "runtimeBehavior": "in is the hot inlet. Value-box widgets emit stored value on bang; toggle/checkbox widgets flip and emit on bang. cold updates silently.",
+    "runtimeBehavior": "in is the hot control.message.any inlet. Bool box widgets emit the stored payload on bang; toggle/checkbox widgets flip and emit on bang. cold updates silently.",
     "relatedNodes": [
       "render.fullscreen-shader"
     ],
     "ports": [
       {
         "id": "in",
-        "description": "Hot inlet: values update and emit; bang emits or toggles depending on widget; set ... updates silently."
+        "description": "Hot inlet: bool-compatible payloads update and emit; bang emits or toggles depending on widget; set ... updates silently."
       },
       {
         "id": "cold",
-        "description": "Cold inlet: compatible boolean values or set ... update without emitting."
+        "description": "Cold inlet: compatible bool payloads update without emitting."
       },
       {
         "id": "value",
-        "description": "Outputs the current value."
+        "description": "Outputs the current payload."
       }
     ],
     "params": [
       {
         "id": "value",
-        "description": "Saved default boolean value."
+        "description": "Saved default bool payload."
       },
       {
         "id": "sendName",
@@ -2194,7 +2939,7 @@ export const builtinNodeHelpV01 = [
       },
       {
         "id": "widget",
-        "description": "Optional display widget. Use toggle or checkbox for Max/Pd-style boolean toggling."
+        "description": "Optional display widget. Use toggle or checkbox for Max/Pd-style bool toggling."
       }
     ],
     "example": {
@@ -2207,7 +2952,7 @@ export const builtinNodeHelpV01 = [
     "schema": "skenion.node.help",
     "schemaVersion": "0.1.0",
     "id": "core.color",
-    "summary": "Stores and emits an Color color control value.",
+    "summary": "Stores and emits a color control payload.",
     "description": "Use Color for color controls. Component values are normalized floats in graph and runtime payloads.",
     "helpGraph": "help/v0.1/nodes/core.color.help.graph.json",
     "tags": [
@@ -2215,18 +2960,18 @@ export const builtinNodeHelpV01 = [
       "control",
       "color"
     ],
-    "runtimeBehavior": "in is the hot inlet: color values update and emit, bang emits the stored color, and set ... updates silently. cold updates silently.",
+    "runtimeBehavior": "in is the hot control.message.any inlet: color payloads update and emit, bang emits the stored color payload, and set ... updates silently. cold updates silently.",
     "relatedNodes": [
       "render.fullscreen-shader"
     ],
     "ports": [
       {
         "id": "in",
-        "description": "Hot inlet: color values update and emit; bang emits the stored color; set ... updates silently."
+        "description": "Hot inlet: color payloads update and emit; bang emits the stored color payload; set ... updates silently."
       },
       {
         "id": "cold",
-        "description": "Cold inlet: compatible color values or set ... update without emitting."
+        "description": "Cold inlet: compatible color payloads update without emitting."
       },
       {
         "id": "value",
@@ -2271,7 +3016,7 @@ export const builtinNodeHelpV01 = [
     "ports": [
       {
         "id": "in",
-        "description": "Accepts event<message.any>. A set message updates runtime comment text without output."
+        "description": "Accepts control.message.any. A set message updates runtime comment text without output."
       }
     ],
     "params": [
@@ -2290,8 +3035,8 @@ export const builtinNodeHelpV01 = [
     "schema": "skenion.node.help",
     "schemaVersion": "0.1.0",
     "id": "core.float",
-    "summary": "Stores and emits a floating-point control value.",
-    "description": "Use Float when a patch needs a generic numeric control value. Representation such as f32 or f8 is selected separately from the semantic number.float type.",
+    "summary": "Stores and emits a floating-point control payload.",
+    "description": "Use Float when a patch needs a generic numeric control payload. Representation such as f32 or f8 is selected separately from the control.number.float port type.",
     "docsPath": "docs/nodes/core.float.md",
     "helpGraph": "help/v0.1/nodes/core.float.help.graph.json",
     "tags": [
@@ -2299,22 +3044,22 @@ export const builtinNodeHelpV01 = [
       "control",
       "number"
     ],
-    "runtimeBehavior": "in is the hot inlet: typed values update and emit, bang emits the stored value, and set ... updates silently. cold updates silently.",
+    "runtimeBehavior": "in is the hot control.message.any inlet: typed payloads update and emit, bang emits the stored payload, and set ... updates silently. cold updates silently.",
     "relatedNodes": [
       "render.fullscreen-shader"
     ],
     "ports": [
       {
         "id": "in",
-        "description": "Hot inlet: typed values update and emit; bang emits the stored value; set ... updates silently."
+        "description": "Hot inlet: typed payloads update and emit; bang emits the stored payload; set ... updates silently."
       },
       {
         "id": "cold",
-        "description": "Cold inlet: compatible values or set ... update the stored value without emitting."
+        "description": "Cold inlet: compatible payloads update the stored payload without emitting."
       },
       {
         "id": "value",
-        "description": "Outputs the current value."
+        "description": "Outputs the current payload."
       }
     ],
     "params": [
@@ -2350,7 +3095,7 @@ export const builtinNodeHelpV01 = [
     "schemaVersion": "0.1.0",
     "id": "core.gpu-upload",
     "summary": "Uploads decoded video frames to a GPU texture resource.",
-    "description": "GPU Upload is an explicit converter from stream<video.frame> to resource<gpu.texture2d>. skenion does not perform this conversion implicitly.",
+    "description": "GPU Upload is an explicit converter from video.frame to gpu.texture2d. skenion does not perform this conversion implicitly.",
     "helpGraph": "help/v0.1/nodes/core.gpu-upload.help.graph.json",
     "tags": [
       "converter",
@@ -2383,7 +3128,7 @@ export const builtinNodeHelpV01 = [
     "schema": "skenion.node.help",
     "schemaVersion": "0.1.0",
     "id": "core.int",
-    "summary": "Stores and emits a signed integer control value.",
+    "summary": "Stores and emits a signed integer control payload.",
     "description": "Use Int for discrete numeric controls such as counts, selected indices, and integer mode values.",
     "helpGraph": "help/v0.1/nodes/core.int.help.graph.json",
     "tags": [
@@ -2391,22 +3136,22 @@ export const builtinNodeHelpV01 = [
       "control",
       "integer"
     ],
-    "runtimeBehavior": "in is the hot inlet: typed values update and emit, bang emits the stored integer, and set ... updates silently. cold updates silently.",
+    "runtimeBehavior": "in is the hot control.message.any inlet: typed payloads update and emit, bang emits the stored integer payload, and set ... updates silently. cold updates silently.",
     "relatedNodes": [
       "render.fullscreen-shader"
     ],
     "ports": [
       {
         "id": "in",
-        "description": "Hot inlet: typed integer values update and emit; bang emits the stored value; set ... updates silently."
+        "description": "Hot inlet: typed integer payloads update and emit; bang emits the stored payload; set ... updates silently."
       },
       {
         "id": "cold",
-        "description": "Cold inlet: compatible integer values or set ... update without emitting."
+        "description": "Cold inlet: compatible integer payloads update without emitting."
       },
       {
         "id": "value",
-        "description": "Outputs the current value."
+        "description": "Outputs the current payload."
       }
     ],
     "params": [
@@ -2608,7 +3353,7 @@ export const builtinNodeHelpV01 = [
     "ports": [
       {
         "id": "in",
-        "description": "Accepts event<message.any>. A set #00ff00 message updates the panel CSS color text without output."
+        "description": "Accepts control.message.any. A set #00ff00 message updates the panel CSS color text without output."
       }
     ],
     "params": [
@@ -2665,26 +3410,26 @@ export const builtinNodeHelpV01 = [
     "schema": "skenion.node.help",
     "schemaVersion": "0.1.0",
     "id": "core.string",
-    "summary": "Stores and emits a string control value.",
-    "description": "Use String for labels, symbolic control values, and text payloads that should move through the graph as data.",
+    "summary": "Stores and emits a string control payload.",
+    "description": "Use String for labels, symbolic control payloads, and text payloads that should move through the graph as data.",
     "helpGraph": "help/v0.1/nodes/core.string.help.graph.json",
     "tags": [
       "value",
       "control",
       "text"
     ],
-    "runtimeBehavior": "in is the hot inlet: string values update and emit, bang emits the stored string, and set ... updates silently. cold updates silently.",
+    "runtimeBehavior": "in is the hot control.message.any inlet: string payloads update and emit, bang emits the stored string payload, and set ... updates silently. cold updates silently.",
     "relatedNodes": [
       "core.message"
     ],
     "ports": [
       {
         "id": "in",
-        "description": "Hot inlet: string values update and emit; bang emits the stored text; set ... updates silently."
+        "description": "Hot inlet: string payloads update and emit; bang emits the stored text payload; set ... updates silently."
       },
       {
         "id": "cold",
-        "description": "Cold inlet: compatible string values or set ... update without emitting."
+        "description": "Cold inlet: compatible string payloads update without emitting."
       },
       {
         "id": "value",
@@ -2707,7 +3452,7 @@ export const builtinNodeHelpV01 = [
     ],
     "example": {
       "title": "Store text as data",
-      "description": "Use String when text should behave like a stored value, not a one-shot message.",
+      "description": "Use String when text should behave like a stored control payload, not a one-shot message.",
       "graph": "help/v0.1/nodes/core.string.help.graph.json"
     }
   },
@@ -2715,8 +3460,8 @@ export const builtinNodeHelpV01 = [
     "schema": "skenion.node.help",
     "schemaVersion": "0.1.0",
     "id": "core.uint",
-    "summary": "Stores and emits an unsigned integer control value.",
-    "description": "UInt is a Max-style unsigned integer value object. in updates and emits, set updates silently, and bang emits the current value.",
+    "summary": "Stores and emits an unsigned integer control payload.",
+    "description": "UInt is a Max-style unsigned integer control object. in updates and emits, set updates silently, and bang emits the current payload.",
     "helpGraph": "help/v0.1/nodes/core.uint.help.graph.json",
     "tags": [
       "value",
@@ -2724,22 +3469,22 @@ export const builtinNodeHelpV01 = [
       "integer",
       "uint"
     ],
-    "runtimeBehavior": "in is the hot inlet: typed values update and emit, bang emits the stored unsigned integer, and set ... updates silently. cold updates silently.",
+    "runtimeBehavior": "in is the hot control.message.any inlet: typed payloads update and emit, bang emits the stored unsigned integer payload, and set ... updates silently. cold updates silently.",
     "relatedNodes": [
       "render.fullscreen-shader"
     ],
     "ports": [
       {
         "id": "in",
-        "description": "Hot inlet: typed unsigned integer values update and emit; bang emits the stored value; set ... updates silently."
+        "description": "Hot inlet: typed unsigned integer payloads update and emit; bang emits the stored payload; set ... updates silently."
       },
       {
         "id": "cold",
-        "description": "Cold inlet: compatible unsigned integer values or set ... update without emitting."
+        "description": "Cold inlet: compatible unsigned integer payloads update without emitting."
       },
       {
         "id": "value",
-        "description": "Outputs the current value."
+        "description": "Outputs the current payload."
       }
     ],
     "params": [
@@ -2847,7 +3592,7 @@ export const builtinNodeHelpV01 = [
     "schemaVersion": "0.1.0",
     "id": "core.video-decode",
     "summary": "Decodes a video asset resource into a frame stream.",
-    "description": "Video Decode is the explicit adapter between asset.video and stream<video.frame>.",
+    "description": "Video Decode is the explicit adapter between asset.video and video.frame.",
     "helpGraph": "help/v0.1/nodes/core.video-decode.help.graph.json",
     "tags": [
       "converter",
@@ -2949,7 +3694,7 @@ export const builtinNodeHelpV01 = [
     ],
     "example": {
       "title": "Sync shader inputs",
-      "description": "Analyze annotations, sync generated input ports, connect typed value nodes, and feed Render Output.",
+      "description": "Analyze annotations, sync generated input ports, connect typed control boxes, and feed Render Output.",
       "graph": "help/v0.1/nodes/render.fullscreen-shader.help.graph.json"
     }
   },
@@ -3248,7 +3993,7 @@ export const builtinNodeHelpGraphsV01 = [
             {
               "id": "frequency",
               "direction": "input",
-              "type": "number.float"
+              "type": "control.number.float"
             },
             {
               "id": "out",
@@ -3467,13 +4212,13 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "phase",
               "direction": "output",
               "label": "Phase",
-              "type": "number.float"
+              "type": "control.number.float"
             },
             {
               "id": "tempo",
               "direction": "output",
               "label": "Tempo",
-              "type": "number.float"
+              "type": "control.number.float"
             }
           ]
         },
@@ -3542,7 +4287,7 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "running",
               "direction": "output",
               "label": "Running",
-              "type": "boolean"
+              "type": "control.bool"
             }
           ]
         },
@@ -3659,8 +4404,42 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "out",
@@ -3671,7 +4450,7 @@ export const builtinNodeHelpGraphsV01 = [
           ]
         },
         {
-          "id": "value_1",
+          "id": "float_1",
           "kind": "core.float",
           "kindVersion": "0.1.0",
           "params": {
@@ -3684,21 +4463,62 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "number.float",
+              "type": "control.number.float",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "number.float"
+              "type": "control.number.float"
             }
           ]
         }
@@ -3711,7 +4531,7 @@ export const builtinNodeHelpGraphsV01 = [
             "portId": "out"
           },
           "target": {
-            "nodeId": "value_1",
+            "nodeId": "float_1",
             "portId": "in"
           }
         }
@@ -3731,7 +4551,7 @@ export const builtinNodeHelpGraphsV01 = [
           "kind": "core.comment",
           "kindVersion": "0.1.0",
           "params": {
-            "text": "Bool re-emits its stored boolean on bang. It does not flip state."
+            "text": "Bool re-emits its stored bool payload on bang. It does not flip state."
           },
           "ports": []
         },
@@ -3744,8 +4564,38 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "out",
@@ -3757,7 +4607,7 @@ export const builtinNodeHelpGraphsV01 = [
           "kind": "core.bang"
         },
         {
-          "id": "value_1",
+          "id": "bool_1",
           "kind": "core.bool",
           "kindVersion": "0.1.0",
           "params": {
@@ -3768,21 +4618,62 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "boolean",
+              "type": "control.bool",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "boolean"
+              "type": "control.bool"
             }
           ]
         },
@@ -3798,21 +4689,55 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "boolean",
+              "type": "control.bool",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "boolean"
+              "type": "control.bool"
             }
           ],
           "kind": "core.bool"
@@ -3826,14 +4751,14 @@ export const builtinNodeHelpGraphsV01 = [
             "portId": "out"
           },
           "target": {
-            "nodeId": "value_1",
+            "nodeId": "bool_1",
             "portId": "in"
           }
         },
         {
           "id": "edge-2",
           "source": {
-            "nodeId": "value_1",
+            "nodeId": "bool_1",
             "portId": "value"
           },
           "target": {
@@ -3880,21 +4805,43 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "color"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "color"
+                ],
+                "store": [
+                  "set",
+                  "color"
+                ],
+                "emit": [
+                  "bang",
+                  "color"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "color",
+              "type": "control.color",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Color",
-              "type": "color"
+              "type": "control.color"
             }
           ]
         },
@@ -3911,7 +4858,7 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "tint",
               "direction": "input",
               "label": "Tint",
-              "type": "color"
+              "type": "control.color"
             },
             {
               "id": "out",
@@ -3982,8 +4929,19 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "set"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "store": [
+                  "set"
+                ]
+              }
             }
           ]
         },
@@ -3999,8 +4957,19 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "set"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "store": [
+                  "set"
+                ]
+              }
             }
           ]
         }
@@ -4021,7 +4990,7 @@ export const builtinNodeHelpGraphsV01 = [
           "kind": "core.comment",
           "kindVersion": "0.1.0",
           "params": {
-            "text": "F32 stores a number. in emits, set stores silently, bang emits the current value."
+            "text": "F32 stores a control payload. in emits, set stores silently, bang emits the current payload."
           },
           "ports": []
         },
@@ -4034,8 +5003,38 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "out",
@@ -4047,7 +5046,7 @@ export const builtinNodeHelpGraphsV01 = [
           "kind": "core.bang"
         },
         {
-          "id": "value_1",
+          "id": "float_1",
           "kind": "core.float",
           "kindVersion": "0.1.0",
           "params": {
@@ -4059,21 +5058,62 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "number.float",
+              "type": "control.number.float",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "number.float"
+              "type": "control.number.float"
             }
           ]
         },
@@ -4086,21 +5126,55 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "number.float",
+              "type": "control.number.float",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "number.float"
+              "type": "control.number.float"
             }
           ],
           "kind": "core.float"
@@ -4114,14 +5188,14 @@ export const builtinNodeHelpGraphsV01 = [
             "portId": "out"
           },
           "target": {
-            "nodeId": "value_1",
+            "nodeId": "float_1",
             "portId": "in"
           }
         },
         {
           "id": "edge-2",
           "source": {
-            "nodeId": "value_1",
+            "nodeId": "float_1",
             "portId": "value"
           },
           "target": {
@@ -4274,8 +5348,38 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "out",
@@ -4287,7 +5391,7 @@ export const builtinNodeHelpGraphsV01 = [
           "kind": "core.bang"
         },
         {
-          "id": "value_1",
+          "id": "int_1",
           "kind": "core.int",
           "kindVersion": "0.1.0",
           "params": {
@@ -4299,21 +5403,62 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "number.int",
+              "type": "control.number.int",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "number.int"
+              "type": "control.number.int"
             }
           ]
         }
@@ -4326,7 +5471,7 @@ export const builtinNodeHelpGraphsV01 = [
             "portId": "out"
           },
           "target": {
-            "nodeId": "value_1",
+            "nodeId": "int_1",
             "portId": "in"
           }
         }
@@ -4359,8 +5504,55 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "control.string",
+                "control.color",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ]
+              }
             },
             {
               "id": "out",
@@ -4383,14 +5575,68 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "control.string",
+                "control.color",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ],
+                "store": [
+                  "set"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ]
+              }
             },
             {
               "id": "out",
               "direction": "output",
               "label": "Message",
-              "type": "message.any"
+              "type": "control.message.any"
             }
           ]
         }
@@ -4519,8 +5765,19 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "set"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "store": [
+                  "set"
+                ]
+              }
             }
           ]
         },
@@ -4536,8 +5793,19 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "set"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "store": [
+                  "set"
+                ]
+              }
             }
           ]
         }
@@ -4630,8 +5898,50 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.string",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool",
+                  "string",
+                  "color",
+                  "symbol",
+                  "list",
+                  "anything"
+                ]
+              }
             },
             {
               "id": "out",
@@ -4654,21 +5964,51 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.string",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "string",
+                  "symbol"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "string",
+                  "symbol"
+                ],
+                "store": [
+                  "set",
+                  "string",
+                  "symbol"
+                ],
+                "emit": [
+                  "bang",
+                  "string",
+                  "symbol"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "string",
+              "type": "control.string",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "string"
+              "type": "control.string"
             }
           ]
         }
@@ -4714,8 +6054,38 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "out",
@@ -4727,7 +6097,7 @@ export const builtinNodeHelpGraphsV01 = [
           "kind": "core.bang"
         },
         {
-          "id": "value_1",
+          "id": "uint_1",
           "kind": "core.uint",
           "kindVersion": "0.1.0",
           "params": {
@@ -4739,21 +6109,62 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "accepts": [
+                "control.number.float",
+                "control.number.int",
+                "control.number.uint",
+                "control.bool",
+                "event.bang"
+              ],
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "number.uint",
+              "type": "control.number.uint",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "number.uint"
+              "type": "control.number.uint"
             }
           ]
         }
@@ -4766,7 +6177,7 @@ export const builtinNodeHelpGraphsV01 = [
             "portId": "out"
           },
           "target": {
-            "nodeId": "value_1",
+            "nodeId": "uint_1",
             "portId": "in"
           }
         }
@@ -5033,21 +6444,55 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "store": [
+                  "set",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ],
+                "emit": [
+                  "bang",
+                  "float",
+                  "int",
+                  "uint",
+                  "bool"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "number.float",
+              "type": "control.number.float",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Value",
-              "type": "number.float"
+              "type": "control.number.float"
             }
           ]
         },
@@ -5070,21 +6515,43 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "in",
               "direction": "input",
               "label": "In",
-              "type": "message.any",
-              "required": false
+              "type": "control.message.any",
+              "required": false,
+              "messageSelectors": {
+                "accepted": [
+                  "bang",
+                  "set",
+                  "color"
+                ],
+                "silent": [
+                  "set"
+                ],
+                "trigger": [
+                  "bang",
+                  "color"
+                ],
+                "store": [
+                  "set",
+                  "color"
+                ],
+                "emit": [
+                  "bang",
+                  "color"
+                ]
+              }
             },
             {
               "id": "cold",
               "direction": "input",
               "label": "Cold",
-              "type": "color",
+              "type": "control.color",
               "required": false
             },
             {
               "id": "value",
               "direction": "output",
               "label": "Color",
-              "type": "color"
+              "type": "control.color"
             }
           ]
         },
@@ -5101,13 +6568,13 @@ export const builtinNodeHelpGraphsV01 = [
               "id": "speed",
               "direction": "input",
               "label": "Speed",
-              "type": "number.float"
+              "type": "control.number.float"
             },
             {
               "id": "tint",
               "direction": "input",
               "label": "Tint",
-              "type": "color"
+              "type": "control.color"
             },
             {
               "id": "out",

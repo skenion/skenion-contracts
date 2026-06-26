@@ -42,9 +42,8 @@ const defaultRepresentationByDataKind = new Map<string, RepresentationV01>([
 
 const numericKinds = new Set(["number.float", "number.int", "number.uint"]);
 const controlMessageDataKinds = new Set([
-  "boolean",
+  "bool",
   "color",
-  "event.bang",
   "message.any",
   "number.float",
   "number.int",
@@ -136,13 +135,13 @@ export function planConversion(sourceType: DataTypeV01, targetType: DataTypeV01)
 
 function isMessageAnyCompatible(sourceType: DataTypeV01, targetType: DataTypeV01): boolean {
   if (targetType.flow === "event") {
-    return (
-      sourceType.flow === "event" ||
-      (sourceType.flow === "value" && controlMessageDataKinds.has(sourceType.dataKind))
-    );
+    return sourceType.flow === "event";
   }
-  if (targetType.flow === "value") {
-    return sourceType.flow === "value" && controlMessageDataKinds.has(sourceType.dataKind);
+  if (targetType.flow === "control") {
+    return (
+      (sourceType.flow === "control" && controlMessageDataKinds.has(sourceType.dataKind)) ||
+      (sourceType.flow === "event" && sourceType.dataKind === "event.bang")
+    );
   }
   return false;
 }

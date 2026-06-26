@@ -8,7 +8,9 @@
     "line": "0.45",
     "range": ">=0.45.0 <0.46.0"
   },
-  "targets": ["aarch64-apple-darwin"],
+  "targets": [
+    "aarch64-apple-darwin"
+  ],
   "provides": {
     "nodes": [
       {
@@ -48,7 +50,9 @@
         "algorithm": "sha256",
         "value": "4444444444444444444444444444444444444444444444444444444444444444"
       },
-      "evidenceRefs": ["manifest-checksum"]
+      "evidenceRefs": [
+        "manifest-checksum"
+      ]
     }
   ]
 }

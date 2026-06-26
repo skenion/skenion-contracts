@@ -61,9 +61,13 @@
           "algorithm": "sha256",
           "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
         },
-        "evidenceRefs": ["manifest-checksum"]
+        "evidenceRefs": [
+          "manifest-checksum"
+        ]
       },
-      "evidenceRefs": ["manifest-checksum"]
+      "evidenceRefs": [
+        "manifest-checksum"
+      ]
     },
     {
       "id": "download-native-sensor-darwin-arm64",
@@ -80,9 +84,13 @@
           "algorithm": "sha256",
           "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
         },
-        "evidenceRefs": ["native-attestation"]
+        "evidenceRefs": [
+          "native-attestation"
+        ]
       },
-      "evidenceRefs": ["native-attestation"]
+      "evidenceRefs": [
+        "native-attestation"
+      ]
     },
     {
       "id": "verify-native-sensor-manifest",
@@ -97,9 +105,13 @@
           "algorithm": "sha256",
           "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
         },
-        "evidenceRefs": ["manifest-checksum"]
+        "evidenceRefs": [
+          "manifest-checksum"
+        ]
       },
-      "evidenceRefs": ["manifest-checksum"]
+      "evidenceRefs": [
+        "manifest-checksum"
+      ]
     },
     {
       "id": "stage-native-sensor",
@@ -108,7 +120,10 @@
       "packageId": "example/native-sensor",
       "version": "0.45.1",
       "target": "aarch64-apple-darwin",
-      "evidenceRefs": ["manifest-checksum", "native-attestation"]
+      "evidenceRefs": [
+        "manifest-checksum",
+        "native-attestation"
+      ]
     },
     {
       "id": "disable-current-native-sensor",

@@ -18,7 +18,9 @@
     {
       "kind": "lock-state",
       "status": "fail",
-      "diagnosticRefs": ["diag-stale-installed-lock"],
+      "diagnosticRefs": [
+        "diag-stale-installed-lock"
+      ],
       "message": "Installed lock evidence is stale."
     }
   ],

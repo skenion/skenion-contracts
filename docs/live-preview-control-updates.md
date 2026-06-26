@@ -41,11 +41,11 @@ process:
     "slider_1": { "type": "float", "representation": "f32", "value": 0.75 }
   },
   "channels": {
-    "number.float:speed": {
+    "control.number.float:speed": {
       "selector": "float",
       "atoms": [{ "type": "float", "representation": "f32", "value": 0.75 }]
     },
-    "boolean:enabled": {
+    "control.bool:enabled": {
       "selector": "bool",
       "atoms": [{ "type": "bool", "value": true }]
     }

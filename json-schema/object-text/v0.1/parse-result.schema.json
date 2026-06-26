@@ -117,15 +117,61 @@
         "rate": {
           "enum": ["event", "control", "audio", "render", "gpu", "resource", "io"]
         },
+        "accepts": {
+          "$ref": "#/$defs/typeList"
+        },
         "activation": {
           "enum": ["trigger", "latched", "passive"]
         },
         "defaultValue": true,
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "description": {
           "type": "string"
         }
       },
       "additionalProperties": false
+    },
+    "typeList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": ["accepted"],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
     },
     "diagnostic": {
       "type": "object",

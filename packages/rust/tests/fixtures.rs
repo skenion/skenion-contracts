@@ -12,13 +12,13 @@ use skenion_contracts::{
     RuntimeCollaborationEventEnvelope, RuntimeCollaborationOperationBatch,
     RuntimeCollaborationOperationBatchResult, RuntimeCollaborationOperationEnvelope,
     RuntimeCollaborationOperationResult, RuntimeCollaborationPresenceEnvelope,
-    RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeSessionEvent,
-    RuntimeSessionInfoResponse, analyze_graph_document_v01, analyze_graph_fragment_v01,
-    parse_object_text_v01, validate_graph_document_v01, validate_graph_fragment_v01,
-    validate_node_definition_v01, validate_object_text_parse_result_v01,
-    validate_package_discovery_response_v01, validate_package_install_plan_request_v01,
-    validate_package_install_plan_response_v01, validate_package_listing_v01,
-    validate_package_manifest_v01, validate_package_root_v01,
+    RuntimeCollaborationSelectionEnvelope, RuntimeOperationEnvelope, RuntimeProjectRequestV01,
+    RuntimeSessionEvent, RuntimeSessionInfoResponse, analyze_graph_document_v01,
+    analyze_graph_fragment_v01, parse_object_text_v01, validate_graph_document_v01,
+    validate_graph_fragment_v01, validate_node_definition_v01,
+    validate_object_text_parse_result_v01, validate_package_discovery_response_v01,
+    validate_package_install_plan_request_v01, validate_package_install_plan_response_v01,
+    validate_package_listing_v01, validate_package_manifest_v01, validate_package_root_v01,
     validate_paste_graph_fragment_response, validate_patch_definition_v01,
     validate_project_document_v01, validate_runtime_collaboration_event_envelope,
     validate_runtime_collaboration_operation_batch,
@@ -27,7 +27,8 @@ use skenion_contracts::{
     validate_runtime_collaboration_operation_result,
     validate_runtime_collaboration_presence_envelope,
     validate_runtime_collaboration_selection_envelope, validate_runtime_operation_envelope,
-    validate_runtime_session_event, validate_runtime_session_info_response,
+    validate_runtime_project_request_v01, validate_runtime_session_event,
+    validate_runtime_session_info_response,
 };
 
 fn collect_json_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
@@ -441,10 +442,10 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
           "displayName": "Duplicate Port",
           "category": "Core",
           "ports": [
-            { "id": "value", "direction": "input", "type": "number.float" },
-            { "id": "value", "direction": "output", "type": "number.float" }
+            { "id": "value", "direction": "input", "type": "control.number.float" },
+            { "id": "value", "direction": "output", "type": "control.number.float" }
           ],
-          "execution": { "model": "value" },
+          "execution": { "model": "control" },
           "state": { "persistent": false },
           "permissions": [],
           "capabilities": []
@@ -477,7 +478,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "number.float", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.number.float", "rate": "control" }
               ]
             },
             {
@@ -486,7 +487,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "number.int", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.number.int", "rate": "control" }
               ]
             },
             {
@@ -495,7 +496,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "number.uint", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.number.uint", "rate": "control" }
               ]
             },
             {
@@ -504,7 +505,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "boolean", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.bool", "rate": "control" }
               ]
             },
             {
@@ -513,7 +514,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "color", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.color", "rate": "control" }
               ]
             },
             {
@@ -522,7 +523,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "value", "direction": "output", "type": "string", "rate": "event" }
+                { "id": "value", "direction": "output", "type": "control.string", "rate": "control" }
               ]
             },
             {
@@ -531,7 +532,30 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "in", "direction": "input", "type": "message.any", "rate": "event", "maxConnections": 7, "mergePolicy": "ordered-events" }
+                {
+                  "id": "in",
+                  "direction": "input",
+                  "type": "control.message.any",
+                  "accepts": [
+                    "control.number.float",
+                    "control.number.int",
+                    "control.number.uint",
+                    "control.bool",
+                    "control.color",
+                    "control.string",
+                    "event.bang"
+                  ],
+	                  "rate": "control",
+	                  "maxConnections": 7,
+	                  "mergePolicy": "ordered-events",
+	                  "messageSelectors": {
+	                    "accepted": ["bang", "set", "float", "int", "uint", "bool", "string", "color", "symbol", "list", "anything"],
+	                    "silent": ["set"],
+	                    "trigger": ["bang", "float", "int", "uint", "bool", "string", "color", "symbol", "list", "anything"],
+	                    "store": ["set"],
+	                    "emit": ["bang", "float", "int", "uint", "bool", "string", "color", "symbol", "list", "anything"]
+	                  }
+	                }
               ]
             }
           ],
@@ -637,8 +661,8 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "in", "direction": "input", "type": "value.number" },
-                { "id": "out", "direction": "output", "type": "value.number" }
+                { "id": "in", "direction": "input", "type": "control.number.float" },
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             },
             {
@@ -647,8 +671,8 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
               "kindVersion": "0.1.0",
               "params": {},
               "ports": [
-                { "id": "in", "direction": "input", "type": "value.number" },
-                { "id": "out", "direction": "output", "type": "value.number" }
+                { "id": "in", "direction": "input", "type": "control.number.float" },
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             }
           ],
@@ -736,7 +760,7 @@ fn validates_runtime_session_and_graph_edge_case_coverage_paths() {
                                             "kindVersion": "",
                                             "params": {},
                                             "ports": [
-                                                { "id": "", "direction": "input", "type": "number.float" }
+                                                { "id": "", "direction": "input", "type": "control.number.float" }
                                             ]
                                         },
                                         {
@@ -961,9 +985,9 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "id": "in",
                   "direction": "input",
                   "type": "render.frame",
-                  "accepts": ["value.number"]
+                  "accepts": ["control.number.float"]
                 },
-                { "id": "out", "direction": "output", "type": "value.number" }
+                { "id": "out", "direction": "output", "type": "control.number.float" }
               ]
             }
           ],
@@ -1013,7 +1037,7 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "number.float" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               },
@@ -1132,7 +1156,7 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "kindVersion": "0.1.0",
                   "params": {},
                   "ports": [
-                    { "id": "out", "direction": "output", "type": "number.float" }
+                    { "id": "out", "direction": "output", "type": "control.number.float" }
                   ]
                 }
               ],
@@ -1196,12 +1220,12 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
 	                        "schemaVersion": "0.1.0",
 	                        "nodes": [
 	                          {
-	                            "id": "value_2",
+	                            "id": "float_2",
 	                            "kind": "core.float",
 	                            "kindVersion": "0.1.0",
 	                            "params": { "value": 0.75 },
 	                            "ports": [
-	                              { "id": "out", "direction": "output", "type": "number.float", "rate": "control" }
+	                              { "id": "out", "direction": "output", "type": "control.number.float", "rate": "control" }
 	                            ]
 	                          }
 	                        ],
@@ -1214,10 +1238,10 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "viewPatch": {
                     "baseViewRevision": 2,
                     "ops": [
-                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 10, "y": 20 } },
+                      { "op": "setNodeView", "nodeId": "float_2", "view": { "x": 10, "y": 20 } },
                       {
                         "op": "moveNodeView",
-                        "nodeId": "value_2",
+                        "nodeId": "float_2",
                         "from": { "x": 10, "y": 20 },
                         "to": { "x": 20, "y": 30 }
                       }
@@ -1230,7 +1254,7 @@ fn validates_remaining_collaboration_integration_coverage_paths() {
                   "viewPatch": {
                     "baseViewRevision": 3,
                     "ops": [
-                      { "op": "setNodeView", "nodeId": "value_2", "view": { "x": 0, "y": 0 } }
+                      { "op": "setNodeView", "nodeId": "float_2", "view": { "x": 0, "y": 0 } }
                     ]
                   },
                   "clientId": "studio-main"
@@ -1624,6 +1648,126 @@ fn validates_v01_project_patch_library_fixtures() {
     }
 }
 
+#[test]
+fn validates_runtime_project_request_fixtures() {
+    let valid: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/valid/project-with-nodes.runtime-project.json"
+    ))
+    .expect("runtime project request should parse");
+    validate_runtime_project_request_v01(&valid).expect("runtime project request should validate");
+
+    let missing_nodes: Result<RuntimeProjectRequestV01, _> = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/missing-nodes.runtime-project.json"
+    ));
+    assert!(missing_nodes.is_err());
+
+    let empty_nodes: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/empty-nodes.runtime-project.json"
+    ))
+    .expect("runtime project request with empty nodes should parse");
+    let empty_nodes_report = validate_runtime_project_request_v01(&empty_nodes)
+        .expect_err("empty runtime project nodes should fail");
+    assert!(
+        empty_nodes_report
+            .to_string()
+            .contains("requires at least one node definition")
+    );
+
+    let missing_definition: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/missing-node-definition.runtime-project.json"
+    ))
+    .expect("runtime project request with wrong nodes should parse");
+    let missing_definition_report = validate_runtime_project_request_v01(&missing_definition)
+        .expect_err("missing runtime project node definition should fail");
+    assert!(
+        missing_definition_report
+            .to_string()
+            .contains("missing node definition: core.float@0.1.0")
+    );
+
+    let mismatch: RuntimeProjectRequestV01 = serde_json::from_str(include_str!(
+        "../../../fixtures/runtime-project/v0/invalid/node-definition-version-mismatch.runtime-project.json"
+    ))
+    .expect("runtime project request with mismatched node version should parse");
+    let mismatch_report = validate_runtime_project_request_v01(&mismatch)
+        .expect_err("runtime project node definition version mismatch should fail");
+    assert!(
+        mismatch_report
+            .to_string()
+            .contains("node definition version mismatch: core.float@0.1.0")
+    );
+
+    let mut invalid_project_metadata = valid.clone();
+    invalid_project_metadata.schema = "wrong.runtime-project".to_owned();
+    let invalid_project_report = validate_runtime_project_request_v01(&invalid_project_metadata)
+        .expect_err("invalid runtime project metadata should fail");
+    assert!(
+        invalid_project_report
+            .to_string()
+            .contains("expected schema skenion.project")
+    );
+
+    let mut boundary_node_request = valid.clone();
+    let mut boundary_node = boundary_node_request.graph.nodes[0].clone();
+    boundary_node.id = "runtime_boundary".to_owned();
+    boundary_node.kind = "core.inlet".to_owned();
+    boundary_node_request.graph.nodes.push(boundary_node);
+    validate_runtime_project_request_v01(&boundary_node_request)
+        .expect("runtime boundary nodes should not require node definitions");
+
+    let mut patch_missing_definition: RuntimeProjectRequestV01 =
+        serde_json::from_value(serde_json::json!({
+            "schema": valid.schema,
+            "schemaVersion": valid.schema_version,
+            "id": valid.id,
+            "revision": valid.revision,
+            "graph": valid.graph,
+            "viewState": valid.view_state,
+            "patchLibrary": [
+                {
+                    "id": "patch-missing-definition",
+                    "revision": "1",
+                    "graph": {
+                        "schema": "skenion.graph",
+                        "schemaVersion": "0.1.0",
+                        "id": "patch-graph",
+                        "revision": "1",
+                        "nodes": [
+                            {
+                                "id": "missing_patch_node",
+                                "kind": "core.patch-only",
+                                "kindVersion": "0.1.0",
+                                "params": {},
+                                "ports": []
+                            }
+                        ],
+                        "edges": []
+                    }
+                }
+            ],
+            "nodes": valid.nodes
+        }))
+        .expect("runtime project request with patch library should parse");
+    patch_missing_definition.nodes = valid.nodes.clone();
+    let patch_missing_report = validate_runtime_project_request_v01(&patch_missing_definition)
+        .expect_err("patch graph missing runtime node definition should fail");
+    assert!(
+        patch_missing_report
+            .to_string()
+            .contains("missing node definition: core.patch-only@0.1.0")
+    );
+
+    let mut invalid_node_definition = valid;
+    invalid_node_definition.nodes[0].schema = "wrong.node.definition".to_owned();
+    let invalid_node_report = validate_runtime_project_request_v01(&invalid_node_definition)
+        .expect_err("invalid runtime project node definition should fail");
+    assert!(
+        invalid_node_report
+            .to_string()
+            .contains("runtime project node core.float@0.1.0: expected schema")
+    );
+}
+
 fn project_document_fixture(relative: &str) -> ProjectDocumentV01 {
     let file = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative);
     serde_json::from_slice(&fs::read(&file).expect("project fixture should be readable"))
@@ -1830,6 +1974,25 @@ fn validates_project_package_and_binding_semantic_error_branches() {
         "object binding binding-local-wrapper references missing project patch: missing-wrapper",
     );
 
+    let mut missing_patch_with_diagnostic = base_project.clone();
+    {
+        let binding = &mut missing_patch_with_diagnostic.object_bindings[1];
+        binding.status = ProjectObjectBindingStatusV01::Missing;
+        binding.diagnostics = vec![binding_diagnostic(
+            ProjectObjectBindingDiagnosticCodeV01::BindingTargetMissing,
+        )];
+        match binding.target.as_mut().expect("project patch target") {
+            ProjectObjectBindingTargetV01::ProjectPatch { patch_id, .. } => {
+                *patch_id = "missing-wrapper".to_owned();
+            }
+            ProjectObjectBindingTargetV01::PackageProvider { .. } => {
+                panic!("expected project patch binding")
+            }
+        }
+    }
+    validate_project_document_v01(&missing_patch_with_diagnostic)
+        .expect("missing project patch binding with diagnostic should remain valid");
+
     let mut resolved_stale_revision = base_project.clone();
     match resolved_stale_revision.object_bindings[1]
         .target
@@ -1866,6 +2029,25 @@ fn validates_project_package_and_binding_semantic_error_branches() {
         &stale_revision_without_diagnostic,
         "object binding binding-local-wrapper project patch local_wrapper revision is stale without diagnostics",
     );
+
+    let mut stale_revision_with_diagnostic = base_project.clone();
+    {
+        let binding = &mut stale_revision_with_diagnostic.object_bindings[1];
+        binding.status = ProjectObjectBindingStatusV01::Stale;
+        binding.diagnostics = vec![binding_diagnostic(
+            ProjectObjectBindingDiagnosticCodeV01::BindingTargetStale,
+        )];
+        match binding.target.as_mut().expect("project patch target") {
+            ProjectObjectBindingTargetV01::ProjectPatch { revision, .. } => {
+                *revision = Some("2".to_owned());
+            }
+            ProjectObjectBindingTargetV01::PackageProvider { .. } => {
+                panic!("expected project patch binding")
+            }
+        }
+    }
+    validate_project_document_v01(&stale_revision_with_diagnostic)
+        .expect("stale project patch binding with diagnostic should remain valid");
 
     let mut invalid_provider_ids = base_project.clone();
     match invalid_provider_ids.object_bindings[0]
@@ -1933,11 +2115,11 @@ fn parses_object_text_parse_result_fixtures() {
         let parsed = serde_json::from_slice::<ObjectTextParseResultV01>(
             &fs::read(&file).expect("fixture should be readable"),
         );
-        assert!(
-            parsed.is_err(),
-            "{} should be structurally invalid",
-            file.display()
-        );
+        let Ok(result) = parsed else {
+            continue;
+        };
+        validate_object_text_parse_result_v01(&result)
+            .expect_err("structurally valid invalid fixture should be semantically invalid");
     }
 
     for input in [

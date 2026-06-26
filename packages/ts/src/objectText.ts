@@ -112,25 +112,45 @@ function numericValue(atom: ObjectTextAtomV01): number | null {
   return null;
 }
 
+const NUMERIC_TRIGGER_MESSAGE_SELECTORS = {
+  accepted: ["bang", "float", "int", "uint", "bool"],
+  trigger: ["bang", "float", "int", "uint", "bool"],
+  emit: ["bang", "float", "int", "uint", "bool"]
+};
+
 function controlPorts(defaultValue: number): ObjectTextPortV01[] {
   return [
-    { id: "in", direction: "input", type: "message.any", rate: "control", activation: "trigger" },
+    {
+      id: "in",
+      direction: "input",
+      type: "control.message.any",
+      rate: "control",
+      activation: "trigger",
+      messageSelectors: NUMERIC_TRIGGER_MESSAGE_SELECTORS
+    },
     {
       id: "right",
       direction: "input",
-      type: "number.float",
+      type: "control.number.float",
       rate: "control",
       activation: "latched",
       defaultValue
     },
-    { id: "out", direction: "output", type: "number.float", rate: "control" }
+    { id: "out", direction: "output", type: "control.number.float", rate: "control" }
   ];
 }
 
 function controlSqrtPorts(): ObjectTextPortV01[] {
   return [
-    { id: "in", direction: "input", type: "message.any", rate: "control", activation: "trigger" },
-    { id: "out", direction: "output", type: "number.float", rate: "control" }
+    {
+      id: "in",
+      direction: "input",
+      type: "control.message.any",
+      rate: "control",
+      activation: "trigger",
+      messageSelectors: NUMERIC_TRIGGER_MESSAGE_SELECTORS
+    },
+    { id: "out", direction: "output", type: "control.number.float", rate: "control" }
   ];
 }
 
@@ -148,7 +168,7 @@ function audioScalarPorts(defaultValue: number): ObjectTextPortV01[] {
     {
       id: "right",
       direction: "input",
-      type: "number.float",
+      type: "control.number.float",
       rate: "control",
       activation: "latched",
       defaultValue
@@ -169,7 +189,7 @@ function oscillatorPorts(defaultValue: number): ObjectTextPortV01[] {
     {
       id: "frequency",
       direction: "input",
-      type: "number.float",
+      type: "control.number.float",
       rate: "control",
       activation: "latched",
       defaultValue

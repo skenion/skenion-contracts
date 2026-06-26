@@ -180,6 +180,9 @@ export const graphV01Schema = {
             "latched"
           ]
         },
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "defaultValue": true,
         "latch": {
           "type": "boolean"
@@ -200,6 +203,38 @@ export const graphV01Schema = {
         }
       },
       "additionalProperties": false
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": [
+        "accepted"
+      ],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
     },
     "portGroup": {
       "type": "object",
@@ -1394,6 +1429,76 @@ export const projectV01Schema = {
       "additionalProperties": false
     }
   }
+} as const;
+
+export const runtimeProjectRequestV0Schema = {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skenion.dev/schemas/runtime/v0/project-request.schema.json",
+  "title": "skenion Runtime Project Request v0.1",
+  "description": "Runtime project load/validate/plan/run request envelope. It carries the ProjectDocumentV01 top-level fields plus the node definitions required by the Runtime node registry for this request.",
+  "type": "object",
+  "required": [
+    "schema",
+    "schemaVersion",
+    "id",
+    "revision",
+    "graph",
+    "viewState",
+    "patchLibrary",
+    "nodes"
+  ],
+  "properties": {
+    "schema": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/schema"
+    },
+    "schemaVersion": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/schemaVersion"
+    },
+    "id": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/id"
+    },
+    "revision": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/revision"
+    },
+    "metadata": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/metadata"
+    },
+    "graph": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/graph"
+    },
+    "viewState": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/viewState"
+    },
+    "patchLibrary": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/patchLibrary"
+    },
+    "packageDependencies": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/packageDependencies"
+    },
+    "packageLock": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/packageLock"
+    },
+    "resourceLock": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/resourceLock"
+    },
+    "objectBindings": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/objectBindings"
+    },
+    "tutorial": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/tutorial"
+    },
+    "help": {
+      "$ref": "https://skenion.dev/schemas/project/v0.1/project.schema.json#/properties/help"
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://skenion.dev/schemas/node/v0.1/node-definition.schema.json"
+      }
+    }
+  },
+  "additionalProperties": false
 } as const;
 
 export const runtimeOperationV0Schema = {
@@ -4170,6 +4275,9 @@ export const nodeDefinitionV01Schema = {
             "latched"
           ]
         },
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "defaultValue": true,
         "latch": {
           "type": "boolean"
@@ -4190,6 +4298,38 @@ export const nodeDefinitionV01Schema = {
         }
       },
       "additionalProperties": false
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": [
+        "accepted"
+      ],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
     },
     "portGroup": {
       "type": "object",
@@ -4261,7 +4401,7 @@ export const nodeDefinitionV01Schema = {
         "model": {
           "enum": [
             "event",
-            "value",
+            "control",
             "frame",
             "audio_block",
             "video_frame",
@@ -4383,14 +4523,14 @@ export const shaderInterfaceV01Schema = {
       ],
       "properties": {
         "flow": {
-          "const": "value"
+          "const": "control"
         },
         "dataKind": {
           "enum": [
             "number.float",
             "number.int",
             "number.uint",
-            "boolean",
+            "bool",
             "color"
           ]
         },
@@ -4831,6 +4971,9 @@ export const objectTextParseResultV01Schema = {
             "io"
           ]
         },
+        "accepts": {
+          "$ref": "#/$defs/typeList"
+        },
         "activation": {
           "enum": [
             "trigger",
@@ -4839,11 +4982,56 @@ export const objectTextParseResultV01Schema = {
           ]
         },
         "defaultValue": true,
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "description": {
           "type": "string"
         }
       },
       "additionalProperties": false
+    },
+    "typeList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": [
+        "accepted"
+      ],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
     },
     "diagnostic": {
       "type": "object",

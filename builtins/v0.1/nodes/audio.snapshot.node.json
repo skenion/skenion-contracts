@@ -17,14 +17,26 @@
       "id": "trigger",
       "direction": "input",
       "label": "Trigger",
-      "type": "message.any",
-      "required": false
+      "type": "control.message.any",
+      "required": false,
+      "accepts": [
+        "event.bang"
+      ],
+      "triggerMode": "trigger",
+      "messageSelectors": {
+        "accepted": [
+          "bang"
+        ],
+        "trigger": [
+          "bang"
+        ]
+      }
     },
     {
-      "id": "value",
+      "id": "sample",
       "direction": "output",
-      "label": "Value",
-      "type": "number.float"
+      "label": "Sample",
+      "type": "control.number.float"
     }
   ],
   "execution": {

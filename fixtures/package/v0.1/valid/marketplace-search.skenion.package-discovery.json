@@ -12,7 +12,10 @@
       "summary": "Reusable example patches for learning Skenion.",
       "description": "A public marketplace listing projection for the example patch package.",
       "category": "patch",
-      "tags": ["examples", "audio"],
+      "tags": [
+        "examples",
+        "audio"
+      ],
       "license": "Apache-2.0",
       "homepageUrl": "https://skenion.dev/examples",
       "repositoryUrl": "https://github.com/skenion/skenion-examples",
@@ -37,7 +40,9 @@
             "description": "Oscillator help and walkthrough."
           }
         ],
-        "capabilities": ["patch-library"]
+        "capabilities": [
+          "patch-library"
+        ]
       },
       "artifactEvidence": {
         "artifacts": [
@@ -48,7 +53,9 @@
               "algorithm": "sha256",
               "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             },
-            "evidenceRefs": ["manifest-checksum"]
+            "evidenceRefs": [
+              "manifest-checksum"
+            ]
           }
         ],
         "evidence": [
@@ -78,7 +85,10 @@
       "summary": "Native sensor node package with calibrated resources.",
       "description": "A target-specific mixed package listing that exposes node and resource capabilities.",
       "category": "mixed",
-      "tags": ["native", "sensor"],
+      "tags": [
+        "native",
+        "sensor"
+      ],
       "license": "Apache-2.0",
       "homepageUrl": "https://skenion.dev/packages/native-sensor",
       "repositoryUrl": "https://github.com/skenion/native-sensor",
@@ -89,7 +99,10 @@
       "runtimeAbiRange": ">=0.45.0 <0.46.0",
       "targetSupport": {
         "kind": "targeted",
-        "targets": ["aarch64-apple-darwin", "x86_64-apple-darwin"],
+        "targets": [
+          "aarch64-apple-darwin",
+          "x86_64-apple-darwin"
+        ],
         "summary": "Native artifacts are currently published for macOS arm64 and x64."
       },
       "provides": {
@@ -117,7 +130,11 @@
             "description": "Calibration resource codec."
           }
         ],
-        "capabilities": ["native-object", "codec", "resource-provider"]
+        "capabilities": [
+          "native-object",
+          "codec",
+          "resource-provider"
+        ]
       },
       "artifactEvidence": {
         "artifacts": [
@@ -128,7 +145,9 @@
               "algorithm": "sha256",
               "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
             },
-            "evidenceRefs": ["manifest-checksum"]
+            "evidenceRefs": [
+              "manifest-checksum"
+            ]
           },
           {
             "kind": "native-artifact",
@@ -138,7 +157,9 @@
               "algorithm": "sha256",
               "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
             },
-            "evidenceRefs": ["native-attestation"]
+            "evidenceRefs": [
+              "native-attestation"
+            ]
           },
           {
             "kind": "native-artifact",
@@ -148,7 +169,9 @@
               "algorithm": "sha256",
               "value": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
             },
-            "evidenceRefs": ["native-attestation"]
+            "evidenceRefs": [
+              "native-attestation"
+            ]
           }
         ],
         "evidence": [

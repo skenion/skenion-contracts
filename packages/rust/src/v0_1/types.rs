@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DataFlowV01 {
-    Value,
+    Control,
     Event,
     Signal,
     Stream,
@@ -161,6 +161,21 @@ pub enum CycleValidationV01 {
     InvalidCycle,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageSelectorPolicyV01 {
+    pub accepted: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub silent: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trigger: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub emit: Option<Vec<String>>,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -189,6 +204,8 @@ pub struct PortSpecV01 {
     pub fan_out_policy: Option<FanOutPolicyV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trigger_mode: Option<TriggerModeV01>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_selectors: Option<MessageSelectorPolicyV01>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_value: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2371,6 +2388,36 @@ pub struct ProjectDocumentV01 {
     pub help: Option<serde_json::Map<String, Value>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeProjectRequestV01 {
+    pub schema: String,
+    pub schema_version: String,
+    pub id: String,
+    pub revision: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<ProjectMetadataV01>,
+    pub graph: GraphDocumentV01,
+    pub view_state: ViewStateV01,
+    pub patch_library: Vec<PatchDefinitionV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub package_dependencies: Vec<ProjectPackageDependencyV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub package_lock: Vec<ProjectPackageLockEntryV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resource_lock: Vec<ProjectResourceLockEntryV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub object_bindings: Vec<ProjectObjectBindingV01>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tutorial: Option<serde_json::Map<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help: Option<serde_json::Map<String, Value>>,
+    pub nodes: Vec<NodeDefinitionManifestV01>,
+}
+
+pub type RuntimeProjectRequest = RuntimeProjectRequestV01;
+
 fn string_param(node: &GraphNodeV01, key: &str) -> Option<String> {
     node.params
         .get(key)
@@ -2486,7 +2533,7 @@ pub struct GraphValidationResultV01 {
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionModelV01 {
     Event,
-    Value,
+    Control,
     Frame,
     AudioBlock,
     VideoFrame,

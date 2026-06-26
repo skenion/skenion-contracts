@@ -14,8 +14,42 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "accepts": [
+            "control.number.float",
+            "control.number.int",
+            "control.number.uint",
+            "control.bool",
+            "event.bang"
+          ],
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ]
+          }
         },
         {
           "id": "out",
@@ -26,7 +60,7 @@
       ]
     },
     {
-      "id": "value_1",
+      "id": "float_1",
       "kind": "core.float",
       "kindVersion": "0.1.0",
       "params": {
@@ -39,21 +73,62 @@
           "id": "in",
           "direction": "input",
           "label": "In",
-          "type": "message.any",
-          "required": false
+          "type": "control.message.any",
+          "required": false,
+          "accepts": [
+            "control.number.float",
+            "control.number.int",
+            "control.number.uint",
+            "control.bool",
+            "event.bang"
+          ],
+          "messageSelectors": {
+            "accepted": [
+              "bang",
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "silent": [
+              "set"
+            ],
+            "trigger": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "store": [
+              "set",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ],
+            "emit": [
+              "bang",
+              "float",
+              "int",
+              "uint",
+              "bool"
+            ]
+          }
         },
         {
           "id": "cold",
           "direction": "input",
           "label": "Cold",
-          "type": "number.float",
+          "type": "control.number.float",
           "required": false
         },
         {
           "id": "value",
           "direction": "output",
           "label": "Value",
-          "type": "number.float"
+          "type": "control.number.float"
         }
       ]
     }
@@ -66,7 +141,7 @@
         "portId": "out"
       },
       "target": {
-        "nodeId": "value_1",
+        "nodeId": "float_1",
         "portId": "in"
       }
     }

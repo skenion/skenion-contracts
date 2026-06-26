@@ -136,6 +136,9 @@
         "triggerMode": {
           "enum": ["passive", "trigger", "latched"]
         },
+        "messageSelectors": {
+          "$ref": "#/$defs/messageSelectors"
+        },
         "defaultValue": true,
         "latch": {
           "type": "boolean"
@@ -156,6 +159,36 @@
         }
       },
       "additionalProperties": false
+    },
+    "messageSelectors": {
+      "type": "object",
+      "required": ["accepted"],
+      "properties": {
+        "accepted": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "silent": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "trigger": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "store": {
+          "$ref": "#/$defs/messageSelectorList"
+        },
+        "emit": {
+          "$ref": "#/$defs/messageSelectorList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "messageSelectorList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
     },
     "portGroup": {
       "type": "object",
@@ -209,7 +242,7 @@
         "model": {
           "enum": [
             "event",
-            "value",
+            "control",
             "frame",
             "audio_block",
             "video_frame",

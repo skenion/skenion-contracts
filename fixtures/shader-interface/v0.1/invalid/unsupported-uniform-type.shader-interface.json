@@ -7,7 +7,7 @@
       "id": "direction",
       "label": "Direction",
       "type": {
-        "flow": "value",
+        "flow": "control",
         "dataKind": "vector.vec3"
       },
       "required": false

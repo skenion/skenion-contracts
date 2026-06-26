@@ -17,27 +17,27 @@
   "ports": [
     {
       "id": "sync",
-      "description": "Optional value<clock.state> input used by future follow/sync policies."
+      "description": "Optional clock.state input used by future follow/sync policies."
     },
     {
       "id": "reset",
-      "description": "Optional event<event.bang> input that resets local phase/position."
+      "description": "Optional event.bang input that resets local phase/position."
     },
     {
       "id": "state",
-      "description": "Outputs value<clock.state> with source capability and authority metadata."
+      "description": "Outputs clock.state with source capability and authority metadata."
     },
     {
       "id": "tick",
-      "description": "Outputs event<event.bang> for discrete musical ticks."
+      "description": "Outputs event.bang for discrete musical ticks."
     },
     {
       "id": "phase",
-      "description": "Outputs normalized number.float phase in the current cycle."
+      "description": "Outputs normalized control.number.float phase in the current cycle."
     },
     {
       "id": "tempo",
-      "description": "Outputs tempo as number.float in BPM."
+      "description": "Outputs tempo as control.number.float in BPM."
     }
   ],
   "params": [

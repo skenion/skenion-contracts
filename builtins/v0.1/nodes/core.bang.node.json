@@ -10,8 +10,60 @@
       "id": "in",
       "direction": "input",
       "label": "In",
-      "type": "message.any",
-      "required": false
+      "type": "control.message.any",
+      "required": false,
+      "accepts": [
+        "control.number.float",
+        "control.number.int",
+        "control.number.uint",
+        "control.bool",
+        "control.string",
+        "control.color",
+        "event.bang"
+      ],
+      "triggerMode": "trigger",
+      "messageSelectors": {
+        "accepted": [
+          "bang",
+          "set",
+          "float",
+          "int",
+          "uint",
+          "bool",
+          "string",
+          "color",
+          "symbol",
+          "list",
+          "anything"
+        ],
+        "silent": [
+          "set"
+        ],
+        "trigger": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool",
+          "string",
+          "color",
+          "symbol",
+          "list",
+          "anything"
+        ],
+        "emit": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool",
+          "string",
+          "color",
+          "symbol",
+          "list",
+          "anything"
+        ]
+      }
     },
     {
       "id": "out",

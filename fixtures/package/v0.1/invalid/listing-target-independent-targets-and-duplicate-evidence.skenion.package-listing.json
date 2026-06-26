@@ -7,7 +7,10 @@
   "summary": "Patch package listing with malformed target and evidence summaries.",
   "description": "A parseable listing that must fail because target-independent listings cannot publish targets and artifact evidence refs must be unique.",
   "category": "patch",
-  "tags": ["examples", "audio"],
+  "tags": [
+    "examples",
+    "audio"
+  ],
   "license": "Apache-2.0",
   "homepageUrl": "https://skenion.dev/examples",
   "repositoryUrl": "https://github.com/skenion/skenion-examples",
@@ -17,7 +20,10 @@
   },
   "targetSupport": {
     "kind": "target-independent",
-    "targets": ["aarch64-apple-darwin", "aarch64-apple-darwin"],
+    "targets": [
+      "aarch64-apple-darwin",
+      "aarch64-apple-darwin"
+    ],
     "summary": "Patch package; no native runtime target is required."
   },
   "provides": {
@@ -27,7 +33,9 @@
         "description": "Basic oscillator patch."
       }
     ],
-    "capabilities": ["patch-library"]
+    "capabilities": [
+      "patch-library"
+    ]
   },
   "artifactEvidence": {
     "artifacts": [
@@ -38,7 +46,10 @@
           "algorithm": "sha256",
           "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         },
-        "evidenceRefs": ["manifest-checksum", "manifest-checksum"]
+        "evidenceRefs": [
+          "manifest-checksum",
+          "manifest-checksum"
+        ]
       }
     ],
     "evidence": [

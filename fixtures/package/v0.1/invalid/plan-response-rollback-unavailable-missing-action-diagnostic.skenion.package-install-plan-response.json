@@ -18,7 +18,9 @@
     {
       "kind": "lock-state",
       "status": "fail",
-      "diagnosticRefs": ["diag-rollback-unavailable"],
+      "diagnosticRefs": [
+        "diag-rollback-unavailable"
+      ],
       "message": "No rollback lock entry is available."
     }
   ],
@@ -28,7 +30,9 @@
       "order": 0,
       "kind": "reject",
       "packageId": "example/native-sensor",
-      "diagnosticRefs": ["diag-missing-rollback"],
+      "diagnosticRefs": [
+        "diag-missing-rollback"
+      ],
       "reason": "Fail closed because rollback evidence is unavailable."
     }
   ],

@@ -20,7 +20,7 @@
     {
       "id": "frequency",
       "direction": "input",
-      "type": "number.float",
+      "type": "control.number.float",
       "rate": "control",
       "activation": "latched",
       "defaultValue": 1

@@ -19,7 +19,9 @@
     {
       "kind": "capability-change",
       "status": "warning",
-      "diagnosticRefs": ["diag-removed-capability"],
+      "diagnosticRefs": [
+        "diag-removed-capability"
+      ],
       "message": "A capability would be removed by the update."
     }
   ],

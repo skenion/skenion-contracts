@@ -29,7 +29,9 @@
     "sessionAddressing": true,
     "eventReplay": true,
     "multiWindow": true,
-    "profiles": ["remote"],
+    "profiles": [
+      "remote"
+    ],
     "authPolicy": "deferred"
   },
   "eventReplay": {

@@ -10,18 +10,50 @@
       "id": "in",
       "direction": "input",
       "label": "In",
-      "type": "message.any",
-      "required": false
+      "type": "control.number.float",
+      "required": false,
+      "accepts": [
+        "control.number.float",
+        "control.number.int",
+        "control.number.uint",
+        "control.bool",
+        "event.bang",
+        "control.message.any"
+      ],
+      "triggerMode": "trigger",
+      "messageSelectors": {
+        "accepted": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool"
+        ],
+        "trigger": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool"
+        ],
+        "emit": [
+          "bang",
+          "float",
+          "int",
+          "uint",
+          "bool"
+        ]
+      }
     },
     {
       "id": "out",
       "direction": "output",
       "label": "Value",
-      "type": "number.float"
+      "type": "control.number.float"
     }
   ],
   "execution": {
-    "model": "value"
+    "model": "control"
   },
   "state": {
     "persistent": false

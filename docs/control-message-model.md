@@ -26,7 +26,7 @@ signals, video streams, render frames, and GPU resources, see
 }
 ```
 
-Bang is not a stored value. Runtime state may store floats, ints, booleans,
+Bang is not a stored value. Runtime state may store floats, ints, bools,
 strings, colors, or future semantic values, but it must not store `bang` as a
 value.
 
@@ -34,22 +34,27 @@ value.
 
 Objects own their message handlers:
 
-- Bang accepts any incoming control message on its inlet and emits `bang`.
-  This includes numeric values, booleans, strings, stored message-box output,
-  selector-only messages, and `bang` itself. Bang is a message-to-bang object,
-  not an `event.bang`-only adapter.
-- Value objects handle selectors on their hot inlet. A typed value updates and
-  emits, `bang` emits the stored value, and `set ...` updates silently.
-- Value objects also expose a cold inlet for silent typed value storage.
+- Bang accepts incoming control messages on its inlet. Numeric values,
+  booleans, strings, stored message-box output, selector-only messages, and
+  `bang` itself emit `bang`; `set ...` is accepted silently and does not emit.
+  Bang is a message-to-bang object, not an `event.bang`-only adapter.
+- Typed control objects handle selectors on their hot inlet. A typed atom
+  updates and emits, `bang` emits the stored payload, and `set ...` updates
+  silently.
+- Typed control objects also expose a cold inlet for silent typed state
+  storage.
 - Toggle handles `bang`, `0`, `1`, `off`, `on`, `false`, `true`, and `set ...`
   through the same object-owned inlet handlers.
 - Message emits its stored message on click or `bang`, and updates silently on
   `set ...`.
-- Comment is a canvas annotation. It has no runtime control state and no ports.
+- Comment is a canvas annotation. It has no output or stored control payload,
+  but it exposes an `in: control.message.any` inlet so `set ...` can update
+  runtime display text silently.
 
-`message.any` is a message domain data kind. It is not a string value.
-Any scalar/control value can be lifted into this message domain when connected
-to an object inlet such as `core.bang.in` or `core.message.in`.
+`control.message.any` is the control-domain message-capable port type. It is
+not a string value. Any scalar control payload can be lifted into this message
+domain when connected to an object inlet such as `core.bang.in` or
+`core.message.in`.
 
 `bang` and `set` are message selectors, not visual inlet names. A node should
 not expose a dedicated `bang` inlet just to receive the `bang` selector.

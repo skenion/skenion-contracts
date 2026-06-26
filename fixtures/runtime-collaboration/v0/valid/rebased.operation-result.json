@@ -70,8 +70,12 @@
       {
         "code": "concurrent-node-move",
         "message": "sink was moved concurrently and rebased by last-writer position transform",
-        "changeIds": ["change-rebased-sink"],
-        "nodeIds": ["sink"]
+        "changeIds": [
+          "change-rebased-sink"
+        ],
+        "nodeIds": [
+          "sink"
+        ]
       }
     ]
   },

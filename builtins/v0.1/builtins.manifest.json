@@ -48,23 +48,8 @@
     "audio.clock-bridge",
     "audio.resample"
   ],
-  "canonicalDataKinds": [
-    "number.float",
-    "number.int",
-    "number.uint",
-    "boolean",
-    "string",
-    "message.any",
-    "event.bang",
-    "clock.state",
-    "asset.video",
-    "video.frame",
-    "gpu.texture2d",
-    "color",
-    "signal.audio"
-  ],
   "representations": {
-    "number.float": [
+    "control.number.float": [
       "f64",
       "f32",
       "f16",
@@ -73,23 +58,38 @@
       "ufloat16",
       "ufloat8"
     ],
-    "number.int": [
+    "control.number.int": [
       "i64",
       "i32",
       "i16",
       "i8"
     ],
-    "number.uint": [
+    "control.number.uint": [
       "u64",
       "u32",
       "u16",
       "u8"
     ],
-    "color": [
+    "control.color": [
       "rgba32f",
       "rgba16f",
       "rgba8unorm",
       "rgb8unorm"
     ]
-  }
+  },
+  "canonicalTypes": [
+    "control.number.float",
+    "control.number.int",
+    "control.number.uint",
+    "control.bool",
+    "control.string",
+    "control.message.any",
+    "event.bang",
+    "clock.state",
+    "asset.video",
+    "video.frame",
+    "gpu.texture2d",
+    "control.color",
+    "signal.audio"
+  ]
 }

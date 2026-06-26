@@ -55,7 +55,9 @@
                 "algorithm": "sha256",
                 "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
               },
-              "evidenceRefs": ["manifest-checksum"]
+              "evidenceRefs": [
+                "manifest-checksum"
+              ]
             }
           ],
           "evidence": [

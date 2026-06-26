@@ -7,7 +7,10 @@
   "summary": "Native sensor node package with empty targeted support.",
   "description": "A parseable listing that must fail because targeted listings require at least one targetSupport target.",
   "category": "mixed",
-  "tags": ["native", "sensor"],
+  "tags": [
+    "native",
+    "sensor"
+  ],
   "license": "Apache-2.0",
   "homepageUrl": "https://skenion.dev/packages/native-sensor",
   "repositoryUrl": "https://github.com/skenion/native-sensor",
@@ -28,7 +31,9 @@
         "description": "Native object entrypoint for sensor readings."
       }
     ],
-    "capabilities": ["native-object"]
+    "capabilities": [
+      "native-object"
+    ]
   },
   "artifactEvidence": {
     "artifacts": [
@@ -39,7 +44,9 @@
           "algorithm": "sha256",
           "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         },
-        "evidenceRefs": ["manifest-checksum"]
+        "evidenceRefs": [
+          "manifest-checksum"
+        ]
       },
       {
         "kind": "native-artifact",
@@ -49,7 +56,9 @@
           "algorithm": "sha256",
           "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         },
-        "evidenceRefs": ["native-attestation"]
+        "evidenceRefs": [
+          "native-attestation"
+        ]
       }
     ],
     "evidence": [

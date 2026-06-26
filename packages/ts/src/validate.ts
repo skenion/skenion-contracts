@@ -20,6 +20,7 @@ import {
   projectV01Schema,
   runtimeCollaborationV0Schema,
   runtimeOperationV0Schema,
+  runtimeProjectRequestV0Schema,
   runtimeSessionV0Schema,
   shaderInterfaceV01Schema,
   viewStateV01Schema
@@ -64,6 +65,7 @@ import type {
   RuntimeCollaborationPresenceEnvelope,
   RuntimeCollaborationSelectionEnvelope,
   RuntimeOperationEnvelope,
+  RuntimeProjectRequestV01,
   RuntimeSessionEvent,
   RuntimeSessionInfoResponse,
   ShaderInterfaceV01,
@@ -88,6 +90,7 @@ ajv.addSchema(graphV01Schema);
 ajv.addSchema(graphFragmentV01Schema);
 ajv.addSchema(viewStateV01Schema);
 ajv.addSchema(projectV01Schema);
+ajv.addSchema(runtimeProjectRequestV0Schema);
 ajv.addSchema(runtimeOperationV0Schema);
 ajv.addSchema(runtimeSessionV0Schema);
 const graphV01Validator = ajv.compile(graphV01Schema);
@@ -151,6 +154,7 @@ const nodeDefinitionV01Validator = ajv.compile(nodeDefinitionV01Schema);
 const shaderInterfaceV01Validator = ajv.compile(shaderInterfaceV01Schema);
 const viewStateV01Validator = ajv.compile(viewStateV01Schema);
 const projectV01Validator = ajv.compile(projectV01Schema);
+const runtimeProjectRequestV0Validator = ajv.compile(runtimeProjectRequestV0Schema);
 const patchDefinitionV01Validator = ajv.compile({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://skenion.dev/schemas/project/v0.1/patch-definition.schema.json",
@@ -751,7 +755,7 @@ function portFanOutPolicy(port: PortSpecV01): string {
 }
 
 function portTypeAccepts(source: PortSpecV01, target: PortSpecV01): boolean {
-  if (target.type === "message.any" && isControlMessagePortType(source.type)) {
+  if (target.type === "control.message.any" && isControlMessagePortType(source.type)) {
     return true;
   }
   return source.type === target.type || target.accepts?.includes(source.type) === true;
@@ -759,15 +763,88 @@ function portTypeAccepts(source: PortSpecV01, target: PortSpecV01): boolean {
 
 function isControlMessagePortType(type: string): boolean {
   return [
+    "control.message.any",
+    "control.number.float",
+    "control.number.int",
+    "control.number.uint",
+    "control.bool",
+    "control.color",
+    "control.string"
+  ].includes(type);
+}
+
+function isLegacyControlPortType(type: string): boolean {
+  return [
     "message.any",
-    "event.bang",
     "number.float",
     "number.int",
     "number.uint",
     "boolean",
     "color",
     "string"
-  ].includes(type);
+  ].includes(type) || type.startsWith("value.") || type.startsWith("value<");
+}
+
+type MessageSelectorPolicyPortV01 = Pick<PortSpecV01, "direction" | "type" | "accepts" | "messageSelectors">;
+
+function isSelectorAwareInputPort(port: MessageSelectorPolicyPortV01): boolean {
+  return port.direction === "input" && (
+    port.type === "control.message.any" ||
+    port.accepts?.includes("control.message.any") === true
+  );
+}
+
+type MessageSelectorPolicyField = "silent" | "trigger" | "store" | "emit";
+
+const messageSelectorPolicyFields: MessageSelectorPolicyField[] = [
+  "silent",
+  "trigger",
+  "store",
+  "emit"
+];
+
+function messageSelectorPolicyErrors(port: MessageSelectorPolicyPortV01, label: string): string[] {
+  const policy = port.messageSelectors;
+  if (!policy) {
+    return isSelectorAwareInputPort(port)
+      ? [`${label} selector-aware input port requires messageSelectors`]
+      : [];
+  }
+
+  const errors: string[] = [];
+  const accepted = policy.accepted ?? [];
+  if (accepted.length === 0) {
+    errors.push(`${label} messageSelectors.accepted must list at least one selector`);
+  }
+  const acceptedSet = new Set(accepted);
+  for (const field of messageSelectorPolicyFields) {
+    for (const selector of policy[field] ?? []) {
+      if (!acceptedSet.has(selector)) {
+        errors.push(`${label} messageSelectors.${field} selector ${selector} is not accepted`);
+      }
+    }
+  }
+  if (policy.trigger?.includes("set") === true) {
+    errors.push(`${label} messageSelectors.trigger must not include set`);
+  }
+  if (policy.emit?.includes("set") === true) {
+    errors.push(`${label} messageSelectors.emit must not include set`);
+  }
+  if (
+    acceptedSet.has("set") &&
+    policy.silent?.includes("set") !== true &&
+    policy.store?.includes("set") !== true
+  ) {
+    errors.push(`${label} messageSelectors.set must be silent or store behavior`);
+  }
+
+  return errors;
+}
+
+function validateObjectTextParseResultV01Semantics(result: ObjectTextParseResultV01): string[] {
+  return result.instancePorts.flatMap((port) =>
+    messageSelectorPolicyErrors(port, `objectText instancePort ${result.classSymbol}.${port.id}`)
+  );
 }
 
 function fragmentDiagnostic(
@@ -815,6 +892,29 @@ function analyzeFragmentSemantics(
         );
       }
       portIds.add(port.id);
+      if (isLegacyControlPortType(port.type)) {
+        fragmentDiagnostic(
+          diagnostics,
+          "error",
+          "legacy-port-type",
+          `port ${node.id}.${port.id} uses legacy control port type ${port.type}`,
+          { nodes: [node.id] }
+        );
+      }
+      for (const acceptedType of port.accepts ?? []) {
+        if (isLegacyControlPortType(acceptedType)) {
+          fragmentDiagnostic(
+            diagnostics,
+            "error",
+            "legacy-port-type",
+            `port ${node.id}.${port.id} accepts legacy control port type ${acceptedType}`,
+            { nodes: [node.id] }
+          );
+        }
+      }
+      for (const error of messageSelectorPolicyErrors(port, `port ${node.id}.${port.id}`)) {
+        fragmentDiagnostic(diagnostics, "error", "message-selector-policy", error, { nodes: [node.id] });
+      }
       ports.set(portSpecKey(node.id, port.id), port);
     }
   }
@@ -830,6 +930,15 @@ function analyzeFragmentSemantics(
       );
     }
     edgeIds.add(edge.id);
+    if (edge.resolvedType !== undefined && isLegacyControlPortType(edge.resolvedType)) {
+      fragmentDiagnostic(
+        diagnostics,
+        "error",
+        "legacy-port-type",
+        `edge ${edge.id} uses legacy resolvedType ${edge.resolvedType}`,
+        { edges: [edge.id] }
+      );
+    }
 
     const sourceNodeMissing = !nodeIds.has(edge.source.nodeId);
     const targetNodeMissing = !nodeIds.has(edge.target.nodeId);
@@ -915,16 +1024,15 @@ function portFamily(type: string): string {
   return type.split(".", 1).join("");
 }
 
+function isControlCyclePortType(type: string): boolean {
+  return isControlMessagePortType(type) || portFamily(type) === "control";
+}
+
 function controlCycleTypes(edges: EdgeSpecV01[], ports: Map<string, PortSpecV01>): boolean {
   return edges.every((edge) => {
     const source = ports.get(portSpecKey(edge.source.nodeId, edge.source.portId));
     const target = ports.get(portSpecKey(edge.target.nodeId, edge.target.portId));
-    const sourceFamily = source ? portFamily(source.type) : "";
-    const targetFamily = target ? portFamily(target.type) : "";
-    return (
-      (sourceFamily === "value" || sourceFamily === "control") &&
-      (targetFamily === "value" || targetFamily === "control")
-    );
+    return isControlCyclePortType(source?.type ?? "") && isControlCyclePortType(target?.type ?? "");
   });
 }
 
@@ -943,7 +1051,7 @@ function classifyCycle(
       nodes,
       edges: edges.map((edge) => edge.id),
       message: classification === "ambiguous-algebraic-loop"
-        ? "control/value cycle requires explicit latch, delay, or feedback policy"
+        ? "control cycle requires explicit latch, delay, or feedback policy"
         : "cycle requires explicit feedback policy"
     };
   }
@@ -1038,7 +1146,33 @@ function validateNodeDefinitionV01Semantics(definition: NodeDefinitionManifestV0
     `port id on ${definition.id}`
   );
 
+  for (const port of definition.ports) {
+    if (isLegacyControlPortType(port.type)) {
+      errors.push(`legacy port type on ${definition.id}.${port.id}: ${port.type}`);
+    }
+      for (const acceptedType of port.accepts ?? []) {
+        if (isLegacyControlPortType(acceptedType)) {
+          errors.push(`legacy accepted port type on ${definition.id}.${port.id}: ${acceptedType}`);
+        }
+      }
+      errors.push(...messageSelectorPolicyErrors(port, `port ${definition.id}.${port.id}`));
+  }
+
   for (const group of definition.portGroups ?? []) {
+    if (isLegacyControlPortType(group.type)) {
+      errors.push(`legacy port group type on ${definition.id}.${group.id}: ${group.type}`);
+    }
+    if (isLegacyControlPortType(group.defaultPortSpec?.type ?? "")) {
+      errors.push(`legacy default port type on ${definition.id}.${group.id}: ${group.defaultPortSpec?.type}`);
+    }
+    for (const acceptedType of group.defaultPortSpec?.accepts ?? []) {
+      if (isLegacyControlPortType(acceptedType)) {
+        errors.push(`legacy default accepted port type on ${definition.id}.${group.id}: ${acceptedType}`);
+      }
+    }
+    if (group.defaultPortSpec) {
+      errors.push(...messageSelectorPolicyErrors(group.defaultPortSpec, `port group ${definition.id}.${group.id} defaultPortSpec`));
+    }
     if (group.maxPorts !== undefined && group.maxPorts < group.minPorts) {
       errors.push(`port group ${definition.id}.${group.id} maxPorts is less than minPorts`);
     }
@@ -1081,6 +1215,29 @@ export function analyzeGraphDocumentV01(graph: GraphDocumentV01): GraphValidatio
         );
       }
       portIds.add(port.id);
+      if (isLegacyControlPortType(port.type)) {
+        diagnostic(
+          diagnostics,
+          "error",
+          "legacy-port-type",
+          `port ${node.id}.${port.id} uses legacy control port type ${port.type}`,
+          { nodes: [node.id] }
+        );
+      }
+      for (const acceptedType of port.accepts ?? []) {
+        if (isLegacyControlPortType(acceptedType)) {
+          diagnostic(
+            diagnostics,
+            "error",
+            "legacy-port-type",
+            `port ${node.id}.${port.id} accepts legacy control port type ${acceptedType}`,
+            { nodes: [node.id] }
+          );
+        }
+      }
+      for (const error of messageSelectorPolicyErrors(port, `port ${node.id}.${port.id}`)) {
+        diagnostic(diagnostics, "error", "message-selector-policy", error, { nodes: [node.id] });
+      }
       const key = portSpecKey(node.id, port.id);
       ports.set(key, port);
       incoming.set(key, []);
@@ -1088,6 +1245,40 @@ export function analyzeGraphDocumentV01(graph: GraphDocumentV01): GraphValidatio
     }
 
     for (const group of node.portGroups ?? []) {
+      if (isLegacyControlPortType(group.type)) {
+        diagnostic(
+          diagnostics,
+          "error",
+          "legacy-port-type",
+          `port group ${node.id}.${group.id} uses legacy control port type ${group.type}`,
+          { nodes: [node.id] }
+        );
+      }
+      if (isLegacyControlPortType(group.defaultPortSpec?.type ?? "")) {
+        diagnostic(
+          diagnostics,
+          "error",
+          "legacy-port-type",
+          `port group ${node.id}.${group.id} default port uses legacy control port type ${group.defaultPortSpec?.type}`,
+          { nodes: [node.id] }
+        );
+      }
+      for (const acceptedType of group.defaultPortSpec?.accepts ?? []) {
+        if (isLegacyControlPortType(acceptedType)) {
+          diagnostic(
+            diagnostics,
+            "error",
+            "legacy-port-type",
+            `port group ${node.id}.${group.id} default port accepts legacy control port type ${acceptedType}`,
+            { nodes: [node.id] }
+          );
+        }
+      }
+      if (group.defaultPortSpec) {
+        for (const error of messageSelectorPolicyErrors(group.defaultPortSpec, `port group ${node.id}.${group.id} defaultPortSpec`)) {
+          diagnostic(diagnostics, "error", "message-selector-policy", error, { nodes: [node.id] });
+        }
+      }
       if (group.maxPorts !== undefined && group.maxPorts < group.minPorts) {
         diagnostic(
           diagnostics,
@@ -1116,6 +1307,15 @@ export function analyzeGraphDocumentV01(graph: GraphDocumentV01): GraphValidatio
     const targetKey = portSpecKey(edge.target.nodeId, edge.target.portId);
     const source = ports.get(sourceKey);
     const target = ports.get(targetKey);
+    if (edge.resolvedType !== undefined && isLegacyControlPortType(edge.resolvedType)) {
+      diagnostic(
+        diagnostics,
+        "error",
+        "legacy-port-type",
+        `edge ${edge.id} uses legacy resolvedType ${edge.resolvedType}`,
+        { edges: [edge.id] }
+      );
+    }
 
     if (!source) {
       diagnostic(diagnostics, "error", "missing-source-port", `edge ${edge.id} references missing source port ${sourceKey}`, { edges: [edge.id] });
@@ -1248,7 +1448,13 @@ export function validateObjectTextParseResult(
     };
   }
 
-  return { ok: true, value: document as ObjectTextParseResultV01 };
+  const result = document as ObjectTextParseResultV01;
+  const errors = validateObjectTextParseResultV01Semantics(result);
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: result };
 }
 
 export function validateNodeDefinitionV01(
@@ -1617,6 +1823,93 @@ function validateProjectObjectBindingStatusInvariants(document: unknown): string
 
 export function validateProjectDocument(document: unknown): ValidationResult<ProjectDocumentV01> {
   return validateProjectDocumentV01(document);
+}
+
+function projectDocumentFromRuntimeProjectRequest(request: RuntimeProjectRequestV01): ProjectDocumentV01 {
+  const { nodes: _nodes, ...projectDocument } = request;
+  return projectDocument;
+}
+
+function requiresRuntimeNodeDefinition(kind: string): boolean {
+  return kind !== "core.inlet" && kind !== "core.outlet";
+}
+
+function validateRuntimeProjectRequestNodeDefinitions(request: RuntimeProjectRequestV01): string[] {
+  const errors = duplicateErrors(
+    request.nodes.map((definition) => `${definition.id}@${definition.version}`),
+    "runtime project node definition"
+  );
+  const definitionKeys = new Set<string>();
+  const versionsById = new Map<string, Set<string>>();
+
+  for (const definition of request.nodes) {
+    definitionKeys.add(`${definition.id}@${definition.version}`);
+    const versions = versionsById.get(definition.id) ?? new Set<string>();
+    versions.add(definition.version);
+    versionsById.set(definition.id, versions);
+  }
+
+  const validateGraphNodes = (graph: GraphDocumentV01, label: string) => {
+    for (const node of graph.nodes) {
+      if (!requiresRuntimeNodeDefinition(node.kind)) {
+        continue;
+      }
+      const requiredKey = `${node.kind}@${node.kindVersion}`;
+      if (definitionKeys.has(requiredKey)) {
+        continue;
+      }
+
+      const providedVersions = versionsById.get(node.kind);
+      if (providedVersions && providedVersions.size > 0) {
+        errors.push(
+          `node definition version mismatch: ${requiredKey} (${label} node ${node.id}; provided versions: ${[...providedVersions].sort().join(", ")})`
+        );
+      } else {
+        errors.push(`missing node definition: ${requiredKey} (${label} node ${node.id})`);
+      }
+    }
+  };
+
+  validateGraphNodes(request.graph, "root graph");
+  for (const patch of request.patchLibrary) {
+    validateGraphNodes(patch.graph, `patch ${patch.id}`);
+  }
+
+  return errors;
+}
+
+export function validateRuntimeProjectRequestV01(
+  document: unknown
+): ValidationResult<RuntimeProjectRequestV01> {
+  if (!runtimeProjectRequestV0Validator(document)) {
+    return { ok: false, errors: schemaErrors(runtimeProjectRequestV0Validator.errors as ErrorObject[]) };
+  }
+
+  const request = document as RuntimeProjectRequestV01;
+  const projectResult = validateProjectDocumentV01(projectDocumentFromRuntimeProjectRequest(request));
+  if (!projectResult.ok) {
+    return { ok: false, errors: projectResult.errors };
+  }
+
+  const errors = [
+    ...request.nodes.flatMap((definition) =>
+      validateNodeDefinitionV01Semantics(definition).map(
+        (error) => `runtime project node ${definition.id}@${definition.version}: ${error}`
+      )
+    ),
+    ...validateRuntimeProjectRequestNodeDefinitions(request)
+  ];
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return { ok: true, value: request };
+}
+
+export function validateRuntimeProjectRequest(
+  document: unknown
+): ValidationResult<RuntimeProjectRequestV01> {
+  return validateRuntimeProjectRequestV01(document);
 }
 
 export function validateRuntimeOperationEnvelope(

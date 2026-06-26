@@ -6,7 +6,9 @@
   "displayName": "Skenion Examples",
   "summary": "Reusable example patches for learning Skenion.",
   "category": "patch",
-  "tags": ["Bad_Tag"],
+  "tags": [
+    "Bad_Tag"
+  ],
   "license": "Apache-2.0",
   "homepageUrl": "ftp://skenion.dev/examples",
   "repositoryUrl": "https://github.com/skenion/skenion examples",
@@ -27,7 +29,9 @@
           "algorithm": "sha256",
           "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         },
-        "evidenceRefs": ["manifest-checksum"]
+        "evidenceRefs": [
+          "manifest-checksum"
+        ]
       }
     ],
     "evidence": [

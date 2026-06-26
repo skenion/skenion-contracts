@@ -4,31 +4,55 @@
   "id": "core.uint",
   "version": "0.1.0",
   "displayName": "UInt",
-  "category": "Values",
+  "category": "Typed Controls",
   "ports": [
     {
       "id": "in",
       "direction": "input",
       "label": "In",
-      "type": "message.any",
-      "required": false
+      "type": "control.message.any",
+      "required": false,
+      "accepts": [
+        "control.number.float",
+        "control.number.int",
+        "control.number.uint",
+        "control.bool",
+        "event.bang"
+      ],
+      "triggerMode": "trigger",
+      "messageSelectors": {
+        "accepted": ["bang", "set", "float", "int", "uint", "bool"],
+        "silent": ["set"],
+        "trigger": ["bang", "float", "int", "uint", "bool"],
+        "store": ["set", "float", "int", "uint", "bool"],
+        "emit": ["bang", "float", "int", "uint", "bool"]
+      },
+      "latch": true
     },
     {
       "id": "cold",
       "direction": "input",
       "label": "Cold",
-      "type": "number.uint",
-      "required": false
+      "type": "control.number.uint",
+      "required": false,
+      "accepts": [
+        "control.number.float",
+        "control.number.int",
+        "control.number.uint",
+        "control.bool"
+      ],
+      "triggerMode": "passive",
+      "latch": true
     },
     {
       "id": "value",
       "direction": "output",
       "label": "Value",
-      "type": "number.uint"
+      "type": "control.number.uint"
     }
   ],
   "execution": {
-    "model": "value"
+    "model": "control"
   },
   "state": {
     "persistent": false

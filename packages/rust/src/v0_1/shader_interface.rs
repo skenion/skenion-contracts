@@ -179,7 +179,7 @@ pub fn analyze_shader_interface_v01(source: &str) -> ShaderInterfaceAnalysisV01 
 
         if !matches!(
             raw_type,
-            "number.float" | "number.int" | "number.uint" | "boolean" | "color"
+            "number.float" | "number.int" | "number.uint" | "bool" | "color"
         ) {
             diagnostics.push(diagnostic(
                 "unsupported-uniform-type",
@@ -355,7 +355,7 @@ fn data_type_for(
         _ => (None, None),
     };
     DataTypeV01 {
-        flow: DataFlowV01::Value,
+        flow: DataFlowV01::Control,
         data_kind: data_kind.to_owned(),
         unit: None,
         range: (range.min.is_some() || range.max.is_some() || range.step.is_some())
@@ -444,10 +444,10 @@ fn parse_default(data_kind: &str, value: &str) -> Result<Value, String> {
             .parse::<u64>()
             .map(|value| Value::Number(Number::from(value)))
             .map_err(|_| format!("invalid number.uint default: {value}")),
-        "boolean" => match value {
+        "bool" => match value {
             "true" => Ok(Value::Bool(true)),
             "false" => Ok(Value::Bool(false)),
-            _ => Err(format!("invalid boolean default: {value}")),
+            _ => Err(format!("invalid bool default: {value}")),
         },
         "color" => serde_json::from_str::<Value>(value)
             .ok()
@@ -522,7 +522,7 @@ mod tests {
     fn analyzes_annotations_and_generates_ports() {
         let source = r#"
 // @skenion.uniform speed number.float default=0.5 min=0 max=2 step=0.01 label="Speed Amount"
-// @skenion.uniform enabled boolean default=false
+// @skenion.uniform enabled bool default=false
 // @skenion.uniform iterations number.int default=8
 // @skenion.uniform seed number.uint default=12
 // @skenion.uniform tint color default=[1,0.2,0.1,1]
@@ -568,7 +568,7 @@ mod tests {
         let source = r#"
 // @skenion.uniform shaderSpeed_value number.float label="Shader \"Speed\"" junk default=0.25 min=-1 max=1 step=0.5
 // @skenion.uniform phase number.float label=Phase stray
-// @skenion.uniform ready boolean default=true
+// @skenion.uniform ready bool default=true
 "#;
         let analysis = analyze_shader_interface_v01(source);
 
@@ -630,7 +630,7 @@ mod tests {
 // @skenion.uniform speed vec3
 // @skenion.uniform speed number.float
 // @skenion.uniform broken number.float default=nope
-// @skenion.uniform flag boolean default=maybe
+// @skenion.uniform flag bool default=maybe
 // @skenion.uniform count number.int default=1.2
 // @skenion.uniform seed number.uint default=-1
 // @skenion.uniform tint color default=nope

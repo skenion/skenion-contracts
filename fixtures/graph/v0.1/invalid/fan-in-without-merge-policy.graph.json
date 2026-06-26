@@ -6,27 +6,27 @@
   "nodes": [
     {
       "id": "a",
-      "kind": "core.value",
+      "kind": "core.float",
       "kindVersion": "0.1.0",
       "params": {},
       "ports": [
         {
-          "id": "out",
+          "id": "value",
           "direction": "output",
-          "type": "value.number"
+          "type": "control.number.float"
         }
       ]
     },
     {
       "id": "b",
-      "kind": "core.value",
+      "kind": "core.float",
       "kindVersion": "0.1.0",
       "params": {},
       "ports": [
         {
-          "id": "out",
+          "id": "value",
           "direction": "output",
-          "type": "value.number"
+          "type": "control.number.float"
         }
       ]
     },
@@ -36,13 +36,13 @@
       "params": {},
       "ports": [
         {
-          "id": "in",
+          "id": "right",
           "direction": "input",
-          "type": "value.number",
+          "type": "control.number.float",
           "maxConnections": 2
         }
       ],
-      "kind": "core.float"
+      "kind": "core.operator.add"
     }
   ],
   "edges": [
@@ -50,22 +50,22 @@
       "id": "edge_a_target",
       "source": {
         "nodeId": "a",
-        "portId": "out"
+        "portId": "value"
       },
       "target": {
         "nodeId": "target",
-        "portId": "in"
+        "portId": "right"
       }
     },
     {
       "id": "edge_b_target",
       "source": {
         "nodeId": "b",
-        "portId": "out"
+        "portId": "value"
       },
       "target": {
         "nodeId": "target",
-        "portId": "in"
+        "portId": "right"
       }
     }
   ]

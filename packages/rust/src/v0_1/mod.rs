@@ -61,7 +61,8 @@ pub use validation::{
     validate_runtime_collaboration_operation_result,
     validate_runtime_collaboration_presence_envelope,
     validate_runtime_collaboration_selection_envelope, validate_runtime_operation_envelope,
-    validate_runtime_session_event, validate_runtime_session_info_response,
+    validate_runtime_project_request_v01, validate_runtime_session_event,
+    validate_runtime_session_info_response,
 };
 pub use version::{
     CONTRACTS_COMPATIBILITY_LINE, CONTRACTS_COMPATIBILITY_RANGE, CONTRACTS_PACKAGE_VERSION,

@@ -4,17 +4,17 @@ skenion must keep shader uniform names separate from value types.
 
 ```text
 port id   = shader-facing semantic name, such as speed, enabled, iterations, tint
-port type = data contract, such as number.float, boolean, number.int, color
+port type = data contract, such as control.number.float, control.bool, control.number.int, control.color
 ```
 
 `u_value` and `u_color` were temporary fixed-port demo names. They are not
 types. The fullscreen shader UI should read like:
 
 ```text
-speed      : number.float
-enabled    : boolean
-iterations : number.int
-tint       : color
+speed      : control.number.float
+enabled    : control.bool
+iterations : control.number.int
+tint       : control.color
 ```
 
 ## Dynamic Flow
@@ -34,7 +34,7 @@ Example annotation block:
 
 ```wgsl
 // @skenion.uniform speed number.float
-// @skenion.uniform enabled boolean
+// @skenion.uniform enabled bool
 // @skenion.uniform iterations number.int
 // @skenion.uniform tint color
 ```
@@ -42,11 +42,11 @@ Example annotation block:
 Generated ports:
 
 ```text
-speed      value<number.float>
-enabled    value<boolean>
-iterations value<number.int>
-tint       value<color>
-out        resource<gpu.texture2d>
+speed      control.number.float
+enabled    control.bool
+iterations control.number.int
+tint       control.color
+out        gpu.texture2d
 ```
 
 ## Patch Boundary
