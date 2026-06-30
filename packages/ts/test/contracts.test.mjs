@@ -874,6 +874,9 @@ test("validates package manifests and package roots", async () => {
   assert.equal(patchPackage.trust, undefined);
   assert.equal(patchPackage.runtimeAbiRange, undefined);
   assert.equal(patchPackage.provides.patches[0].id, "example.oscillator");
+  assert.equal(patchPackage.provides.objects[0].objectId, "example.oscillator");
+  assert.equal(patchPackage.provides.objects[0].primaryObjectSpec, "osc~ 440");
+  assert.equal(patchPackage.provides.objects[0].definitionPath, "nodes/example.oscillator.node.json");
   assert.equal(patchPackage.diagnostics[0].code, "package-manifest-read");
   assert.equal(patchPackage.diagnostics[0].details.fileName, SKENION_PACKAGE_MANIFEST_FILE_NAME);
 
@@ -883,6 +886,11 @@ test("validates package manifests and package roots", async () => {
   assert.equal(mixedPackage.category, "mixed");
   assert.equal(mixedPackage.runtimeAbiRange, ">=0.45.0 <0.46.0");
   assert.deepEqual(mixedPackage.targets, ["aarch64-apple-darwin", "x86_64-apple-darwin"]);
+  assert.equal(mixedPackage.provides.nodes[0].id, "example.sensor-reading");
+  assert.equal(mixedPackage.provides.objects[0].objectId, "example.sensor-native");
+  assert.equal(mixedPackage.provides.objects[0].primaryObjectSpec, "sensor");
+  assert.deepEqual(mixedPackage.provides.objects[0].aliases, ["native-sensor"]);
+  assert.equal(mixedPackage.provides.objects[0].definitionPath, "nodes/example.sensor-reading.node.json");
 
   const packageRootResult = validatePackageRootV01({
     schema: "skenion.package.root",
@@ -950,10 +958,25 @@ test("validates package manifests and package roots", async () => {
   manifestInstallState.source = "first-party";
   assert.equal(validatePackageManifestV01(manifestInstallState).ok, false);
 
+  const blankObjectSpec = structuredClone(patchPackage);
+  blankObjectSpec.provides.objects[0].primaryObjectSpec = "   ";
+  const blankObjectSpecResult = validatePackageManifestV01(blankObjectSpec);
+  assert.equal(blankObjectSpecResult.ok, false);
+  assert.match(blankObjectSpecResult.errors.join("\n"), /primaryObjectSpec must not be blank/);
+
+  const blankObjectAlias = structuredClone(patchPackage);
+  blankObjectAlias.provides.objects[0].aliases.push("\t");
+  const blankObjectAliasResult = validatePackageManifestV01(blankObjectAlias);
+  assert.equal(blankObjectAliasResult.ok, false);
+  assert.match(blankObjectAliasResult.errors.join("\n"), /alias\/spec must not be blank/);
+
   const invalidCases = [
     ["fixtures/package/v0.1/invalid/native-missing-abi.skenion.package.json", /runtimeAbiRange/],
     ["fixtures/package/v0.1/invalid/native-missing-artifact.skenion.package.json", /nativeArtifacts/],
     ["fixtures/package/v0.1/invalid/native-missing-evidence.skenion.package.json", /missing evidence/],
+    ["fixtures/package/v0.1/invalid/duplicate-object-id.skenion.package.json", /duplicate provided object provider\/objectId/],
+    ["fixtures/package/v0.1/invalid/duplicate-object-spec.skenion.package.json", /duplicate object spec/],
+    ["fixtures/package/v0.1/invalid/payload-object-id.skenion.package.json", /payload\/value identity/],
     ["fixtures/package/v0.1/invalid/patch-with-runtime-abi.skenion.package.json", /must NOT be valid|runtimeAbiRange/],
     ["fixtures/package/v0.1/invalid/extension-only.package-root.json", /skenion\.package\.json/],
     ["fixtures/package/v0.1/invalid/both-manifests.package-root.json", /unsupported keys/]
@@ -980,6 +1003,8 @@ test("validates public package listing and discovery DTOs", async () => {
   assert.equal(listing.targetSupport.kind, "target-independent");
   assert.equal(listing.discoverySignals.stargazerCount, 128);
   assert.equal(listing.discoverySignals.rankingScore, 0.92);
+  assert.equal(listing.provides.objects[0].objectId, "example.oscillator");
+  assert.equal(listing.provides.objects[0].primaryObjectSpec, "osc~ 440");
   assert.equal(listing.account, undefined);
   assert.equal(listing.installPlan, undefined);
 
@@ -992,7 +1017,8 @@ test("validates public package listing and discovery DTOs", async () => {
   assert.equal(discovery.listings.length, 2);
   assert.equal(discovery.listings[1].targetSupport.kind, "targeted");
   assert.deepEqual(discovery.listings[1].targetSupport.targets, ["aarch64-apple-darwin", "x86_64-apple-darwin"]);
-  assert.equal(discovery.listings[1].provides.nativeObjects[0].id, "example.sensor-native");
+  assert.equal(discovery.listings[1].provides.objects[0].objectId, "example.sensor-native");
+  assert.equal(discovery.listings[1].provides.objects[0].primaryObjectSpec, "sensor");
   assert.equal(discovery.listings[1].provides.codecs[0].id, "example.sensor-calibration-json");
   assert.equal(discovery.listings[1].diagnostics[0].code, "unavailable-target");
   assert.equal(discovery.diagnostics[0].code, "hidden-package");
@@ -1047,14 +1073,32 @@ test("validates public package listing and discovery DTOs", async () => {
   assert.equal(unavailableTargetsResult.ok, true);
 
   const duplicateSummaries = structuredClone(discovery.listings[1]);
-  duplicateSummaries.provides.nativeObjects.push(structuredClone(duplicateSummaries.provides.nativeObjects[0]));
   duplicateSummaries.provides.codecs.push(structuredClone(duplicateSummaries.provides.codecs[0]));
   const duplicateSummariesResult = validatePackageListingV01(duplicateSummaries);
   assert.equal(duplicateSummariesResult.ok, false);
-  assert.match(
-    duplicateSummariesResult.errors.join("\n"),
-    /duplicate provided native object id|duplicate provided codec id/
+  assert.match(duplicateSummariesResult.errors.join("\n"), /duplicate provided codec id/);
+
+  const duplicateListingObjectSpec = await readJson(
+    "fixtures/package/v0.1/invalid/listing-duplicate-object-spec.skenion.package-listing.json"
   );
+  const duplicateListingObjectSpecResult = validatePackageListingV01(duplicateListingObjectSpec);
+  assert.equal(duplicateListingObjectSpecResult.ok, false);
+  assert.match(duplicateListingObjectSpecResult.errors.join("\n"), /duplicate object spec/);
+
+  const listingObjectInvalidCases = [
+    ["fixtures/package/v0.1/invalid/listing-duplicate-object-id.skenion.package-listing.json", /duplicate provided object provider\/objectId/],
+    ["fixtures/package/v0.1/invalid/listing-payload-object-id.skenion.package-listing.json", /payload\/value identity/],
+    ["fixtures/package/v0.1/invalid/listing-blank-object-primary-spec.skenion.package-listing.json", /primaryObjectSpec must not be blank/],
+    ["fixtures/package/v0.1/invalid/listing-blank-object-alias.skenion.package-listing.json", /alias\/spec must not be blank/]
+  ];
+
+  for (const [fixture, expected] of listingObjectInvalidCases) {
+    const invalid = await readJson(fixture);
+    const result = validatePackageListingV01(invalid);
+
+    assert.equal(result.ok, false, fixture);
+    assert.match(result.errors.join("\n"), expected, fixture);
+  }
 
   const invalidCases = [
     ["fixtures/package/v0.1/invalid/listing-contracts-range-mismatch.skenion.package-listing.json", validatePackageListingV01, /contracts line must match contracts range/],

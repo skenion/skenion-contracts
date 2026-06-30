@@ -249,11 +249,40 @@ function validateProjectV01Semantics(file, project) {
   }
 }
 
+function validatePackageObjectExports(file, packageId, objects, label) {
+  duplicateCheck(
+    file,
+    objects.map((object) => `${packageId}/${object.objectId}`),
+    `${label} provider/objectId`
+  );
+
+  const specToObjectId = new Map();
+  for (const object of objects) {
+    if (payloadIdentityNodeKind(object.objectId)) {
+      fail(file, `${label} object ${object.objectId} uses payload/value identity as an executable object`);
+    }
+    if (object.primaryObjectSpec.trim().length === 0) {
+      fail(file, `${label} object ${object.objectId} primaryObjectSpec must not be blank`);
+    }
+    for (const spec of [object.primaryObjectSpec, ...(object.aliases ?? [])]) {
+      if (spec.trim().length === 0) {
+        fail(file, `${label} object ${object.objectId} alias/spec must not be blank`);
+      }
+      const previousObjectId = specToObjectId.get(spec);
+      if (previousObjectId !== undefined) {
+        fail(file, `${label} duplicate object spec ${JSON.stringify(spec)} for ${previousObjectId} and ${object.objectId}`);
+      }
+      specToObjectId.set(spec, object.objectId);
+    }
+  }
+}
+
 function validatePackageManifestV01Semantics(file, manifest) {
   duplicateCheck(file, (manifest.provides.patches ?? []).map((provided) => provided.id), "provided patch id");
   duplicateCheck(file, (manifest.provides.nodes ?? []).map((provided) => provided.id), "provided node id");
   duplicateCheck(file, (manifest.provides.resources ?? []).map((provided) => provided.id), "provided resource id");
   duplicateCheck(file, (manifest.provides.help ?? []).map((provided) => provided.id), "provided help id");
+  validatePackageObjectExports(file, manifest.id, manifest.provides.objects ?? [], "provided object");
 
   if (manifest.category === "patch") {
     if (manifest.runtimeAbiRange !== undefined) {
@@ -294,8 +323,8 @@ function validatePackageListingV01Semantics(file, listing) {
   duplicateCheck(file, (listing.provides.nodes ?? []).map((provided) => provided.id), "provided node id");
   duplicateCheck(file, (listing.provides.resources ?? []).map((provided) => provided.id), "provided resource id");
   duplicateCheck(file, (listing.provides.help ?? []).map((provided) => provided.id), "provided help id");
-  duplicateCheck(file, (listing.provides.nativeObjects ?? []).map((provided) => provided.id), "provided native object id");
   duplicateCheck(file, (listing.provides.codecs ?? []).map((provided) => provided.id), "provided codec id");
+  validatePackageObjectExports(file, listing.packageId, listing.provides.objects ?? [], "provided object");
 
   const lowerBoundVersion = listing.contracts.range.slice(2).split(" ")[0];
   if (

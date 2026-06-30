@@ -317,6 +317,12 @@ fn package_manifest_fixture(relative: &str) -> PackageManifestV01 {
         .expect("package fixture should parse")
 }
 
+fn package_listing_fixture(relative: &str) -> PackageListingV01 {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative);
+    serde_json::from_slice(&fs::read(&file).expect("package listing fixture should be readable"))
+        .expect("package listing fixture should parse")
+}
+
 fn assert_package_manifest_error(
     mutate: impl FnOnce(&mut PackageManifestV01),
     expected_message: &str,
@@ -327,6 +333,16 @@ fn assert_package_manifest_error(
     mutate(&mut manifest);
     let report = validate_package_manifest_v01(&manifest)
         .expect_err("mutated package manifest should fail validation");
+    assert!(
+        report.to_string().contains(expected_message),
+        "expected error containing {expected_message:?}, got {report}"
+    );
+}
+
+fn assert_package_listing_fixture_error(relative: &str, expected_message: &str) {
+    let listing = package_listing_fixture(relative);
+    let report = validate_package_listing_v01(&listing)
+        .expect_err("package listing fixture should fail validation");
     assert!(
         report.to_string().contains(expected_message),
         "expected error containing {expected_message:?}, got {report}"
@@ -397,6 +413,42 @@ fn validates_package_manifest_semantic_branches() {
     );
     assert_package_manifest_error(
         |manifest| {
+            manifest.provides.objects[0].primary_object_spec = "   ".to_owned();
+        },
+        "primaryObjectSpec must not be blank",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            manifest.provides.objects[0].aliases.push("\t".to_owned());
+        },
+        "alias/spec must not be blank",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            let mut object = manifest.provides.objects[0].clone();
+            object.primary_object_spec = "phasor~ 440".to_owned();
+            manifest.provides.objects.push(object);
+        },
+        "duplicate provided object provider/objectId",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            let mut object = manifest.provides.objects[0].clone();
+            object.object_id = "example.sine".to_owned();
+            object.primary_object_spec = "sine~ 440".to_owned();
+            object.aliases.clear();
+            manifest.provides.objects.push(object);
+        },
+        "duplicate object spec",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            manifest.provides.objects[0].object_id = "value.core.float32".to_owned();
+        },
+        "payload/value identity",
+    );
+    assert_package_manifest_error(
+        |manifest| {
             let mut provided = manifest.provides.patches[0].clone();
             provided.id = "example.bad_resource".to_owned();
             manifest.provides.resources.push(provided);
@@ -419,6 +471,30 @@ fn validates_package_manifest_semantic_branches() {
     let report = validate_package_manifest_v01(&native_missing_targets)
         .expect_err("native package without targets should fail validation");
     assert!(report.to_string().contains("requires targets"));
+}
+
+#[test]
+fn validates_package_listing_object_export_semantic_branches() {
+    assert_package_listing_fixture_error(
+        "../../fixtures/package/v0.1/invalid/listing-duplicate-object-id.skenion.package-listing.json",
+        "duplicate provided object provider/objectId",
+    );
+    assert_package_listing_fixture_error(
+        "../../fixtures/package/v0.1/invalid/listing-duplicate-object-spec.skenion.package-listing.json",
+        "duplicate object spec",
+    );
+    assert_package_listing_fixture_error(
+        "../../fixtures/package/v0.1/invalid/listing-payload-object-id.skenion.package-listing.json",
+        "payload/value identity",
+    );
+    assert_package_listing_fixture_error(
+        "../../fixtures/package/v0.1/invalid/listing-blank-object-primary-spec.skenion.package-listing.json",
+        "primaryObjectSpec must not be blank",
+    );
+    assert_package_listing_fixture_error(
+        "../../fixtures/package/v0.1/invalid/listing-blank-object-alias.skenion.package-listing.json",
+        "alias/spec must not be blank",
+    );
 }
 
 #[test]

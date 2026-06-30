@@ -132,6 +132,58 @@ function duplicateErrors(values: string[], label: string): string[] {
   return errors;
 }
 
+function isBlank(value: string): boolean {
+  return value.trim().length === 0;
+}
+
+function packageObjectExportErrors(
+  objects: Array<{
+    objectId: string;
+    primaryObjectSpec: string;
+    aliases?: string[];
+    definitionPath?: string;
+    helpId?: string;
+  }>,
+  packageId: string,
+  label: string
+): string[] {
+  const errors: string[] = [];
+  const specToObjectId = new Map<string, string>();
+
+  errors.push(
+    ...duplicateErrors(
+      objects.map((object) => `${packageId}/${object.objectId}`),
+      `${label} provider/objectId`
+    )
+  );
+
+  for (const object of objects) {
+    if (isPayloadIdentityNodeKind(object.objectId)) {
+      errors.push(`${label} object ${object.objectId} uses payload/value identity as an executable object`);
+    }
+    if (isBlank(object.primaryObjectSpec)) {
+      errors.push(`${label} object ${object.objectId} primaryObjectSpec must not be blank`);
+    }
+
+    for (const spec of [object.primaryObjectSpec, ...(object.aliases ?? [])]) {
+      if (isBlank(spec)) {
+        errors.push(`${label} object ${object.objectId} alias/spec must not be blank`);
+        continue;
+      }
+      const previousObjectId = specToObjectId.get(spec);
+      if (previousObjectId !== undefined) {
+        errors.push(
+          `${label} duplicate object spec ${JSON.stringify(spec)} for ${previousObjectId} and ${object.objectId}`
+        );
+      } else {
+        specToObjectId.set(spec, object.objectId);
+      }
+    }
+  }
+
+  return errors;
+}
+
 function validateViewStateNodeReferences(
   viewState: ViewStateV01,
   graph: Pick<GraphDocumentV01, "nodes">,
@@ -207,6 +259,7 @@ function validatePackageManifestV01Semantics(manifest: PackageManifestV01): stri
   errors.push(...duplicateErrors((manifest.provides.nodes ?? []).map((provided) => provided.id), "provided node id"));
   errors.push(...duplicateErrors((manifest.provides.resources ?? []).map((provided) => provided.id), "provided resource id"));
   errors.push(...duplicateErrors((manifest.provides.help ?? []).map((provided) => provided.id), "provided help id"));
+  errors.push(...packageObjectExportErrors(manifest.provides.objects ?? [], manifest.id, "provided object"));
 
   for (const artifact of manifest.nativeArtifacts ?? []) {
     if (!evidenceIds.has(artifact.evidenceRefs[0])) {
@@ -229,7 +282,7 @@ function validatePackageListingV01Semantics(listing: PackageListingV01): string[
   errors.push(...duplicateErrors((listing.provides.nodes ?? []).map((provided) => provided.id), "provided node id"));
   errors.push(...duplicateErrors((listing.provides.resources ?? []).map((provided) => provided.id), "provided resource id"));
   errors.push(...duplicateErrors((listing.provides.help ?? []).map((provided) => provided.id), "provided help id"));
-  errors.push(...duplicateErrors((listing.provides.nativeObjects ?? []).map((provided) => provided.id), "provided native object id"));
+  errors.push(...packageObjectExportErrors(listing.provides.objects ?? [], listing.packageId, "provided object"));
   errors.push(...duplicateErrors((listing.provides.codecs ?? []).map((provided) => provided.id), "provided codec id"));
 
   const lowerBoundVersion = listing.contracts.range.slice(2).split(" ", 1)[0];

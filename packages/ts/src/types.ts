@@ -356,9 +356,19 @@ export interface PackageProvidedRefV01 {
   description?: string;
 }
 
+export interface PackageObjectExportV01 {
+  objectId: string;
+  primaryObjectSpec: string;
+  aliases?: string[];
+  definitionPath: string;
+  description?: string;
+  helpId?: string;
+}
+
 export interface PackageProvidesV01 {
   patches?: PackageProvidedRefV01[];
   nodes?: PackageProvidedRefV01[];
+  objects?: PackageObjectExportV01[];
   resources?: PackageProvidedRefV01[];
   help?: PackageProvidedRefV01[];
 }
@@ -440,12 +450,21 @@ export interface PackageListingProvidedSummaryRefV01 {
   description?: string;
 }
 
+export interface PackageListingObjectExportSummaryV01 {
+  objectId: string;
+  primaryObjectSpec: string;
+  aliases?: string[];
+  definitionPath: string;
+  description?: string;
+  helpId?: string;
+}
+
 export interface PackageListingProvidesSummaryV01 {
   patches?: PackageListingProvidedSummaryRefV01[];
   nodes?: PackageListingProvidedSummaryRefV01[];
+  objects?: PackageListingObjectExportSummaryV01[];
   resources?: PackageListingProvidedSummaryRefV01[];
   help?: PackageListingProvidedSummaryRefV01[];
-  nativeObjects?: PackageListingProvidedSummaryRefV01[];
   codecs?: PackageListingProvidedSummaryRefV01[];
   capabilities?: string[];
 }

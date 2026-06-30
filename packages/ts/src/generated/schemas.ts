@@ -3874,6 +3874,42 @@ export const packageManifestV01Schema = {
       },
       "additionalProperties": false
     },
+    "objectExport": {
+      "description": "Object-box creatable export. provides.nodes[] is for node-definition assets; object authoring surfaces MUST be declared here.",
+      "type": "object",
+      "required": [
+        "objectId",
+        "primaryObjectSpec",
+        "definitionPath"
+      ],
+      "properties": {
+        "objectId": {
+          "$ref": "#/$defs/providedId"
+        },
+        "primaryObjectSpec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "definitionPath": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "description": {
+          "type": "string"
+        },
+        "helpId": {
+          "$ref": "#/$defs/providedId"
+        }
+      },
+      "additionalProperties": false
+    },
     "provides": {
       "type": "object",
       "properties": {
@@ -3885,9 +3921,17 @@ export const packageManifestV01Schema = {
           "default": []
         },
         "nodes": {
+          "description": "Node-definition assets. Do not use nodes[] as the object-box creatable authoring surface; use objects[].",
           "type": "array",
           "items": {
             "$ref": "#/$defs/providedRef"
+          },
+          "default": []
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/objectExport"
           },
           "default": []
         },
@@ -4426,6 +4470,42 @@ export const packageListingV01Schema = {
       },
       "additionalProperties": false
     },
+    "objectExportSummary": {
+      "description": "Public discovery projection for an object-box creatable export. provides.nodes[] is for node-definition assets; object authoring surfaces MUST be declared here.",
+      "type": "object",
+      "required": [
+        "objectId",
+        "primaryObjectSpec",
+        "definitionPath"
+      ],
+      "properties": {
+        "objectId": {
+          "$ref": "#/$defs/providedId"
+        },
+        "primaryObjectSpec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "definitionPath": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "description": {
+          "type": "string"
+        },
+        "helpId": {
+          "$ref": "#/$defs/providedId"
+        }
+      },
+      "additionalProperties": false
+    },
     "providesSummary": {
       "type": "object",
       "properties": {
@@ -4437,9 +4517,17 @@ export const packageListingV01Schema = {
           "default": []
         },
         "nodes": {
+          "description": "Node-definition assets. Do not use nodes[] as the object-box creatable authoring surface; use objects[].",
           "type": "array",
           "items": {
             "$ref": "#/$defs/providedSummaryRef"
+          },
+          "default": []
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/objectExportSummary"
           },
           "default": []
         },
@@ -4451,13 +4539,6 @@ export const packageListingV01Schema = {
           "default": []
         },
         "help": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/providedSummaryRef"
-          },
-          "default": []
-        },
-        "nativeObjects": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/providedSummaryRef"

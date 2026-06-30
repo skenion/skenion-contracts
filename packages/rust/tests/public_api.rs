@@ -14,10 +14,11 @@ use skenion_contracts::{
     PackageInstallPlanCheckStatusV01, PackageInstallPlanDiagnosticCodeV01,
     PackageInstallPlanIntentV01, PackageInstallPlanRequestV01, PackageInstallPlanResponseV01,
     PackageInstallPlanTargetArchV01, PackageInstallPlanTargetOsV01, PackageListingArtifactKindV01,
-    PackageListingDiagnosticCodeV01, PackageListingTargetSupportKindV01, PackageListingV01,
-    PackageManifestV01, PackageRootDocumentV01, PackageTargetTripleV01, PasteGraphFragmentRequest,
-    PatchDefinitionV01, PatchPath, ProjectDocumentV01, RuntimeSessionLoadModeV01,
-    RuntimeSessionLoadPreconditionV01, RuntimeSessionLoadRequestV01,
+    PackageListingDiagnosticCodeV01, PackageListingObjectExportSummaryV01,
+    PackageListingTargetSupportKindV01, PackageListingV01, PackageManifestV01,
+    PackageObjectExportV01, PackageRootDocumentV01, PackageTargetTripleV01,
+    PasteGraphFragmentRequest, PatchDefinitionV01, PatchPath, ProjectDocumentV01,
+    RuntimeSessionLoadModeV01, RuntimeSessionLoadPreconditionV01, RuntimeSessionLoadRequestV01,
     SKENION_PACKAGE_MANIFEST_FILE_NAME, StringOrStringsV01, ValueFormatV01,
     ValueOccurrenceHeaderV01, ValuePayloadKindV01, analyze_graph_document_v01,
     analyze_graph_fragment_v01, apply_midi_clock_message_v01, compatible_data_types_v01,
@@ -637,6 +638,44 @@ fn validates_public_package_manifest_contract_surface() {
         Some(">=0.45.0 <0.46.0")
     );
     assert_eq!(mixed_package.native_artifacts.len(), 1);
+    assert_eq!(mixed_package.provides.nodes[0].id, "example.sensor-reading");
+    assert_eq!(
+        mixed_package.provides.objects[0].object_id,
+        "example.sensor-native"
+    );
+    assert_eq!(
+        mixed_package.provides.objects[0].primary_object_spec,
+        "sensor"
+    );
+    assert_eq!(
+        mixed_package.provides.objects[0].aliases,
+        vec!["native-sensor".to_owned()]
+    );
+    assert_eq!(
+        mixed_package.provides.objects[0].definition_path,
+        "nodes/example.sensor-reading.node.json"
+    );
+
+    let public_object_export = PackageObjectExportV01 {
+        object_id: "example.public-object".to_owned(),
+        primary_object_spec: "public-object".to_owned(),
+        aliases: vec!["public-alias".to_owned()],
+        definition_path: "nodes/example.public-object.node.json".to_owned(),
+        description: None,
+        help_id: None,
+    };
+    let public_listing_object_export = PackageListingObjectExportSummaryV01 {
+        object_id: public_object_export.object_id.clone(),
+        primary_object_spec: public_object_export.primary_object_spec.clone(),
+        aliases: public_object_export.aliases.clone(),
+        definition_path: public_object_export.definition_path.clone(),
+        description: None,
+        help_id: None,
+    };
+    assert_eq!(
+        public_listing_object_export.primary_object_spec,
+        "public-object"
+    );
 
     let root = PackageRootDocumentV01 {
         schema: "skenion.package.root".to_owned(),
@@ -759,8 +798,12 @@ fn validates_public_package_manifest_contract_surface() {
         .expect("public package discovery response should validate");
     assert_eq!(discovery.listings.len(), 2);
     assert_eq!(
-        discovery.listings[1].provides.native_objects[0].id,
+        discovery.listings[1].provides.objects[0].object_id,
         "example.sensor-native"
+    );
+    assert_eq!(
+        discovery.listings[1].provides.objects[0].primary_object_spec,
+        "sensor"
     );
     assert_eq!(
         discovery.listings[1].provides.codecs[0].id,

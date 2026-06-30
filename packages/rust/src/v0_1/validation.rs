@@ -17,10 +17,11 @@ use super::types::{
     PackageDiscoveryResponseV01, PackageInstallPlanActionKindV01, PackageInstallPlanCheckStatusV01,
     PackageInstallPlanIntentV01, PackageInstallPlanRequestV01, PackageInstallPlanResponseV01,
     PackageInstallPlanTargetArchV01, PackageInstallPlanTargetOsV01, PackageInstallPlanTargetV01,
-    PackageListingArtifactKindV01, PackageListingTargetSupportKindV01, PackageListingV01,
-    PackageManifestV01, PackageRootDocumentV01, PackageTargetTripleV01, PasteGraphFragmentRequest,
-    PatchDefinitionV01, PatchPath, PortDirectionV01, PortSpecV01, ProjectDocumentV01,
-    ProjectObjectBindingDiagnosticCodeV01, ProjectObjectBindingStatusV01,
+    PackageListingArtifactKindV01, PackageListingObjectExportSummaryV01,
+    PackageListingTargetSupportKindV01, PackageListingV01, PackageManifestV01,
+    PackageObjectExportV01, PackageRootDocumentV01, PackageTargetTripleV01,
+    PasteGraphFragmentRequest, PatchDefinitionV01, PatchPath, PortDirectionV01, PortSpecV01,
+    ProjectDocumentV01, ProjectObjectBindingDiagnosticCodeV01, ProjectObjectBindingStatusV01,
     RuntimeSessionLoadModeV01, RuntimeSessionLoadRequestV01, SKENION_PACKAGE_MANIFEST_FILE_NAME,
     ValueFormatV01, ValueOccurrenceHeaderV01, ValuePayloadKindV01, ViewStateV01,
     compute_node_catalog_revision_v01, derive_patch_contract_v01,
@@ -87,6 +88,10 @@ fn duplicate_errors(values: Vec<&str>, label: &str) -> Vec<ValidationErrorV01> {
     }
 
     errors
+}
+
+fn is_blank(value: &str) -> bool {
+    value.trim().is_empty()
 }
 
 fn is_lower_digit_hyphen_segment(value: &str) -> bool {
@@ -810,6 +815,88 @@ fn is_payload_identity_node_kind(kind: &str) -> bool {
         || kind.starts_with("data.")
         || kind.starts_with("payload.")
         || kind.starts_with("control.")
+}
+
+struct PackageObjectExportView<'a> {
+    object_id: &'a str,
+    primary_object_spec: &'a str,
+    aliases: &'a [String],
+    definition_path: &'a str,
+    help_id: Option<&'a str>,
+}
+
+fn package_object_export_errors<'a>(
+    objects: impl IntoIterator<Item = PackageObjectExportView<'a>>,
+    package_id: &str,
+    label: &str,
+) -> Vec<ValidationErrorV01> {
+    let mut errors = Vec::new();
+    let mut provider_object_ids = HashSet::new();
+    let mut spec_to_object_id: HashMap<&str, &str> = HashMap::new();
+
+    for object in objects {
+        let provider_object_id = format!("{package_id}/{}", object.object_id);
+        if !provider_object_ids.insert(provider_object_id.clone()) {
+            errors.push(ValidationErrorV01::new(format!(
+                "duplicate {label} provider/objectId: {provider_object_id}"
+            )));
+        }
+
+        if !is_provided_id_v01(object.object_id) {
+            errors.push(ValidationErrorV01::new(format!(
+                "{label} objectId must use lowercase dotted/hyphen grammar without underscores: {}",
+                object.object_id
+            )));
+        }
+        if is_payload_identity_node_kind(object.object_id) {
+            errors.push(ValidationErrorV01::new(format!(
+                "{label} object {} uses payload/value identity as an executable object",
+                object.object_id
+            )));
+        }
+        if is_blank(object.primary_object_spec) {
+            errors.push(ValidationErrorV01::new(format!(
+                "{label} object {} primaryObjectSpec must not be blank",
+                object.object_id
+            )));
+        }
+        if !is_relative_path_v01(object.definition_path) {
+            errors.push(ValidationErrorV01::new(format!(
+                "{label} object {} definitionPath must be relative and stay inside the package: {}",
+                object.object_id, object.definition_path
+            )));
+        }
+        if let Some(help_id) = object.help_id
+            && !is_provided_id_v01(help_id)
+        {
+            errors.push(ValidationErrorV01::new(format!(
+                "{label} object {} helpId must use lowercase dotted/hyphen grammar without underscores: {help_id}",
+                object.object_id
+            )));
+        }
+
+        for spec in std::iter::once(object.primary_object_spec)
+            .chain(object.aliases.iter().map(String::as_str))
+        {
+            if is_blank(spec) {
+                errors.push(ValidationErrorV01::new(format!(
+                    "{label} object {} alias/spec must not be blank",
+                    object.object_id
+                )));
+                continue;
+            }
+            if let Some(previous_object_id) = spec_to_object_id.get(spec) {
+                errors.push(ValidationErrorV01::new(format!(
+                    "{label} duplicate object spec {spec:?} for {previous_object_id} and {}",
+                    object.object_id
+                )));
+            } else {
+                spec_to_object_id.insert(spec, object.object_id);
+            }
+        }
+    }
+
+    errors
 }
 
 fn is_key_aware_input_port(port: &PortSpecV01) -> bool {
@@ -2816,6 +2903,21 @@ pub fn validate_package_manifest_v01(
             )));
         }
     }
+    errors.extend(package_object_export_errors(
+        manifest
+            .provides
+            .objects
+            .iter()
+            .map(|object: &PackageObjectExportV01| PackageObjectExportView {
+                object_id: object.object_id.as_str(),
+                primary_object_spec: object.primary_object_spec.as_str(),
+                aliases: &object.aliases,
+                definition_path: object.definition_path.as_str(),
+                help_id: object.help_id.as_deref(),
+            }),
+        &manifest.id,
+        "provided object",
+    ));
     errors.extend(duplicate_errors(
         manifest
             .provides
@@ -3087,6 +3189,23 @@ fn package_listing_errors(listing: &PackageListingV01) -> Vec<ValidationErrorV01
             .collect(),
         "provided node id",
     ));
+    errors.extend(package_object_export_errors(
+        listing
+            .provides
+            .objects
+            .iter()
+            .map(
+                |object: &PackageListingObjectExportSummaryV01| PackageObjectExportView {
+                    object_id: object.object_id.as_str(),
+                    primary_object_spec: object.primary_object_spec.as_str(),
+                    aliases: &object.aliases,
+                    definition_path: object.definition_path.as_str(),
+                    help_id: object.help_id.as_deref(),
+                },
+            ),
+        &listing.package_id,
+        "provided object",
+    ));
     errors.extend(duplicate_errors(
         listing
             .provides
@@ -3104,15 +3223,6 @@ fn package_listing_errors(listing: &PackageListingV01) -> Vec<ValidationErrorV01
             .map(|provided| provided.id.as_str())
             .collect(),
         "provided help id",
-    ));
-    errors.extend(duplicate_errors(
-        listing
-            .provides
-            .native_objects
-            .iter()
-            .map(|provided| provided.id.as_str())
-            .collect(),
-        "provided native object id",
     ));
     errors.extend(duplicate_errors(
         listing
@@ -3140,7 +3250,6 @@ fn package_listing_errors(listing: &PackageListingV01) -> Vec<ValidationErrorV01
         .chain(listing.provides.nodes.iter())
         .chain(listing.provides.resources.iter())
         .chain(listing.provides.help.iter())
-        .chain(listing.provides.native_objects.iter())
         .chain(listing.provides.codecs.iter())
     {
         if !is_provided_id_v01(&provided.id) {

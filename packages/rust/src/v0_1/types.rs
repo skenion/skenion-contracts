@@ -1113,6 +1113,21 @@ pub struct PackageProvidedRefV01 {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageObjectExportV01 {
+    pub object_id: String,
+    pub primary_object_spec: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
+    pub definition_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help_id: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -1121,6 +1136,8 @@ pub struct PackageProvidesV01 {
     pub patches: Vec<PackageProvidedRefV01>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub nodes: Vec<PackageProvidedRefV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<PackageObjectExportV01>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resources: Vec<PackageProvidedRefV01>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1248,6 +1265,21 @@ pub struct PackageListingProvidedSummaryRefV01 {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageListingObjectExportSummaryV01 {
+    pub object_id: String,
+    pub primary_object_spec: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
+    pub definition_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help_id: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -1257,11 +1289,11 @@ pub struct PackageListingProvidesSummaryV01 {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub nodes: Vec<PackageListingProvidedSummaryRefV01>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<PackageListingObjectExportSummaryV01>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resources: Vec<PackageListingProvidedSummaryRefV01>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub help: Vec<PackageListingProvidedSummaryRefV01>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub native_objects: Vec<PackageListingProvidedSummaryRefV01>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub codecs: Vec<PackageListingProvidedSummaryRefV01>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
