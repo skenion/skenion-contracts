@@ -349,6 +349,22 @@ fn assert_package_listing_fixture_error(relative: &str, expected_message: &str) 
     );
 }
 
+fn assert_package_listing_error(
+    mutate: impl FnOnce(&mut PackageListingV01),
+    expected_message: &str,
+) {
+    let mut listing = package_listing_fixture(
+        "../../fixtures/package/v0.1/valid/patch-listing.skenion.package-listing.json",
+    );
+    mutate(&mut listing);
+    let report = validate_package_listing_v01(&listing)
+        .expect_err("mutated package listing should fail validation");
+    assert!(
+        report.to_string().contains(expected_message),
+        "expected error containing {expected_message:?}, got {report}"
+    );
+}
+
 #[test]
 fn validates_package_manifest_semantic_branches() {
     assert_package_manifest_error(
@@ -449,6 +465,24 @@ fn validates_package_manifest_semantic_branches() {
     );
     assert_package_manifest_error(
         |manifest| {
+            manifest.provides.objects[0].object_id = "example.bad_id".to_owned();
+        },
+        "objectId must use lowercase dotted/hyphen grammar",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            manifest.provides.objects[0].definition_path = "../outside.node.json".to_owned();
+        },
+        "definitionPath must be relative and stay inside the package",
+    );
+    assert_package_manifest_error(
+        |manifest| {
+            manifest.provides.objects[0].help_id = Some("example.bad_help".to_owned());
+        },
+        "helpId must use lowercase dotted/hyphen grammar",
+    );
+    assert_package_manifest_error(
+        |manifest| {
             let mut provided = manifest.provides.patches[0].clone();
             provided.id = "example.bad_resource".to_owned();
             manifest.provides.resources.push(provided);
@@ -494,6 +528,24 @@ fn validates_package_listing_object_export_semantic_branches() {
     assert_package_listing_fixture_error(
         "../../fixtures/package/v0.1/invalid/listing-blank-object-alias.skenion.package-listing.json",
         "alias/spec must not be blank",
+    );
+    assert_package_listing_error(
+        |listing| {
+            listing.provides.objects[0].object_id = "example.bad_id".to_owned();
+        },
+        "objectId must use lowercase dotted/hyphen grammar",
+    );
+    assert_package_listing_error(
+        |listing| {
+            listing.provides.objects[0].definition_path = "/absolute.node.json".to_owned();
+        },
+        "definitionPath must be relative and stay inside the package",
+    );
+    assert_package_listing_error(
+        |listing| {
+            listing.provides.objects[0].help_id = Some("example.bad_help".to_owned());
+        },
+        "helpId must use lowercase dotted/hyphen grammar",
     );
 }
 
