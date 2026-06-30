@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.56.0](https://github.com/skenion/skenion-contracts/compare/v0.55.0...v0.56.0) (2026-06-30)
+
+
+### Features
+
+* **contracts:** define object implementation identity ([87df080](https://github.com/skenion/skenion-contracts/commit/87df0803e4ed4b9548d65494dc1299509f67edfc))
+
 ## [0.55.0](https://github.com/skenion/skenion-contracts/compare/v0.54.0...v0.55.0) (2026-06-30)
 
 
