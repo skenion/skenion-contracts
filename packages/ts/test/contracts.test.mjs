@@ -3192,6 +3192,7 @@ test("v0.1 rejects legacy control port aliases on current graph and node contrac
     "value.media.audio-sample",
     "value.media.audio-frame",
     "value.media.audio-buffer",
+    "value.media.future-frame",
     "value.media.image",
     "value.media.matrix",
     "color",

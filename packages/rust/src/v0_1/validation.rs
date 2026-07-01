@@ -5615,6 +5615,7 @@ mod tests {
             "value.media.audio-sample",
             "value.media.audio-frame",
             "value.media.audio-buffer",
+            "value.media.future-frame",
             "value.media.image",
             "value.media.matrix",
         ];
