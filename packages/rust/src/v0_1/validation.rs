@@ -883,6 +883,20 @@ fn is_payload_identity_node_kind(kind: &str) -> bool {
         || kind.starts_with("control.")
 }
 
+fn has_implementation_error_diagnostic(
+    diagnostics: &[super::types::ObjectResolutionDiagnosticV01],
+) -> bool {
+    diagnostics.iter().any(|diagnostic| {
+        matches!(
+            diagnostic.code,
+            ProjectObjectBindingDiagnosticCodeV01::ImplementationMissing
+                | ProjectObjectBindingDiagnosticCodeV01::ImplementationStale
+                | ProjectObjectBindingDiagnosticCodeV01::ImplementationLockMismatch
+                | ProjectObjectBindingDiagnosticCodeV01::InterfaceDrift
+        )
+    })
+}
+
 struct PackageObjectExportView<'a> {
     object_id: &'a str,
     primary_object_spec: &'a str,
@@ -1077,21 +1091,67 @@ pub fn analyze_graph_fragment_v01(
                 None,
             );
         }
-        if node.object_resolution.as_ref().is_some_and(|resolution| {
-            resolution.status == super::types::ObjectResolutionStatusV01::Resolved
-        }) && node.implementation.is_none()
-        {
-            fragment_diagnostic(
-                &mut diagnostics,
-                "error",
-                "resolved-object-missing-implementation",
-                format!(
-                    "node {} has resolved objectResolution without implementation",
-                    node.id
-                ),
-                Some(vec![node.id.clone()]),
-                None,
-            );
+        if let Some(resolution) = &node.object_resolution {
+            match resolution.status {
+                super::types::ObjectResolutionStatusV01::Resolved => {
+                    if node.implementation.is_none() {
+                        fragment_diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "resolved-object-missing-implementation",
+                            format!(
+                                "node {} has resolved objectResolution without implementation",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+                super::types::ObjectResolutionStatusV01::Unresolved => {
+                    if node.implementation.is_some() {
+                        fragment_diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "unresolved-object-has-implementation",
+                            format!(
+                                "node {} has unresolved objectResolution with implementation",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+                super::types::ObjectResolutionStatusV01::Error => {
+                    if node.implementation.is_none() {
+                        fragment_diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "error-object-missing-implementation",
+                            format!(
+                                "node {} has error objectResolution without implementation",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                    if !has_implementation_error_diagnostic(&resolution.diagnostics) {
+                        fragment_diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "error-object-missing-diagnostic",
+                            format!(
+                                "node {} has error objectResolution without implementation diagnostic",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+            }
         }
         let mut port_ids = HashSet::new();
         for port in &node.ports {
@@ -1485,21 +1545,67 @@ pub fn analyze_graph_document_v01(graph: &GraphDocumentV01) -> GraphValidationRe
                 None,
             );
         }
-        if node.object_resolution.as_ref().is_some_and(|resolution| {
-            resolution.status == super::types::ObjectResolutionStatusV01::Resolved
-        }) && node.implementation.is_none()
-        {
-            diagnostic(
-                &mut diagnostics,
-                "error",
-                "resolved-object-missing-implementation",
-                format!(
-                    "node {} has resolved objectResolution without implementation",
-                    node.id
-                ),
-                Some(vec![node.id.clone()]),
-                None,
-            );
+        if let Some(resolution) = &node.object_resolution {
+            match resolution.status {
+                super::types::ObjectResolutionStatusV01::Resolved => {
+                    if node.implementation.is_none() {
+                        diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "resolved-object-missing-implementation",
+                            format!(
+                                "node {} has resolved objectResolution without implementation",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+                super::types::ObjectResolutionStatusV01::Unresolved => {
+                    if node.implementation.is_some() {
+                        diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "unresolved-object-has-implementation",
+                            format!(
+                                "node {} has unresolved objectResolution with implementation",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+                super::types::ObjectResolutionStatusV01::Error => {
+                    if node.implementation.is_none() {
+                        diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "error-object-missing-implementation",
+                            format!(
+                                "node {} has error objectResolution without implementation",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                    if !has_implementation_error_diagnostic(&resolution.diagnostics) {
+                        diagnostic(
+                            &mut diagnostics,
+                            "error",
+                            "error-object-missing-diagnostic",
+                            format!(
+                                "node {} has error objectResolution without implementation diagnostic",
+                                node.id
+                            ),
+                            Some(vec![node.id.clone()]),
+                            None,
+                        );
+                    }
+                }
+            }
         }
 
         let mut port_ids = HashSet::new();
@@ -4281,40 +4387,29 @@ fn project_package_reference_errors(project: &ProjectDocumentV01) -> Vec<Validat
             )));
             continue;
         }
-        if binding.status == ProjectObjectBindingStatusV01::Missing
-            && !has_diagnostic(&[ProjectObjectBindingDiagnosticCodeV01::ImplementationMissing])
-        {
-            errors.push(ValidationErrorV01::new(format!(
-                "missing object binding {} requires implementation-missing diagnostic",
-                binding.id
-            )));
-        }
-        if binding.status == ProjectObjectBindingStatusV01::Stale
-            && !has_diagnostic(&[
-                ProjectObjectBindingDiagnosticCodeV01::ImplementationStale,
-                ProjectObjectBindingDiagnosticCodeV01::InterfaceDrift,
-            ])
-        {
-            errors.push(ValidationErrorV01::new(format!(
-                "stale object binding {} requires stale or interface-drift diagnostic",
-                binding.id
-            )));
-        }
         if binding.status == ProjectObjectBindingStatusV01::Unresolved
-            && !has_diagnostic(&[ProjectObjectBindingDiagnosticCodeV01::ResolutionUnresolved])
+            && binding.implementation.is_some()
         {
             errors.push(ValidationErrorV01::new(format!(
-                "unresolved object binding {} requires resolution-unresolved diagnostic",
+                "unresolved object binding {} must not include implementation",
                 binding.id
             )));
+            continue;
         }
-        if binding.status == ProjectObjectBindingStatusV01::Ambiguous
-            && !has_diagnostic(&[ProjectObjectBindingDiagnosticCodeV01::ResolutionAmbiguous])
-        {
-            errors.push(ValidationErrorV01::new(format!(
-                "ambiguous object binding {} requires resolution-ambiguous diagnostic",
-                binding.id
-            )));
+        if binding.status == ProjectObjectBindingStatusV01::Error {
+            if binding.implementation.is_none() {
+                errors.push(ValidationErrorV01::new(format!(
+                    "error object binding {} requires implementation",
+                    binding.id
+                )));
+                continue;
+            }
+            if !has_implementation_error_diagnostic(&binding.diagnostics) {
+                errors.push(ValidationErrorV01::new(format!(
+                    "error object binding {} requires implementation diagnostic",
+                    binding.id
+                )));
+            }
         }
 
         match binding
@@ -4331,11 +4426,13 @@ fn project_package_reference_errors(project: &ProjectDocumentV01) -> Vec<Validat
                             "resolved object binding {} references missing project patch: {}",
                             binding.id, patch_id
                         )));
-                    } else if binding.status != ProjectObjectBindingStatusV01::Missing
-                        && binding.status != ProjectObjectBindingStatusV01::Stale
+                    } else if binding.status != ProjectObjectBindingStatusV01::Error
+                        || !has_diagnostic(&[
+                            ProjectObjectBindingDiagnosticCodeV01::ImplementationMissing,
+                        ])
                     {
                         errors.push(ValidationErrorV01::new(format!(
-                            "object binding {} references missing project patch: {}",
+                            "object binding {} references missing project patch: {} without error diagnostic",
                             binding.id, patch_id
                         )));
                     }
@@ -4350,7 +4447,7 @@ fn project_package_reference_errors(project: &ProjectDocumentV01) -> Vec<Validat
                             "resolved object binding {} project patch {} revision is stale",
                             binding.id, patch_id
                         )));
-                    } else if binding.status != ProjectObjectBindingStatusV01::Stale
+                    } else if binding.status != ProjectObjectBindingStatusV01::Error
                         || !has_diagnostic(&[
                             ProjectObjectBindingDiagnosticCodeV01::ImplementationStale,
                             ProjectObjectBindingDiagnosticCodeV01::InterfaceDrift,
@@ -4387,11 +4484,13 @@ fn project_package_reference_errors(project: &ProjectDocumentV01) -> Vec<Validat
                             "resolved object binding {} references missing lockEntryId: {}",
                             binding.id, lock_entry_id
                         )));
-                    } else if binding.status != ProjectObjectBindingStatusV01::Missing
-                        && binding.status != ProjectObjectBindingStatusV01::Stale
+                    } else if binding.status != ProjectObjectBindingStatusV01::Error
+                        || !has_diagnostic(&[
+                            ProjectObjectBindingDiagnosticCodeV01::ImplementationMissing,
+                        ])
                     {
                         errors.push(ValidationErrorV01::new(format!(
-                            "object binding {} references missing lockEntryId: {}",
+                            "object binding {} references missing lockEntryId: {} without error diagnostic",
                             binding.id, lock_entry_id
                         )));
                     }

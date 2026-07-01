@@ -571,9 +571,7 @@ pub struct ObjectImplementationRefV01 {
 pub enum ObjectResolutionStatusV01 {
     Resolved,
     Unresolved,
-    Ambiguous,
-    Stale,
-    Missing,
+    Error,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1715,9 +1713,7 @@ pub struct ProjectResourceLockEntryV01 {
 pub enum ProjectObjectBindingStatusV01 {
     Resolved,
     Unresolved,
-    Ambiguous,
-    Stale,
-    Missing,
+    Error,
 }
 
 pub type ProjectObjectBindingDiagnosticCodeV01 = ObjectResolutionDiagnosticCodeV01;

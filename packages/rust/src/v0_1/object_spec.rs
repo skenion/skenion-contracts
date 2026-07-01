@@ -225,13 +225,44 @@ fn object_spec_message_key_policy_errors(port: &ObjectSpecPortV01, label: &str) 
 
 fn object_spec_parse_result_semantic_errors(result: &ObjectSpecParseResultV01) -> Vec<String> {
     let mut errors = Vec::new();
-    if result
-        .object_resolution
-        .as_ref()
-        .is_some_and(|resolution| resolution.status == ObjectResolutionStatusV01::Resolved)
-        && result.implementation.is_none()
-    {
-        errors.push("resolved object spec parse result requires implementation".to_owned());
+    if let Some(resolution) = &result.object_resolution {
+        match resolution.status {
+            ObjectResolutionStatusV01::Resolved => {
+                if result.implementation.is_none() {
+                    errors.push(
+                        "resolved object spec parse result requires implementation".to_owned(),
+                    );
+                }
+            }
+            ObjectResolutionStatusV01::Unresolved => {
+                if result.implementation.is_some() {
+                    errors.push(
+                        "unresolved object spec parse result must not include implementation"
+                            .to_owned(),
+                    );
+                }
+            }
+            ObjectResolutionStatusV01::Error => {
+                if result.implementation.is_none() {
+                    errors
+                        .push("error object spec parse result requires implementation".to_owned());
+                }
+                if !resolution.diagnostics.iter().any(|diagnostic| {
+                    matches!(
+                        diagnostic.code,
+                        super::types::ObjectResolutionDiagnosticCodeV01::ImplementationMissing
+                            | super::types::ObjectResolutionDiagnosticCodeV01::ImplementationStale
+                            | super::types::ObjectResolutionDiagnosticCodeV01::ImplementationLockMismatch
+                            | super::types::ObjectResolutionDiagnosticCodeV01::InterfaceDrift
+                    )
+                }) {
+                    errors.push(
+                        "error object spec parse result requires implementation diagnostic"
+                            .to_owned(),
+                    );
+                }
+            }
+        }
     }
     errors.extend(result.instance_ports.iter().flat_map(|port| {
         object_spec_message_key_policy_errors(

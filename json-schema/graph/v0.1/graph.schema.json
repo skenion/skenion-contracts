@@ -170,7 +170,7 @@
       "required": ["status"],
       "properties": {
         "status": {
-          "enum": ["resolved", "unresolved", "ambiguous", "stale", "missing"]
+          "enum": ["resolved", "unresolved", "error"]
         },
         "selectedSpec": {
           "type": "string",
@@ -266,6 +266,75 @@
           },
           "then": {
             "required": ["implementation"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "objectResolution": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "unresolved"
+                  }
+                },
+                "required": ["status"]
+              }
+            },
+            "required": ["objectResolution"]
+          },
+          "then": {
+            "not": {
+              "required": ["implementation"]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "objectResolution": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "error"
+                  }
+                },
+                "required": ["status"]
+              }
+            },
+            "required": ["objectResolution"]
+          },
+          "then": {
+            "required": ["implementation"],
+            "properties": {
+              "objectResolution": {
+                "type": "object",
+                "required": ["diagnostics"],
+                "properties": {
+                  "diagnostics": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/objectResolutionDiagnostic"
+                    },
+                    "minItems": 1,
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "implementation-missing",
+                            "implementation-stale",
+                            "implementation-lock-mismatch",
+                            "interface-drift"
+                          ]
+                        }
+                      },
+                      "required": ["code"]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       ],

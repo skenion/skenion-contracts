@@ -1518,19 +1518,19 @@ test("validates object spec parse result fixtures", async () => {
     /requires implementation|must have required property 'implementation'/
   );
 
-  const legacyResolutionDiagnostic = structuredClone(runtimeResolved);
-  legacyResolutionDiagnostic.objectResolution.diagnostics = [
+  const unsupportedResolutionDiagnostic = structuredClone(runtimeResolved);
+  unsupportedResolutionDiagnostic.objectResolution.diagnostics = [
     {
       severity: "error",
       code: "binding-unresolved",
-      message: "legacy diagnostic code must be rejected"
+      message: "unsupported diagnostic code must be rejected"
     }
   ];
-  const legacyResolutionDiagnosticResult =
-    validateObjectSpecParseResult(legacyResolutionDiagnostic);
-  assert.equal(legacyResolutionDiagnosticResult.ok, false);
+  const unsupportedResolutionDiagnosticResult =
+    validateObjectSpecParseResult(unsupportedResolutionDiagnostic);
+  assert.equal(unsupportedResolutionDiagnosticResult.ok, false);
   assert.match(
-    legacyResolutionDiagnosticResult.errors.join("\n"),
+    unsupportedResolutionDiagnosticResult.errors.join("\n"),
     /allowed values|resolution-unresolved|binding-unresolved/
   );
 
@@ -2834,7 +2834,7 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   assert.match(missingResourceLockResult.errors.join("\n"), /resource lock .*missing-resource-lock-entry/);
 
   const missingProviderBinding = validPackageProject.objectBindings.find((binding) => binding.id === "binding-missing-provider");
-  assert.equal(missingProviderBinding.status, "missing");
+  assert.equal(missingProviderBinding.status, "error");
   assert.equal(validateProjectDocumentV01(validPackageProject).ok, true);
 
   const packageBindingWithoutLockEntry = structuredClone(validPackageProject);
@@ -2844,10 +2844,8 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   assert.match(packageBindingWithoutLockEntryResult.errors.join("\n"), /package implementation requires lockEntryId/);
 
   for (const [status, bindingIndex, expected] of [
-    ["missing", 2, /missing object binding .*implementation-missing/],
-    ["stale", 1, /stale object binding .*implementation-stale or interface-drift/],
-    ["unresolved", 0, /unresolved object binding .*resolution-unresolved/],
-    ["ambiguous", 3, /ambiguous object binding .*resolution-ambiguous/]
+    ["error", 2, /error object binding .*implementation diagnostic/],
+    ["unresolved", 0, /unresolved object binding .*must not include implementation/]
   ]) {
     const missingDiagnostics = structuredClone(validPackageProject);
     missingDiagnostics.objectBindings[bindingIndex].status = status;
@@ -2855,6 +2853,12 @@ test("exports and validates v0.1 project patch library contracts", async () => {
     const missingDiagnosticsResult = validateProjectDocumentV01(missingDiagnostics);
     assert.equal(missingDiagnosticsResult.ok, false, status);
     assert.match(missingDiagnosticsResult.errors.join("\n"), expected, status);
+  }
+
+  for (const unsupportedStatus of ["missing", "stale", "ambiguous"]) {
+    const unsupportedStatusProject = structuredClone(validPackageProject);
+    unsupportedStatusProject.objectBindings[0].status = unsupportedStatus;
+    assert.equal(validateProjectDocumentV01(unsupportedStatusProject).ok, false, unsupportedStatus);
   }
 
   const malformedBindingList = structuredClone(validPackageProject);
@@ -2873,19 +2877,19 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   malformedDiagnostic.objectBindings[2].diagnostics = [null];
   const malformedDiagnosticResult = validateProjectDocumentV01(malformedDiagnostic);
   assert.equal(malformedDiagnosticResult.ok, false);
-  assert.match(malformedDiagnosticResult.errors.join("\n"), /missing object binding .*implementation-missing/);
+  assert.match(malformedDiagnosticResult.errors.join("\n"), /object|implementation diagnostic/);
 
   const wrongDiagnosticCode = structuredClone(validPackageProject);
   wrongDiagnosticCode.objectBindings[2].diagnostics = [
     {
       severity: "warning",
       code: "resolution-unresolved",
-      message: "This diagnostic does not satisfy a missing binding."
+      message: "This diagnostic does not satisfy an error binding."
     }
   ];
   const wrongDiagnosticCodeResult = validateProjectDocumentV01(wrongDiagnosticCode);
   assert.equal(wrongDiagnosticCodeResult.ok, false);
-  assert.match(wrongDiagnosticCodeResult.errors.join("\n"), /missing object binding .*implementation-missing/);
+  assert.match(wrongDiagnosticCodeResult.errors.join("\n"), /error object binding .*implementation diagnostic/);
 
   const resolvedNoTarget = validateProjectDocumentV01(
     await readJson("fixtures/project/v0.1/invalid/resolved-binding-missing-target.project.json")
@@ -2918,7 +2922,7 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   ];
   const unresolvedProjectMissingPatchResult = validateProjectDocumentV01(unresolvedProjectMissingPatch);
   assert.equal(unresolvedProjectMissingPatchResult.ok, false);
-  assert.match(unresolvedProjectMissingPatchResult.errors.join("\n"), /object binding .*missing project patch/);
+  assert.match(unresolvedProjectMissingPatchResult.errors.join("\n"), /unresolved object binding .*must not include implementation/);
 
   const unresolvedPackageMissingLock = structuredClone(validPackageProject);
   unresolvedPackageMissingLock.objectBindings[0].status = "unresolved";
@@ -2932,7 +2936,7 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   ];
   const unresolvedPackageMissingLockResult = validateProjectDocumentV01(unresolvedPackageMissingLock);
   assert.equal(unresolvedPackageMissingLockResult.ok, false);
-  assert.match(unresolvedPackageMissingLockResult.errors.join("\n"), /object binding .*missing lockEntryId/);
+  assert.match(unresolvedPackageMissingLockResult.errors.join("\n"), /unresolved object binding .*must not include implementation/);
 
   const missingBindingRef = structuredClone(validPackageProject);
   missingBindingRef.graph.nodes[0].bindingRef = "missing-binding";
@@ -2946,7 +2950,7 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   assert.equal(staleProjectPatchBindingResult.ok, false);
   assert.match(staleProjectPatchBindingResult.errors.join("\n"), /resolved object binding .*revision is stale/);
 
-  staleProjectPatchBinding.objectBindings[1].status = "stale";
+  staleProjectPatchBinding.objectBindings[1].status = "error";
   staleProjectPatchBinding.objectBindings[1].diagnostics = [
     {
       severity: "warning",
@@ -2965,19 +2969,24 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   ];
   assert.equal(validateProjectDocumentV01(staleProjectPatchBinding).ok, true);
 
-  const unresolvedStaleProjectPatchBinding = structuredClone(validPackageProject);
-  unresolvedStaleProjectPatchBinding.objectBindings[1].status = "unresolved";
-  unresolvedStaleProjectPatchBinding.objectBindings[1].implementation.provider.revision = "stale-revision";
-  unresolvedStaleProjectPatchBinding.objectBindings[1].diagnostics = [
+  const errorStaleProjectPatchBindingWithoutImplementationDiagnostic = structuredClone(validPackageProject);
+  errorStaleProjectPatchBindingWithoutImplementationDiagnostic.objectBindings[1].status = "error";
+  errorStaleProjectPatchBindingWithoutImplementationDiagnostic.objectBindings[1].implementation.provider.revision = "stale-revision";
+  errorStaleProjectPatchBindingWithoutImplementationDiagnostic.objectBindings[1].diagnostics = [
     {
       severity: "warning",
       code: "resolution-unresolved",
-      message: "The binding is unresolved, but it also carries old revision evidence."
+      message: "The binding is not resolved, but this diagnostic does not satisfy error state."
     }
   ];
-  const unresolvedStaleProjectPatchBindingResult = validateProjectDocumentV01(unresolvedStaleProjectPatchBinding);
-  assert.equal(unresolvedStaleProjectPatchBindingResult.ok, false);
-  assert.match(unresolvedStaleProjectPatchBindingResult.errors.join("\n"), /revision is stale without diagnostics/);
+  const errorStaleProjectPatchBindingWithoutImplementationDiagnosticResult = validateProjectDocumentV01(
+    errorStaleProjectPatchBindingWithoutImplementationDiagnostic
+  );
+  assert.equal(errorStaleProjectPatchBindingWithoutImplementationDiagnosticResult.ok, false);
+  assert.match(
+    errorStaleProjectPatchBindingWithoutImplementationDiagnosticResult.errors.join("\n"),
+    /error object binding .*implementation diagnostic/
+  );
 
   const graphInvalidPatch = structuredClone(validProject.patchLibrary[0]);
   graphInvalidPatch.graph.nodes.push(structuredClone(graphInvalidPatch.graph.nodes[0]));

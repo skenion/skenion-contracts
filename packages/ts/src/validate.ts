@@ -895,15 +895,21 @@ function validateProjectPackageReferencesV01(project: ProjectDocumentV01): strin
       if (!patch) {
         if (binding.status === "resolved") {
           errors.push(`resolved object binding ${binding.id} references missing project patch: ${target.patchId}`);
-        } else if (binding.status !== "missing" && binding.status !== "stale") {
-          errors.push(`object binding ${binding.id} references missing project patch: ${target.patchId}`);
+        } else if (
+          binding.status !== "error" ||
+          !bindingHasDiagnostic(binding, new Set(["implementation-missing"]))
+        ) {
+          errors.push(`object binding ${binding.id} references missing project patch: ${target.patchId} without error diagnostic`);
         }
         continue;
       }
       if (patch && target.revision !== undefined && target.revision !== patch.revision) {
         if (binding.status === "resolved") {
           errors.push(`resolved object binding ${binding.id} project patch ${target.patchId} revision is stale`);
-        } else if (binding.status !== "stale") {
+        } else if (
+          binding.status !== "error" ||
+          !bindingHasDiagnostic(binding, new Set(["implementation-stale", "interface-drift"]))
+        ) {
           errors.push(`object binding ${binding.id} project patch ${target.patchId} revision is stale without diagnostics`);
         }
       }
@@ -923,8 +929,11 @@ function validateProjectPackageReferencesV01(project: ProjectDocumentV01): strin
     if (!lockEntry) {
       if (binding.status === "resolved") {
         errors.push(`resolved object binding ${binding.id} references missing lockEntryId: ${providerRef.lockEntryId}`);
-      } else if (binding.status !== "missing" && binding.status !== "stale") {
-        errors.push(`object binding ${binding.id} references missing lockEntryId: ${providerRef.lockEntryId}`);
+      } else if (
+        binding.status !== "error" ||
+        !bindingHasDiagnostic(binding, new Set(["implementation-missing"]))
+      ) {
+        errors.push(`object binding ${binding.id} references missing lockEntryId: ${providerRef.lockEntryId} without error diagnostic`);
       }
       continue;
     }
@@ -1561,7 +1570,11 @@ function isPayloadIdentityNodeKind(kind: string): boolean {
 }
 
 function graphNodeResolutionDiagnostics(
-  node: { id: string; implementation?: { objectId: string }; objectResolution?: { status: string } }
+  node: {
+    id: string;
+    implementation?: { objectId: string };
+    objectResolution?: { status: string; diagnostics?: Array<{ code?: string }> };
+  }
 ): GraphValidationDiagnosticV01[] {
   const diagnostics: GraphValidationDiagnosticV01[] = [];
   const objectId = node.implementation?.objectId;
@@ -1573,6 +1586,14 @@ function graphNodeResolutionDiagnostics(
       nodes: [node.id]
     });
   }
+  if (node.objectResolution?.status === "unresolved" && node.implementation !== undefined) {
+    diagnostics.push({
+      severity: "error",
+      code: "unresolved-object-has-implementation",
+      message: `node ${node.id} has unresolved objectResolution with implementation`,
+      nodes: [node.id]
+    });
+  }
   if (node.objectResolution?.status === "resolved" && node.implementation === undefined) {
     diagnostics.push({
       severity: "error",
@@ -1581,8 +1602,36 @@ function graphNodeResolutionDiagnostics(
       nodes: [node.id]
     });
   }
+  if (node.objectResolution?.status === "error") {
+    const hasImplementationDiagnostic = (node.objectResolution.diagnostics ?? []).some((diagnostic) =>
+      typeof diagnostic.code === "string" && IMPLEMENTATION_ERROR_DIAGNOSTIC_CODES.has(diagnostic.code)
+    );
+    if (node.implementation === undefined) {
+      diagnostics.push({
+        severity: "error",
+        code: "error-object-missing-implementation",
+        message: `node ${node.id} has error objectResolution without implementation`,
+        nodes: [node.id]
+      });
+    }
+    if (!hasImplementationDiagnostic) {
+      diagnostics.push({
+        severity: "error",
+        code: "error-object-missing-diagnostic",
+        message: `node ${node.id} has error objectResolution without implementation diagnostic`,
+        nodes: [node.id]
+      });
+    }
+  }
   return diagnostics;
 }
+
+const IMPLEMENTATION_ERROR_DIAGNOSTIC_CODES = new Set([
+  "implementation-missing",
+  "implementation-stale",
+  "implementation-lock-mismatch",
+  "interface-drift"
+]);
 
 type MessageKeyPolicyPortV01 = Pick<PortSpecV01, "direction" | "type" | "accepts" | "messageKeys">;
 
@@ -2682,12 +2731,6 @@ function validateProjectObjectBindingStatusInvariants(document: unknown): string
   }
 
   const errors: string[] = [];
-  const requiredDiagnosticByStatus = new Map([
-    ["missing", ["implementation-missing"]],
-    ["stale", ["implementation-stale", "interface-drift"]],
-    ["unresolved", ["resolution-unresolved"]],
-    ["ambiguous", ["resolution-ambiguous"]]
-  ]);
 
   for (const binding of (document as { objectBindings: unknown[] }).objectBindings) {
     if (typeof binding !== "object" || binding === null) {
@@ -2699,24 +2742,36 @@ function validateProjectObjectBindingStatusInvariants(document: unknown): string
       errors.push(`resolved object binding ${id} requires implementation`);
       continue;
     }
-    if (typeof record.status !== "string" || !requiredDiagnosticByStatus.has(record.status)) {
+    if (record.status === "unresolved" && record.implementation !== undefined) {
+      errors.push(`unresolved object binding ${id} must not include implementation`);
       continue;
     }
-    const requiredCodes = requiredDiagnosticByStatus.get(record.status)!;
-    const diagnostics = Array.isArray(record.diagnostics) ? record.diagnostics : [];
-    const hasRequiredDiagnostic = diagnostics.some((diagnostic) => {
-      if (typeof diagnostic !== "object" || diagnostic === null) {
-        return false;
+    if (record.status === "error") {
+      if (record.implementation === undefined) {
+        errors.push(`error object binding ${id} requires implementation`);
+        continue;
       }
-      const code = (diagnostic as { code?: unknown }).code;
-      return typeof code === "string" && requiredCodes.includes(code);
-    });
-    if (!hasRequiredDiagnostic) {
-      errors.push(`${record.status} object binding ${id} requires ${requiredCodes.join(" or ")} diagnostic`);
+      if (!bindingHasDiagnostic(record, IMPLEMENTATION_ERROR_DIAGNOSTIC_CODES)) {
+        errors.push(`error object binding ${id} requires implementation diagnostic`);
+      }
     }
   }
 
   return errors;
+}
+
+function bindingHasDiagnostic(
+  record: { diagnostics?: unknown },
+  codes: ReadonlySet<string>
+): boolean {
+  const diagnostics = Array.isArray(record.diagnostics) ? record.diagnostics : [];
+  return diagnostics.some((diagnostic) => {
+    if (typeof diagnostic !== "object" || diagnostic === null) {
+      return false;
+    }
+    const code = (diagnostic as { code?: unknown }).code;
+    return typeof code === "string" && codes.has(code);
+  });
 }
 
 export function validateProjectDocument(document: unknown): ValidationResult<ProjectDocumentV01> {

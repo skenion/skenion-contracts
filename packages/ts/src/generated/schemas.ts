@@ -205,9 +205,7 @@ export const graphV01Schema = {
           "enum": [
             "resolved",
             "unresolved",
-            "ambiguous",
-            "stale",
-            "missing"
+            "error"
           ]
         },
         "selectedSpec": {
@@ -317,6 +315,91 @@ export const graphV01Schema = {
             "required": [
               "implementation"
             ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "objectResolution": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "unresolved"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            },
+            "required": [
+              "objectResolution"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "implementation"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "objectResolution": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "error"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            },
+            "required": [
+              "objectResolution"
+            ]
+          },
+          "then": {
+            "required": [
+              "implementation"
+            ],
+            "properties": {
+              "objectResolution": {
+                "type": "object",
+                "required": [
+                  "diagnostics"
+                ],
+                "properties": {
+                  "diagnostics": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/objectResolutionDiagnostic"
+                    },
+                    "minItems": 1,
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "implementation-missing",
+                            "implementation-stale",
+                            "implementation-lock-mismatch",
+                            "interface-drift"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       ],
@@ -1424,9 +1507,7 @@ export const projectV01Schema = {
           "enum": [
             "resolved",
             "unresolved",
-            "ambiguous",
-            "stale",
-            "missing"
+            "error"
           ]
         },
         "implementation": {
@@ -1468,7 +1549,7 @@ export const projectV01Schema = {
           "if": {
             "properties": {
               "status": {
-                "const": "missing"
+                "const": "unresolved"
               }
             },
             "required": [
@@ -1476,29 +1557,10 @@ export const projectV01Schema = {
             ]
           },
           "then": {
-            "required": [
-              "implementation",
-              "diagnostics"
-            ],
-            "properties": {
-              "diagnostics": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/objectBindingDiagnostic"
-                },
-                "minItems": 1,
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "const": "implementation-missing"
-                    }
-                  },
-                  "required": [
-                    "code"
-                  ]
-                }
-              }
+            "not": {
+              "required": [
+                "implementation"
+              ]
             }
           }
         },
@@ -1506,7 +1568,7 @@ export const projectV01Schema = {
           "if": {
             "properties": {
               "status": {
-                "const": "stale"
+                "const": "error"
               }
             },
             "required": [
@@ -1530,83 +1592,11 @@ export const projectV01Schema = {
                   "properties": {
                     "code": {
                       "enum": [
+                        "implementation-missing",
                         "implementation-stale",
+                        "implementation-lock-mismatch",
                         "interface-drift"
                       ]
-                    }
-                  },
-                  "required": [
-                    "code"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "status": {
-                "const": "unresolved"
-              }
-            },
-            "required": [
-              "status"
-            ]
-          },
-          "then": {
-            "required": [
-              "diagnostics"
-            ],
-            "properties": {
-              "diagnostics": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/objectBindingDiagnostic"
-                },
-                "minItems": 1,
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "const": "resolution-unresolved"
-                    }
-                  },
-                  "required": [
-                    "code"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "status": {
-                "const": "ambiguous"
-              }
-            },
-            "required": [
-              "status"
-            ]
-          },
-          "then": {
-            "required": [
-              "diagnostics"
-            ],
-            "properties": {
-              "diagnostics": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/objectBindingDiagnostic"
-                },
-                "minItems": 1,
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "const": "resolution-ambiguous"
                     }
                   },
                   "required": [
@@ -2941,6 +2931,91 @@ export const objectSpecParseResultV01Schema = {
           "implementation"
         ]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "objectResolution": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "unresolved"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        },
+        "required": [
+          "objectResolution"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "implementation"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "objectResolution": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "error"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        },
+        "required": [
+          "objectResolution"
+        ]
+      },
+      "then": {
+        "required": [
+          "implementation"
+        ],
+        "properties": {
+          "objectResolution": {
+            "type": "object",
+            "required": [
+              "diagnostics"
+            ],
+            "properties": {
+              "diagnostics": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/objectResolutionDiagnostic"
+                },
+                "minItems": 1,
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        "implementation-missing",
+                        "implementation-stale",
+                        "implementation-lock-mismatch",
+                        "interface-drift"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "additionalProperties": false,
@@ -3084,9 +3159,7 @@ export const objectSpecParseResultV01Schema = {
           "enum": [
             "resolved",
             "unresolved",
-            "ambiguous",
-            "stale",
-            "missing"
+            "error"
           ]
         },
         "selectedSpec": {

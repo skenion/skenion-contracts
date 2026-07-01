@@ -819,20 +819,12 @@ fn validates_project_package_and_binding_semantic_error_branches() {
 
     for (status, expected) in [
         (
-            ProjectObjectBindingStatusV01::Missing,
-            "missing object binding binding-example-oscillator requires implementation-missing diagnostic",
-        ),
-        (
-            ProjectObjectBindingStatusV01::Stale,
-            "stale object binding binding-example-oscillator requires stale or interface-drift diagnostic",
+            ProjectObjectBindingStatusV01::Error,
+            "error object binding binding-example-oscillator requires implementation diagnostic",
         ),
         (
             ProjectObjectBindingStatusV01::Unresolved,
-            "unresolved object binding binding-example-oscillator requires resolution-unresolved diagnostic",
-        ),
-        (
-            ProjectObjectBindingStatusV01::Ambiguous,
-            "ambiguous object binding binding-example-oscillator requires resolution-ambiguous diagnostic",
+            "unresolved object binding binding-example-oscillator must not include implementation",
         ),
     ] {
         let mut missing_diagnostic = base_project.clone();
@@ -864,13 +856,13 @@ fn validates_project_package_and_binding_semantic_error_branches() {
     }
     assert_project_document_error(
         &missing_patch_binding,
-        "object binding binding-local-wrapper references missing project patch: missing-wrapper",
+        "unresolved object binding binding-local-wrapper must not include implementation",
     );
 
     let mut missing_patch_with_diagnostic = base_project.clone();
     {
         let binding = &mut missing_patch_with_diagnostic.object_bindings[1];
-        binding.status = ProjectObjectBindingStatusV01::Missing;
+        binding.status = ProjectObjectBindingStatusV01::Error;
         binding.diagnostics = vec![binding_diagnostic(
             ProjectObjectBindingDiagnosticCodeV01::ImplementationMissing,
         )];
@@ -889,7 +881,7 @@ fn validates_project_package_and_binding_semantic_error_branches() {
         }
     }
     validate_project_document_v01(&missing_patch_with_diagnostic)
-        .expect("missing project patch binding with diagnostic should remain valid");
+        .expect("error project patch binding with diagnostic should remain valid");
 
     let mut resolved_stale_revision = base_project.clone();
     match &mut resolved_stale_revision.object_bindings[1]
@@ -913,7 +905,7 @@ fn validates_project_package_and_binding_semantic_error_branches() {
     let mut stale_revision_without_diagnostic = base_project.clone();
     {
         let binding = &mut stale_revision_without_diagnostic.object_bindings[1];
-        binding.status = ProjectObjectBindingStatusV01::Stale;
+        binding.status = ProjectObjectBindingStatusV01::Error;
         binding.diagnostics.clear();
         match &mut binding
             .implementation
@@ -937,7 +929,7 @@ fn validates_project_package_and_binding_semantic_error_branches() {
     let mut stale_revision_with_diagnostic = base_project.clone();
     {
         let binding = &mut stale_revision_with_diagnostic.object_bindings[1];
-        binding.status = ProjectObjectBindingStatusV01::Stale;
+        binding.status = ProjectObjectBindingStatusV01::Error;
         binding.diagnostics = vec![binding_diagnostic(
             ProjectObjectBindingDiagnosticCodeV01::ImplementationStale,
         )];
@@ -956,7 +948,7 @@ fn validates_project_package_and_binding_semantic_error_branches() {
         }
     }
     validate_project_document_v01(&stale_revision_with_diagnostic)
-        .expect("stale project patch binding with diagnostic should remain valid");
+        .expect("error project patch binding with diagnostic should remain valid");
 
     let mut invalid_provider_ids = base_project.clone();
     match &mut invalid_provider_ids.object_bindings[0]
@@ -1000,7 +992,7 @@ fn validates_project_package_and_binding_semantic_error_branches() {
     }
     assert_project_document_error(
         &unresolved_missing_lock,
-        "object binding binding-example-oscillator references missing lockEntryId: missing-package-lock",
+        "unresolved object binding binding-example-oscillator must not include implementation",
     );
 }
 

@@ -858,7 +858,7 @@ fn validates_public_package_manifest_contract_surface() {
     );
     assert_eq!(
         project.object_bindings[2].status,
-        skenion_contracts::ProjectObjectBindingStatusV01::Missing
+        skenion_contracts::ProjectObjectBindingStatusV01::Error
     );
     assert_eq!(
         project.graph.nodes[0].binding_ref.as_deref(),
@@ -2002,8 +2002,9 @@ fn validates_public_object_spec_parse_results() {
             .contains("requires implementation")
     );
 
-    let legacy_resolution_diagnostic: Result<ObjectSpecParseResultV01, _> = serde_json::from_str(
-        r#"{
+    let unsupported_resolution_diagnostic: Result<ObjectSpecParseResultV01, _> =
+        serde_json::from_str(
+            r#"{
               "schema": "skenion.object-spec.parse-result",
               "schemaVersion": "0.1.0",
               "input": "missing.object",
@@ -2021,7 +2022,7 @@ fn validates_public_object_spec_parse_results() {
                   {
                     "severity": "error",
                     "code": "binding-unresolved",
-                    "message": "legacy diagnostic code must be rejected"
+                    "message": "unsupported diagnostic code must be rejected"
                   }
                 ]
               },
@@ -2030,10 +2031,10 @@ fn validates_public_object_spec_parse_results() {
               "displayText": "missing.object",
               "diagnostics": []
             }"#,
-    );
+        );
     assert!(
-        legacy_resolution_diagnostic
-            .expect_err("legacy resolution diagnostic code should fail parsing")
+        unsupported_resolution_diagnostic
+            .expect_err("unsupported resolution diagnostic code should fail parsing")
             .to_string()
             .contains("binding-unresolved")
     );

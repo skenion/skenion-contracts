@@ -979,7 +979,7 @@ export interface ObjectImplementationRefV01 {
   interfaceDigest?: PackageChecksumV01;
 }
 
-export type ObjectResolutionStatusV01 = "resolved" | "unresolved" | "ambiguous" | "stale" | "missing";
+export type ObjectResolutionStatusV01 = "resolved" | "unresolved" | "error";
 
 export type ObjectResolutionDiagnosticCodeV01 =
   | "resolution-unresolved"
@@ -1258,7 +1258,7 @@ export interface ProjectResourceLockEntryV01 {
   evidenceRefs?: string[];
 }
 
-export type ProjectObjectBindingStatusV01 = "resolved" | "unresolved" | "ambiguous" | "stale" | "missing";
+export type ProjectObjectBindingStatusV01 = "resolved" | "unresolved" | "error";
 
 export type ProjectObjectBindingDiagnosticCodeV01 = ObjectResolutionDiagnosticCodeV01;
 

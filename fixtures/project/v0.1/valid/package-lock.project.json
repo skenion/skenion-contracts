@@ -122,7 +122,7 @@
     {
       "id": "binding-missing-provider",
       "objectSpec": "missing-provider",
-      "status": "missing",
+      "status": "error",
       "implementation": {
         "provider": {
           "kind": "package",
@@ -142,7 +142,7 @@
     {
       "id": "binding-ambiguous-patcher",
       "objectSpec": "ambiguous-patcher",
-      "status": "ambiguous",
+      "status": "unresolved",
       "diagnostics": [
         {
           "severity": "warning",

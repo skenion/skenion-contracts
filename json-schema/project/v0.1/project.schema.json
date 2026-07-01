@@ -467,7 +467,7 @@
           "minLength": 1
         },
         "status": {
-          "enum": ["resolved", "unresolved", "ambiguous", "stale", "missing"]
+          "enum": ["resolved", "unresolved", "error"]
         },
         "implementation": {
           "$ref": "#/$defs/objectImplementation"
@@ -504,92 +504,14 @@
           "if": {
             "properties": {
               "status": {
-                "const": "missing"
-              }
-            },
-            "required": ["status"]
-          },
-          "then": {
-            "required": ["implementation", "diagnostics"],
-            "properties": {
-              "diagnostics": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/objectBindingDiagnostic"
-                },
-                "minItems": 1,
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "const": "implementation-missing"
-                    }
-                  },
-                  "required": ["code"]
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "status": {
-                "const": "stale"
-              }
-            },
-            "required": ["status"]
-          },
-          "then": {
-            "required": ["implementation", "diagnostics"],
-            "properties": {
-              "diagnostics": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/objectBindingDiagnostic"
-                },
-                "minItems": 1,
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "enum": ["implementation-stale", "interface-drift"]
-                    }
-                  },
-                  "required": ["code"]
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "status": {
                 "const": "unresolved"
               }
             },
             "required": ["status"]
           },
           "then": {
-            "required": ["diagnostics"],
-            "properties": {
-              "diagnostics": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/objectBindingDiagnostic"
-                },
-                "minItems": 1,
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "const": "resolution-unresolved"
-                    }
-                  },
-                  "required": ["code"]
-                }
-              }
+            "not": {
+              "required": ["implementation"]
             }
           }
         },
@@ -597,13 +519,13 @@
           "if": {
             "properties": {
               "status": {
-                "const": "ambiguous"
+                "const": "error"
               }
             },
             "required": ["status"]
           },
           "then": {
-            "required": ["diagnostics"],
+            "required": ["implementation", "diagnostics"],
             "properties": {
               "diagnostics": {
                 "type": "array",
@@ -615,7 +537,12 @@
                   "type": "object",
                   "properties": {
                     "code": {
-                      "const": "resolution-ambiguous"
+                      "enum": [
+                        "implementation-missing",
+                        "implementation-stale",
+                        "implementation-lock-mismatch",
+                        "interface-drift"
+                      ]
                     }
                   },
                   "required": ["code"]
