@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.57.0](https://github.com/skenion/skenion-contracts/compare/v0.56.0...v0.57.0) (2026-07-01)
+
+
+### Features
+
+* **contracts:** define object authoring port semantics ([#193](https://github.com/skenion/skenion-contracts/issues/193)) ([86023e6](https://github.com/skenion/skenion-contracts/commit/86023e6e28dc961b6a05dd3598736073d1235faa))
+
 ## [0.56.0](https://github.com/skenion/skenion-contracts/compare/v0.55.0...v0.56.0) (2026-06-30)
 
 
