@@ -2389,6 +2389,61 @@ test("exports and validates v0.1 graph and node schemas", async () => {
     /resolved-object-missing-implementation/
   );
 
+  const unresolvedWithImplementation = structuredClone(graph);
+  unresolvedWithImplementation.nodes[0].objectResolution = { status: "unresolved" };
+  const unresolvedWithImplementationResult = analyzeGraphDocumentV01(unresolvedWithImplementation);
+  assert.equal(unresolvedWithImplementationResult.ok, false);
+  assert.match(
+    unresolvedWithImplementationResult.issues.map((entry) => entry.code).join("\n"),
+    /unresolved-object-has-implementation/
+  );
+
+  const errorWithoutImplementation = structuredClone(graph);
+  delete errorWithoutImplementation.nodes[0].implementation;
+  errorWithoutImplementation.nodes[0].objectResolution = {
+    status: "error",
+    issues: [
+      {
+        severity: "warning",
+        code: "implementation-missing",
+        message: "The selected implementation is unavailable."
+      }
+    ]
+  };
+  const errorWithoutImplementationAnalysis = analyzeGraphDocumentV01(errorWithoutImplementation);
+  assert.equal(errorWithoutImplementationAnalysis.ok, false);
+  assert.match(
+    errorWithoutImplementationAnalysis.issues.map((entry) => entry.code).join("\n"),
+    /error-object-missing-implementation/
+  );
+
+  const errorWithoutImplementationIssue = structuredClone(graph);
+  errorWithoutImplementationIssue.nodes[0].objectResolution = {
+    status: "error",
+    issues: [
+      {
+        severity: "warning",
+        code: "resolution-unresolved",
+        message: "Resolution has not selected an implementation yet."
+      }
+    ]
+  };
+  const errorWithoutImplementationIssueResult = analyzeGraphDocumentV01(errorWithoutImplementationIssue);
+  assert.equal(errorWithoutImplementationIssueResult.ok, false);
+  assert.match(
+    errorWithoutImplementationIssueResult.issues.map((entry) => entry.code).join("\n"),
+    /error-object-missing-issue/
+  );
+
+  const errorWithoutIssues = structuredClone(graph);
+  errorWithoutIssues.nodes[0].objectResolution = { status: "error" };
+  const errorWithoutIssuesResult = analyzeGraphDocumentV01(errorWithoutIssues);
+  assert.equal(errorWithoutIssuesResult.ok, false);
+  assert.match(
+    errorWithoutIssuesResult.issues.map((entry) => entry.code).join("\n"),
+    /error-object-missing-issue/
+  );
+
   const legacyVersion = await readJson("fixtures/graph/v0.1/invalid/legacy-000-version.graph.json");
   const legacyInputsOutputs = await readJson("fixtures/unsupported/v0.1/invalid/legacy-inputs-outputs.graph.json");
   const legacySampledFlow = await readJson("fixtures/unsupported/v0.1/invalid/legacy-sampled-flow.graph.json");
@@ -2851,6 +2906,19 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   assert.equal(wrongIssueCodeResult.ok, false);
   assert.match(wrongIssueCodeResult.errors.join("\n"), /error object binding .*implementation issue/);
 
+  const errorBindingMissingTarget = structuredClone(validPackageProject);
+  delete errorBindingMissingTarget.objectBindings[2].implementation;
+  errorBindingMissingTarget.objectBindings[2].issues = [
+    {
+      severity: "warning",
+      code: "implementation-missing",
+      message: "The previously selected implementation is unavailable."
+    }
+  ];
+  const errorBindingMissingTargetResult = validateProjectDocumentV01(errorBindingMissingTarget);
+  assert.equal(errorBindingMissingTargetResult.ok, false);
+  assert.match(errorBindingMissingTargetResult.errors.join("\n"), /error object binding .*requires implementation/);
+
   const resolvedNoTarget = validateProjectDocumentV01(
     await readJson("fixtures/project/v0.1/invalid/resolved-binding-missing-target.project.json")
   );
@@ -2884,6 +2952,26 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   assert.equal(unresolvedProjectMissingPatchResult.ok, false);
   assert.match(unresolvedProjectMissingPatchResult.errors.join("\n"), /unresolved object binding .*must not include implementation/);
 
+  const errorProjectMissingPatchWithoutImplementationIssue = structuredClone(validPackageProject);
+  errorProjectMissingPatchWithoutImplementationIssue.objectBindings[1].status = "error";
+  errorProjectMissingPatchWithoutImplementationIssue.objectBindings[1].implementation.provider.patchId = "missing_patch";
+  errorProjectMissingPatchWithoutImplementationIssue.objectBindings[1].implementation.objectId = "missing_patch";
+  errorProjectMissingPatchWithoutImplementationIssue.objectBindings[1].issues = [
+    {
+      severity: "warning",
+      code: "implementation-stale",
+      message: "The selected project patch is stale, but this does not explain a missing patch."
+    }
+  ];
+  const errorProjectMissingPatchWithoutImplementationIssueResult = validateProjectDocumentV01(
+    errorProjectMissingPatchWithoutImplementationIssue
+  );
+  assert.equal(errorProjectMissingPatchWithoutImplementationIssueResult.ok, false);
+  assert.match(
+    errorProjectMissingPatchWithoutImplementationIssueResult.errors.join("\n"),
+    /missing project patch: missing_patch without error issue/
+  );
+
   const unresolvedPackageMissingLock = structuredClone(validPackageProject);
   unresolvedPackageMissingLock.objectBindings[0].status = "unresolved";
   unresolvedPackageMissingLock.objectBindings[0].implementation.provider.lockEntryId = "missing-lock";
@@ -2898,6 +2986,25 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   assert.equal(unresolvedPackageMissingLockResult.ok, false);
   assert.match(unresolvedPackageMissingLockResult.errors.join("\n"), /unresolved object binding .*must not include implementation/);
 
+  const errorPackageMissingLockWithoutImplementationIssue = structuredClone(validPackageProject);
+  errorPackageMissingLockWithoutImplementationIssue.objectBindings[0].status = "error";
+  errorPackageMissingLockWithoutImplementationIssue.objectBindings[0].implementation.provider.lockEntryId = "missing-lock";
+  errorPackageMissingLockWithoutImplementationIssue.objectBindings[0].issues = [
+    {
+      severity: "warning",
+      code: "implementation-stale",
+      message: "The selected implementation is stale, but this does not explain a missing lock entry."
+    }
+  ];
+  const errorPackageMissingLockWithoutImplementationIssueResult = validateProjectDocumentV01(
+    errorPackageMissingLockWithoutImplementationIssue
+  );
+  assert.equal(errorPackageMissingLockWithoutImplementationIssueResult.ok, false);
+  assert.match(
+    errorPackageMissingLockWithoutImplementationIssueResult.errors.join("\n"),
+    /missing lockEntryId: missing-lock without error issue/
+  );
+
   const missingBindingRef = structuredClone(validPackageProject);
   missingBindingRef.graph.nodes[0].bindingRef = "missing-binding";
   const missingBindingRefResult = validateProjectDocumentV01(missingBindingRef);
@@ -2909,6 +3016,24 @@ test("exports and validates v0.1 project patch library contracts", async () => {
   const staleProjectPatchBindingResult = validateProjectDocumentV01(staleProjectPatchBinding);
   assert.equal(staleProjectPatchBindingResult.ok, false);
   assert.match(staleProjectPatchBindingResult.errors.join("\n"), /resolved object binding .*revision is stale/);
+
+  const errorStaleProjectPatchBindingWithoutStaleIssue = structuredClone(staleProjectPatchBinding);
+  errorStaleProjectPatchBindingWithoutStaleIssue.objectBindings[1].status = "error";
+  errorStaleProjectPatchBindingWithoutStaleIssue.objectBindings[1].issues = [
+    {
+      severity: "warning",
+      code: "implementation-missing",
+      message: "The selected implementation is missing, but this does not explain revision drift."
+    }
+  ];
+  const errorStaleProjectPatchBindingWithoutStaleIssueResult = validateProjectDocumentV01(
+    errorStaleProjectPatchBindingWithoutStaleIssue
+  );
+  assert.equal(errorStaleProjectPatchBindingWithoutStaleIssueResult.ok, false);
+  assert.match(
+    errorStaleProjectPatchBindingWithoutStaleIssueResult.errors.join("\n"),
+    /revision is stale without issues/
+  );
 
   staleProjectPatchBinding.objectBindings[1].status = "error";
   staleProjectPatchBinding.objectBindings[1].issues = [

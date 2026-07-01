@@ -860,10 +860,7 @@ function validateProjectPackageReferencesV01(project: ProjectDocumentV01): strin
       if (!patch) {
         if (binding.status === "resolved") {
           errors.push(`resolved object binding ${binding.id} references missing project patch: ${target.patchId}`);
-        } else if (
-          binding.status !== "error" ||
-          !bindingHasIssue(binding, new Set(["implementation-missing"]))
-        ) {
+        } else if (!bindingHasIssue(binding, new Set(["implementation-missing"]))) {
           errors.push(`object binding ${binding.id} references missing project patch: ${target.patchId} without error issue`);
         }
         continue;
@@ -871,10 +868,7 @@ function validateProjectPackageReferencesV01(project: ProjectDocumentV01): strin
       if (patch && target.revision !== undefined && target.revision !== patch.revision) {
         if (binding.status === "resolved") {
           errors.push(`resolved object binding ${binding.id} project patch ${target.patchId} revision is stale`);
-        } else if (
-          binding.status !== "error" ||
-          !bindingHasIssue(binding, new Set(["implementation-stale", "interface-drift"]))
-        ) {
+        } else if (!bindingHasIssue(binding, new Set(["implementation-stale", "interface-drift"]))) {
           errors.push(`object binding ${binding.id} project patch ${target.patchId} revision is stale without issues`);
         }
       }
@@ -894,10 +888,7 @@ function validateProjectPackageReferencesV01(project: ProjectDocumentV01): strin
     if (!lockEntry) {
       if (binding.status === "resolved") {
         errors.push(`resolved object binding ${binding.id} references missing lockEntryId: ${providerRef.lockEntryId}`);
-      } else if (
-        binding.status !== "error" ||
-        !bindingHasIssue(binding, new Set(["implementation-missing"]))
-      ) {
+      } else if (!bindingHasIssue(binding, new Set(["implementation-missing"]))) {
         errors.push(`object binding ${binding.id} references missing lockEntryId: ${providerRef.lockEntryId} without error issue`);
       }
       continue;
