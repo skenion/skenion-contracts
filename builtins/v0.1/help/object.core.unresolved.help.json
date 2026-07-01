@@ -3,7 +3,7 @@
   "schemaVersion": "0.1.0",
   "id": "object.core.unresolved",
   "summary": "Preserves object spec that could not be resolved.",
-  "description": "Unresolved Object is a diagnostic placeholder for Pd-style object boxes whose text cannot currently resolve to a native or extension object. It stays on the canvas so the user can edit or fix the object spec instead of losing the box.",
+  "description": "Unresolved Object is a diagnostic placeholder for Pd-style typed objects whose objectSpec cannot currently resolve to a native or extension object. It stays on the canvas so the user can edit or fix the object spec instead of losing the object.",
   "helpGraph": "help/v0.1/nodes/object.core.unresolved.help.graph.json",
   "tags": [
     "diagnostic",
@@ -18,7 +18,7 @@
   "params": [
     {
       "id": "objectSpec",
-      "description": "Original object box text entered by the user."
+      "description": "Original objectSpec entered by the user."
     },
     {
       "id": "diagnosticMessage",
@@ -31,7 +31,7 @@
   ],
   "example": {
     "title": "Keep invalid object spec editable",
-    "description": "The unresolved box remains visible with its original text and diagnostic message.",
+    "description": "The unresolved object remains visible with its original objectSpec and diagnostic message.",
     "graph": "help/v0.1/nodes/object.core.unresolved.help.graph.json"
   }
 }

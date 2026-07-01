@@ -3875,7 +3875,7 @@ export const packageManifestV01Schema = {
       "additionalProperties": false
     },
     "objectExport": {
-      "description": "Object-box creatable export. provides.nodes[] is for node-definition assets; object authoring surfaces MUST be declared here.",
+      "description": "Object authoring export. provides.nodes[] is for node-definition assets; object authoring surfaces MUST be declared here.",
       "type": "object",
       "required": [
         "objectId",
@@ -3921,7 +3921,7 @@ export const packageManifestV01Schema = {
           "default": []
         },
         "nodes": {
-          "description": "Node-definition assets. Do not use nodes[] as the object-box creatable authoring surface; use objects[].",
+          "description": "Node-definition assets. Do not use nodes[] as the object authoring surface; use objects[].",
           "type": "array",
           "items": {
             "$ref": "#/$defs/providedRef"
@@ -4471,7 +4471,7 @@ export const packageListingV01Schema = {
       "additionalProperties": false
     },
     "objectExportSummary": {
-      "description": "Public discovery projection for an object-box creatable export. provides.nodes[] is for node-definition assets; object authoring surfaces MUST be declared here.",
+      "description": "Public discovery projection for an object authoring export. provides.nodes[] is for node-definition assets; object authoring surfaces MUST be declared here.",
       "type": "object",
       "required": [
         "objectId",
@@ -4517,7 +4517,7 @@ export const packageListingV01Schema = {
           "default": []
         },
         "nodes": {
-          "description": "Node-definition assets. Do not use nodes[] as the object-box creatable authoring surface; use objects[].",
+          "description": "Node-definition assets. Do not use nodes[] as the object authoring surface; use objects[].",
           "type": "array",
           "items": {
             "$ref": "#/$defs/providedSummaryRef"
