@@ -975,7 +975,6 @@ export type ObjectProviderRefV01 =
 export interface ObjectImplementationRefV01 {
   provider: ObjectProviderRefV01;
   objectId: string;
-  version?: string;
   interfaceDigest?: PackageChecksumV01;
 }
 

@@ -34,8 +34,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "panel",
-        "version": "0.1.0"
+        "objectId": "panel"
       }
     },
     {
@@ -67,8 +66,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "comment",
-        "version": "0.1.0"
+        "objectId": "comment"
       }
     }
   ],

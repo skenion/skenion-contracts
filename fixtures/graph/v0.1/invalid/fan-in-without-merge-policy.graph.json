@@ -18,8 +18,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "float",
-        "version": "0.1.0"
+        "objectId": "float"
       }
     },
     {
@@ -36,8 +35,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "float",
-        "version": "0.1.0"
+        "objectId": "float"
       }
     },
     {
@@ -55,8 +53,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "operator.add",
-        "version": "0.1.0"
+        "objectId": "operator.add"
       }
     }
   ],

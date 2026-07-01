@@ -83,14 +83,14 @@ fn graph_with_connection(source_type: &str, target_type: &str) -> GraphDocumentV
         "nodes": [
             {
                 "id": "source",
-                "implementation": { "provider": { "kind": "core" }, "objectId": "source", "version": "0.1.0" },
+                "implementation": { "provider": { "kind": "core" }, "objectId": "source" },
                 "objectSpec": "source",
                 "params": {},
                 "ports": [{ "id": "out", "direction": "output", "type": source_type }]
             },
             {
                 "id": "target",
-                "implementation": { "provider": { "kind": "core" }, "objectId": "target", "version": "0.1.0" },
+                "implementation": { "provider": { "kind": "core" }, "objectId": "target" },
                 "objectSpec": "target",
                 "params": {},
                 "ports": [target_port]
@@ -135,7 +135,7 @@ fn serializes_optional_contract_fields_as_absent() {
           "nodes": [
             {
               "id": "source",
-              "implementation": { "provider": { "kind": "core" }, "objectId": "slider", "version": "0.1.0" },
+              "implementation": { "provider": { "kind": "core" }, "objectId": "slider" },
               "params": {},
               "ports": [
                 { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -149,6 +149,10 @@ fn serializes_optional_contract_fields_as_absent() {
     let serialized_graph = serde_json::to_string(&graph).expect("graph should serialize");
 
     assert!(!serialized_graph.contains("null"));
+    assert!(
+        serialized_graph
+            .contains(r#""implementation":{"provider":{"kind":"core"},"objectId":"slider"}"#)
+    );
     assert!(serialized_graph.contains(r#""type":"value.core.float64""#));
     assert!(validate_graph_document_v01(&graph).is_ok());
 }
@@ -518,7 +522,7 @@ fn parses_public_graph_fragment_paste_request_payload() {
             "nodes": [
               {
                 "id": "source",
-                "implementation": { "provider": { "kind": "core" }, "objectId": "float", "version": "0.1.0" },
+                "implementation": { "provider": { "kind": "core" }, "objectId": "float" },
                 "params": {},
                 "ports": [
                   { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -867,8 +871,7 @@ fn validates_public_package_manifest_contract_surface() {
             "status": "resolved",
             "implementation": {
                 "provider": { "kind": "core" },
-                "objectId": "float",
-                "version": "0.1.0"
+                "objectId": "float"
             }
         }))
         .expect("core binding should parse"),
@@ -1648,8 +1651,7 @@ fn validates_public_package_install_plan_contract_surface() {
             "status": "resolved",
             "implementation": {
                 "provider": { "kind": "core" },
-                "objectId": "float",
-                "version": "0.1.0"
+                "objectId": "float"
             }
         }))
         .expect("core binding should parse"),
@@ -1945,8 +1947,7 @@ fn validates_public_object_spec_parse_results() {
           "creationArgs": [{ "type": "float", "value": 0.5, "representation": "f32" }],
           "implementation": {
             "provider": { "kind": "package", "packageId": "example/package", "version": "0.1.0" },
-            "objectId": "gain",
-            "version": "0.1.0"
+            "objectId": "gain"
           },
           "objectResolution": { "status": "resolved", "selectedSpec": "example.gain 0.5" },
           "params": { "gain": 0.5 },
@@ -1981,6 +1982,21 @@ fn validates_public_object_spec_parse_results() {
             .map(|implementation| implementation.object_id.as_str()),
         Some("gain")
     );
+    let implementation_json = serde_json::to_value(
+        result
+            .implementation
+            .as_ref()
+            .expect("implementation should exist"),
+    )
+    .expect("implementation should serialize");
+    assert_eq!(implementation_json.get("version"), None);
+    assert_eq!(
+        implementation_json
+            .get("provider")
+            .and_then(|provider| provider.get("version"))
+            .and_then(|version| version.as_str()),
+        Some("0.1.0")
+    );
 
     let mut resolved_without_implementation = result.clone();
     resolved_without_implementation.implementation = None;
@@ -2003,8 +2019,7 @@ fn validates_public_object_spec_parse_results() {
               "creationArgs": [],
               "implementation": {
                 "provider": { "kind": "core" },
-                "objectId": "missing",
-                "version": "0.1.0"
+                "objectId": "missing"
               },
               "objectResolution": {
                 "status": "unresolved",
@@ -2262,7 +2277,7 @@ fn valid_project_patch() -> PatchDefinitionV01 {
             "nodes": [
                 {
                     "id": "value_in",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                     "params": { "portId": "value", "label": "Value" },
                     "ports": [
                         { "id": "out", "direction": "output", "type": "value.core.float64", "rate": "control" }
@@ -2270,7 +2285,7 @@ fn valid_project_patch() -> PatchDefinitionV01 {
                 },
                 {
                     "id": "value_out",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "outlet", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "outlet" },
                     "params": { "portId": "result", "label": "Result" },
                     "ports": [
                         { "id": "in", "direction": "input", "type": "value.core.float64", "rate": "control" }
@@ -3036,7 +3051,7 @@ fn reports_public_graph_semantic_errors() {
           "nodes": [
             {
               "id": "node",
-              "implementation": { "provider": { "kind": "core" }, "objectId": "node", "version": "0.1.0" },
+              "implementation": { "provider": { "kind": "core" }, "objectId": "node" },
               "params": {},
               "ports": [
                 { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -3044,7 +3059,7 @@ fn reports_public_graph_semantic_errors() {
             },
             {
               "id": "node",
-              "implementation": { "provider": { "kind": "core" }, "objectId": "node", "version": "0.1.0" },
+              "implementation": { "provider": { "kind": "core" }, "objectId": "node" },
               "params": {},
               "ports": [
                 { "id": "in", "direction": "input", "type": "value.core.bang" }
@@ -3077,7 +3092,7 @@ fn validates_public_v01_graph_and_node_contracts() {
           "nodes": [
             {
               "id": "clear",
-              "implementation": { "provider": { "kind": "core" }, "objectId": "render.clear-color", "version": "0.1.0" },
+              "implementation": { "provider": { "kind": "core" }, "objectId": "render.clear-color" },
               "params": { "color": [0, 0, 0, 1] },
               "ports": [
                 { "id": "out", "direction": "output", "type": "value.core.tensor", "rate": "render" }
@@ -3085,7 +3100,7 @@ fn validates_public_v01_graph_and_node_contracts() {
             },
             {
               "id": "output",
-              "implementation": { "provider": { "kind": "core" }, "objectId": "render.output", "version": "0.1.0" },
+              "implementation": { "provider": { "kind": "core" }, "objectId": "render.output" },
               "params": {},
               "ports": [
                 { "id": "in", "direction": "input", "type": "value.core.tensor", "rate": "render", "required": true }
@@ -3197,7 +3212,7 @@ fn derives_public_v01_patch_contract_fallback_port_ids() {
                 "nodes": [
                   {
                     "id": "fallback_input",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                     "params": {},
                     "ports": [
                       { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -3205,7 +3220,7 @@ fn derives_public_v01_patch_contract_fallback_port_ids() {
                   },
                   {
                     "id": "multi_input",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                     "params": {},
                     "ports": [
                       { "id": "first", "direction": "output", "type": "value.core.float64" },
@@ -3214,7 +3229,7 @@ fn derives_public_v01_patch_contract_fallback_port_ids() {
                   },
                   {
                     "id": "fallback_output",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "outlet", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "outlet" },
                     "params": {},
                     "ports": [
                       { "id": "in", "direction": "input", "type": "value.core.float64" }
@@ -3290,7 +3305,7 @@ fn reports_public_v01_project_and_patch_definition_errors() {
             "nodes": [
                 {
                     "id": "source",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "float", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "float" },
                     "params": {},
                     "ports": [
                         { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -3298,7 +3313,7 @@ fn reports_public_v01_project_and_patch_definition_errors() {
                 },
                 {
                     "id": "target",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "render.output", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "render.output" },
                     "params": {},
                     "ports": [
                         { "id": "in", "direction": "input", "type": "value.core.tensor" }
@@ -3334,7 +3349,7 @@ fn reports_public_v01_project_and_patch_definition_errors() {
                     "nodes": [
                         {
                             "id": "inlet_a",
-                            "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                            "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                             "params": { "portId": "same" },
                             "ports": [
                                 { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -3342,7 +3357,7 @@ fn reports_public_v01_project_and_patch_definition_errors() {
                         },
                         {
                             "id": "inlet_b",
-                            "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                            "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                             "params": { "portId": "same" },
                             "ports": [
                                 { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -3350,7 +3365,7 @@ fn reports_public_v01_project_and_patch_definition_errors() {
                         },
                         {
                             "id": "sink",
-                            "implementation": { "provider": { "kind": "core" }, "objectId": "render.output", "version": "0.1.0" },
+                            "implementation": { "provider": { "kind": "core" }, "objectId": "render.output" },
                             "params": {},
                             "ports": [
                                 { "id": "in", "direction": "input", "type": "value.core.tensor" }

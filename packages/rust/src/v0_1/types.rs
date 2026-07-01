@@ -550,8 +550,6 @@ pub struct ObjectImplementationRefV01 {
     pub provider: ObjectProviderRefV01,
     pub object_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub interface_digest: Option<PackageChecksumV01>,
 }
 

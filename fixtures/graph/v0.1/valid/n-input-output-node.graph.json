@@ -39,8 +39,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "matrix",
-        "version": "0.1.0"
+        "objectId": "matrix"
       }
     }
   ],

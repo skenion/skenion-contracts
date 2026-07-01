@@ -51,8 +51,7 @@
               "provider": {
                 "kind": "core"
               },
-              "objectId": "outlet",
-              "version": "0.1.0"
+              "objectId": "outlet"
             }
           }
         ],

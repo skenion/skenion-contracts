@@ -1498,9 +1498,6 @@ function validateBuiltinFixtureHelpGraph(file, graph, id, manifest) {
     if (!fixtureObjectIds.has(objectId)) {
       fail(file, `help graph fixture node ${node.id} uses objectId ${objectId} outside the fixture manifest`);
     }
-    if (node.implementation?.version !== "0.1.0") {
-      fail(file, `help graph node ${node.id} implementation version must be 0.1.0`);
-    }
   }
 }
 

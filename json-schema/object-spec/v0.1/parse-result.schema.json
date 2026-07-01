@@ -256,10 +256,6 @@
           "type": "string",
           "minLength": 1
         },
-        "version": {
-          "type": "string",
-          "minLength": 1
-        },
         "interfaceDigest": {
           "$ref": "#/$defs/checksum"
         }

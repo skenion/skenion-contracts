@@ -19,8 +19,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "bang",
-        "version": "0.1.0"
+        "objectId": "bang"
       }
     },
     {
@@ -38,8 +37,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "bang",
-        "version": "0.1.0"
+        "objectId": "bang"
       }
     },
     {
@@ -60,8 +58,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "message",
-        "version": "0.1.0"
+        "objectId": "message"
       }
     }
   ],

@@ -21,8 +21,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "video-asset",
-        "version": "0.1.0"
+        "objectId": "video-asset"
       }
     },
     {
@@ -46,8 +45,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "video-decode",
-        "version": "0.1.0"
+        "objectId": "video-decode"
       }
     },
     {
@@ -71,8 +69,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "gpu-upload",
-        "version": "0.1.0"
+        "objectId": "gpu-upload"
       }
     },
     {
@@ -90,8 +87,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "preview",
-        "version": "0.1.0"
+        "objectId": "preview"
       }
     }
   ],

@@ -433,7 +433,6 @@ mod tests {
         ObjectImplementationRefV01 {
             provider: ObjectProviderRefV01::Core,
             object_id: object_id.to_owned(),
-            version: Some("0.1.0".to_owned()),
             interface_digest: None,
         }
     }

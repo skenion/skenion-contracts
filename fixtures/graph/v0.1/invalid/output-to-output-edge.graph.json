@@ -18,8 +18,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "source",
-        "version": "0.1.0"
+        "objectId": "source"
       }
     },
     {
@@ -36,8 +35,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "source",
-        "version": "0.1.0"
+        "objectId": "source"
       }
     }
   ],

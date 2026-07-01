@@ -33,8 +33,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "comment",
-        "version": "0.1.0"
+        "objectId": "comment"
       }
     },
     {
@@ -66,8 +65,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "comment",
-        "version": "0.1.0"
+        "objectId": "comment"
       }
     }
   ],

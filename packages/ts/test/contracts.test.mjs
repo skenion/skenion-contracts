@@ -92,8 +92,8 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 
-function coreImplementation(objectId, version = "0.1.0") {
-  return { provider: { kind: "core" }, objectId, version };
+function coreImplementation(objectId) {
+  return { provider: { kind: "core" }, objectId };
 }
 
 async function readJson(relativePath) {
@@ -111,6 +111,7 @@ async function fixtureFiles(relativePath) {
 const tsPackageJson = await readJson("packages/ts/package.json");
 
 test("exports active schema contracts", () => {
+  assert.deepEqual(Object.keys(coreImplementation("float")).sort(), ["objectId", "provider"]);
   for (const removedBuiltinExport of [
     "builtinManifestV01",
     "builtinNodeDefinitionsV01",
@@ -123,7 +124,9 @@ test("exports active schema contracts", () => {
     assert.equal(Object.hasOwn(contracts, removedBuiltinExport), false, removedBuiltinExport);
   }
   assert.equal(graphV01Schema.properties.schemaVersion.const, "0.1.0");
+  assert.equal(Object.hasOwn(graphV01Schema.$defs.objectImplementation.properties, "version"), false);
   assert.equal(projectV01Schema.properties.schemaVersion.const, "0.1.0");
+  assert.equal(Object.hasOwn(projectV01Schema.$defs.objectImplementation.properties, "version"), false);
   assert.equal(projectV01Schema.properties.documentId.pattern, "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
   assert.equal(viewStateV01Schema.properties.schemaVersion.const, "0.1.0");
   assert.equal(nodeDefinitionV01Schema.properties.schemaVersion.const, "0.1.0");
@@ -141,6 +144,7 @@ test("exports active schema contracts", () => {
     assert.equal(Object.hasOwn(contracts, removedCommandExport), false, removedCommandExport);
   }
   assert.equal(objectSpecParseResultV01Schema.properties.schema.const, "skenion.object-spec.parse-result");
+  assert.equal(Object.hasOwn(objectSpecParseResultV01Schema.$defs.objectImplementation.properties, "version"), false);
   assert.equal(extensionManifestV01Schema.properties.schemaVersion.const, "0.1.0");
   assert.equal(packageManifestV01Schema.properties.schema.const, "skenion.package.manifest");
   assert.equal(packageListingV01Schema.properties.schema.const, "skenion.package.listing");
@@ -212,14 +216,14 @@ function minimalGraphWithConnection(sourceType, targetType) {
     nodes: [
       {
         id: "source",
-        implementation: coreImplementation("source", "0.1.0"),
+        implementation: coreImplementation("source"),
         objectSpec: "source",
         params: {},
         ports: [{ id: "out", direction: "output", type: sourceType }]
       },
       {
         id: "target",
-        implementation: coreImplementation("target", "0.1.0"),
+        implementation: coreImplementation("target"),
         objectSpec: "target",
         params: {},
         ports: [targetPort]
@@ -1439,8 +1443,7 @@ test("validates object spec parse result fixtures", async () => {
     creationArgs: [{ type: "float", value: 0.5, representation: "f32" }],
     implementation: {
       provider: { kind: "package", packageId: "example/package", version: "0.1.0" },
-      objectId: "gain",
-      version: "0.1.0"
+      objectId: "gain"
     },
     objectResolution: { status: "resolved", selectedSpec: "example.gain 0.5" },
     params: { gain: 0.5 },
@@ -2377,6 +2380,10 @@ test("exports and validates v0.1 graph and node schemas", async () => {
   assert.equal(validateGraphDocumentV01(graph).ok, true);
   assert.equal(validateNodeDefinition(node).ok, true);
   assert.equal(validateNodeDefinitionV01(node).ok, true);
+  assert.equal(
+    graph.nodes.every((graphNode) => !Object.hasOwn(graphNode.implementation, "version")),
+    true
+  );
 
   const resolvedWithoutImplementation = structuredClone(graph);
   delete resolvedWithoutImplementation.nodes[0].implementation;

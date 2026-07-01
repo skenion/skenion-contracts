@@ -18,8 +18,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "value.core.float64",
-        "version": "0.1.0"
+        "objectId": "value.core.float64"
       }
     },
     {
@@ -36,8 +35,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "value.core.string",
-        "version": "0.1.0"
+        "objectId": "value.core.string"
       }
     },
     {
@@ -54,8 +52,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "value.core.bool",
-        "version": "0.1.0"
+        "objectId": "value.core.bool"
       }
     },
     {
@@ -72,8 +69,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "value.core.string",
-        "version": "0.1.0"
+        "objectId": "value.core.string"
       }
     }
   ],

@@ -51,8 +51,7 @@
               "provider": {
                 "kind": "core"
               },
-              "objectId": "inlet",
-              "version": "0.1.0"
+              "objectId": "inlet"
             }
           },
           {
@@ -74,8 +73,7 @@
               "provider": {
                 "kind": "core"
               },
-              "objectId": "inlet",
-              "version": "0.1.0"
+              "objectId": "inlet"
             }
           },
           {
@@ -99,8 +97,7 @@
               "provider": {
                 "kind": "core"
               },
-              "objectId": "outlet",
-              "version": "0.1.0"
+              "objectId": "outlet"
             }
           },
           {
@@ -122,8 +119,7 @@
               "provider": {
                 "kind": "core"
               },
-              "objectId": "outlet",
-              "version": "0.1.0"
+              "objectId": "outlet"
             }
           }
         ],

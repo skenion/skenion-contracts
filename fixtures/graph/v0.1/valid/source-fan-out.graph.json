@@ -21,8 +21,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "float",
-        "version": "0.1.0"
+        "objectId": "float"
       }
     },
     {
@@ -40,8 +39,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "meter",
-        "version": "0.1.0"
+        "objectId": "meter"
       }
     },
     {
@@ -59,8 +57,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "meter",
-        "version": "0.1.0"
+        "objectId": "meter"
       }
     }
   ],
