@@ -18,8 +18,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "sink",
-        "version": "0.1.0"
+        "objectId": "sink"
       }
     },
     {
@@ -36,8 +35,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "sink",
-        "version": "0.1.0"
+        "objectId": "sink"
       }
     }
   ],

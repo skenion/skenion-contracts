@@ -35,8 +35,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "clock.midi-clock",
-        "version": "0.1.0"
+        "objectId": "clock.midi-clock"
       }
     },
     {
@@ -55,8 +54,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "clock.position-display",
-        "version": "0.1.0"
+        "objectId": "clock.position-display"
       }
     }
   ],

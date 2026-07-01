@@ -14,8 +14,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "comment",
-        "version": "0.1.0"
+        "objectId": "comment"
       }
     },
     {
@@ -35,8 +34,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "video-asset",
-        "version": "0.1.0"
+        "objectId": "video-asset"
       }
     },
     {
@@ -54,8 +52,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "video-decode",
-        "version": "0.1.0"
+        "objectId": "video-decode"
       }
     }
   ],

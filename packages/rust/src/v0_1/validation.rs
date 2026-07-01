@@ -4452,7 +4452,6 @@ mod tests {
         ObjectImplementationRefV01 {
             provider: ObjectProviderRefV01::Core,
             object_id: object_id.to_owned(),
-            version: Some("0.1.0".to_owned()),
             interface_digest: None,
         }
     }
@@ -4501,7 +4500,7 @@ mod tests {
               "nodes": [
                 {
                   "id": "source",
-                  "implementation": { "provider": { "kind": "core" }, "objectId": "float", "version": "0.1.0" },
+                  "implementation": { "provider": { "kind": "core" }, "objectId": "float" },
                   "params": {},
                   "ports": [
                     { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -4509,7 +4508,7 @@ mod tests {
                 },
                 {
                   "id": "target",
-                  "implementation": { "provider": { "kind": "core" }, "objectId": "float", "version": "0.1.0" },
+                  "implementation": { "provider": { "kind": "core" }, "objectId": "float" },
                   "params": {},
                   "ports": [
                     { "id": "in", "direction": "input", "type": "value.core.float64" }
@@ -5043,7 +5042,7 @@ mod tests {
               "nodes": [
                 {
                   "id": "loop",
-                  "implementation": { "provider": { "kind": "core" }, "objectId": "loop", "version": "0.1.0" },
+                  "implementation": { "provider": { "kind": "core" }, "objectId": "loop" },
                   "params": {},
                   "ports": [
                     { "id": "in", "direction": "input", "type": "value.core.float64" },
@@ -5082,7 +5081,7 @@ mod tests {
                 "nodes": [
                   {
                     "id": "a",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "a", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "a" },
                     "params": {},
                     "ports": [
                       { "id": "in", "direction": "input", "type": "value.core.float64" },
@@ -5091,7 +5090,7 @@ mod tests {
                   },
                   {
                     "id": "b",
-                    "implementation": { "provider": { "kind": "core" }, "objectId": "b", "version": "0.1.0" },
+                    "implementation": { "provider": { "kind": "core" }, "objectId": "b" },
                     "params": {},
                     "ports": [
                       { "id": "in", "direction": "input", "type": "value.core.float64" },
@@ -5135,7 +5134,7 @@ mod tests {
                     "nodes": [
                       {
                         "id": "left_in",
-                        "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                        "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                         "params": {},
                         "ports": [
                           { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -5143,7 +5142,7 @@ mod tests {
                       },
                       {
                         "id": "right_out",
-                        "implementation": { "provider": { "kind": "core" }, "objectId": "outlet", "version": "0.1.0" },
+                        "implementation": { "provider": { "kind": "core" }, "objectId": "outlet" },
                         "params": {},
                         "ports": [
                           { "id": "in", "direction": "input", "type": "value.core.float64" }
@@ -5192,7 +5191,7 @@ mod tests {
                     "nodes": [
                       {
                         "id": "inlet_a",
-                        "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                        "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                         "params": { "portId": "same" },
                         "ports": [
                           { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -5200,7 +5199,7 @@ mod tests {
                       },
                       {
                         "id": "inlet_b",
-                        "implementation": { "provider": { "kind": "core" }, "objectId": "inlet", "version": "0.1.0" },
+                        "implementation": { "provider": { "kind": "core" }, "objectId": "inlet" },
                         "params": { "portId": "same" },
                         "ports": [
                           { "id": "out", "direction": "output", "type": "value.core.float64" }
@@ -5457,7 +5456,7 @@ mod tests {
               "nodes": [
                 {
                   "id": "button",
-                  "implementation": { "provider": { "kind": "core" }, "objectId": "bang", "version": "0.1.0" },
+                  "implementation": { "provider": { "kind": "core" }, "objectId": "bang" },
                   "params": {},
                   "ports": [
                     { "id": "out", "direction": "output", "type": "value.core.bang", "rate": "event" }
@@ -5465,7 +5464,7 @@ mod tests {
                 },
                 {
                   "id": "int_source",
-                  "implementation": { "provider": { "kind": "core" }, "objectId": "int", "version": "0.1.0" },
+                  "implementation": { "provider": { "kind": "core" }, "objectId": "int" },
                   "params": {},
                   "ports": [
                     { "id": "value", "direction": "output", "type": "value.core.int64", "rate": "control" }
@@ -5473,7 +5472,7 @@ mod tests {
                 },
                 {
                   "id": "bool_source",
-                  "implementation": { "provider": { "kind": "core" }, "objectId": "test.bool-emitter", "version": "0.1.0" },
+                  "implementation": { "provider": { "kind": "core" }, "objectId": "test.bool-emitter" },
                   "params": {},
                   "ports": [
                     { "id": "value", "direction": "output", "type": "value.core.bool", "rate": "control" }
@@ -5481,7 +5480,7 @@ mod tests {
                 },
                 {
                   "id": "number_box",
-                  "implementation": { "provider": { "kind": "core" }, "objectId": "float", "version": "0.1.0" },
+                  "implementation": { "provider": { "kind": "core" }, "objectId": "float" },
                   "params": {},
                   "ports": [
                     {

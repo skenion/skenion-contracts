@@ -22,8 +22,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "clock.local",
-        "version": "0.1.0"
+        "objectId": "clock.local"
       }
     },
     {
@@ -50,8 +49,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "clock.position-display",
-        "version": "0.1.0"
+        "objectId": "clock.position-display"
       }
     }
   ],

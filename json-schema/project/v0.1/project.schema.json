@@ -423,9 +423,6 @@
           "type": "string",
           "minLength": 1
         },
-        "version": {
-          "$ref": "#/$defs/semver"
-        },
         "interfaceDigest": {
           "$ref": "#/$defs/checksum"
         }

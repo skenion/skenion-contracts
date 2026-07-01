@@ -14,8 +14,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "custom.external",
-        "version": "0.1.0"
+        "objectId": "custom.external"
       }
     }
   ],

@@ -35,8 +35,7 @@
     "provider": {
       "kind": "core"
     },
-    "objectId": "example.package.gain",
-    "version": "0.1.0"
+    "objectId": "example.package.gain"
   },
   "objectResolution": {
     "status": "resolved",

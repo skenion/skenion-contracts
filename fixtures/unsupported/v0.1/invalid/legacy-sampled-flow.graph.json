@@ -21,8 +21,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "audio.osc",
-        "version": "0.1.0"
+        "objectId": "audio.osc"
       }
     }
   ],

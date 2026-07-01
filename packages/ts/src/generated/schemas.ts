@@ -128,10 +128,6 @@ export const graphV01Schema = {
           "type": "string",
           "minLength": 1
         },
-        "version": {
-          "type": "string",
-          "minLength": 1
-        },
         "interfaceDigest": {
           "$ref": "#/$defs/checksum"
         }
@@ -1429,9 +1425,6 @@ export const projectV01Schema = {
         "objectId": {
           "type": "string",
           "minLength": 1
-        },
-        "version": {
-          "$ref": "#/$defs/semver"
         },
         "interfaceDigest": {
           "$ref": "#/$defs/checksum"
@@ -3067,10 +3060,6 @@ export const objectSpecParseResultV01Schema = {
           "$ref": "#/$defs/objectProvider"
         },
         "objectId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
           "type": "string",
           "minLength": 1
         },

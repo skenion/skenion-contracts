@@ -46,8 +46,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "operator.add",
-        "version": "0.1.0"
+        "objectId": "operator.add"
       }
     },
     {
@@ -69,8 +68,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "operator.add",
-        "version": "0.1.0"
+        "objectId": "operator.add"
       }
     }
   ],

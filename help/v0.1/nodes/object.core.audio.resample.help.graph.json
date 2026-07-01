@@ -21,8 +21,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "audio.input",
-        "version": "0.1.0"
+        "objectId": "audio.input"
       }
     },
     {
@@ -48,8 +47,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "audio.resample",
-        "version": "0.1.0"
+        "objectId": "audio.resample"
       }
     },
     {
@@ -69,8 +67,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "audio.output",
-        "version": "0.1.0"
+        "objectId": "audio.output"
       }
     }
   ],

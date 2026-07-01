@@ -14,8 +14,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "comment",
-        "version": "0.1.0"
+        "objectId": "comment"
       }
     },
     {
@@ -78,8 +77,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "color",
-        "version": "0.1.0"
+        "objectId": "color"
       }
     },
     {
@@ -106,8 +104,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "render.fullscreen-shader",
-        "version": "0.1.0"
+        "objectId": "render.fullscreen-shader"
       }
     },
     {
@@ -125,8 +122,7 @@
         "provider": {
           "kind": "core"
         },
-        "objectId": "render.output",
-        "version": "0.1.0"
+        "objectId": "render.output"
       }
     }
   ],
