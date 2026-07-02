@@ -36,9 +36,19 @@ surface and reject all others.
 Release Please owns natural component releases for this repository. The hub
 verifies and promotes compatibility matrices; it does not conduct component
 releases or require all repositories to publish the same product version.
-Contracts define the v0 compatibility line: supporting Contracts `0.45` means
-supporting `>=0.45.0 <0.46.0`, while Runtime, SDK, Studio, docs, and examples
-may release at different component versions.
+Contracts publish the schema package/crate that other components consume, but
+they do not define downstream support ranges. During v0, downstream components
+may intentionally advertise a broad Contracts range such as `>=0.0.0 <1.0.0`
+while the surface is still moving. Runtime, SDK, Studio, docs, and examples may
+release at different component versions.
+
+CI must not hardcode downstream compatibility decisions for Runtime, SDK,
+Studio, Examples, or Docs. Contracts CI should prove the schemas, validators,
+generated artifacts, fixtures, and packages owned by this repository are valid.
+Downstream repositories prove their own compatibility by building and testing
+against the Contracts dependency they actually declare. Do not add workflow
+logic here that declares which downstream component version or Contracts range
+is acceptable.
 
 Registry publishing must happen only through GitHub Actions release workflows
 and Release Please. Local verification may use dry-run commands, but never run a
