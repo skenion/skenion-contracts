@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.60.0](https://github.com/skenion/skenion-contracts/compare/v0.59.0...v0.60.0) (2026-07-02)
+
+
+### Features
+
+* add runtime realtime transport contracts ([1f2b2b5](https://github.com/skenion/skenion-contracts/commit/1f2b2b599bebba7335073ff56f3f41b608149d3c))
+
 ## [0.59.0](https://github.com/skenion/skenion-contracts/compare/v0.58.0...v0.59.0) (2026-07-01)
 
 
