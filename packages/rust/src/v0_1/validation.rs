@@ -2976,17 +2976,6 @@ fn validate_runtime_node_input_payload_errors(
     errors
 }
 
-fn validate_optional_realtime_node_catalog_snapshot(
-    snapshot: Option<&NodeCatalogSnapshotV01>,
-) -> Vec<ValidationErrorV01> {
-    let Some(snapshot) = snapshot else {
-        return Vec::new();
-    };
-    validate_node_catalog_snapshot_v01(snapshot)
-        .map(|_| Vec::new())
-        .unwrap_or_else(|report| report.errors().to_vec())
-}
-
 fn validate_realtime_command_metadata(
     envelope: &RuntimeRealtimeEnvelopeV01,
     frame_type: &str,
@@ -3107,10 +3096,10 @@ pub fn validate_runtime_realtime_envelope_v01(
             ));
             if let Ok(payload) =
                 serde_json::from_value::<RuntimeSessionAttachedPayloadV01>(envelope.payload.clone())
+                && let Some(snapshot) = payload.node_catalog.snapshot()
+                && let Err(report) = validate_node_catalog_snapshot_v01(snapshot)
             {
-                errors.extend(validate_optional_realtime_node_catalog_snapshot(
-                    payload.node_catalog.snapshot(),
-                ));
+                errors.extend(report.errors().to_vec());
             }
         }
         RuntimeRealtimeFrameTypeV01::SessionSyncRequired => {
@@ -3120,10 +3109,10 @@ pub fn validate_runtime_realtime_envelope_v01(
             ));
             if let Ok(payload) = serde_json::from_value::<RuntimeSessionSyncRequiredPayloadV01>(
                 envelope.payload.clone(),
-            ) {
-                errors.extend(validate_optional_realtime_node_catalog_snapshot(
-                    payload.node_catalog.snapshot(),
-                ));
+            ) && let Some(snapshot) = payload.node_catalog.snapshot()
+                && let Err(report) = validate_node_catalog_snapshot_v01(snapshot)
+            {
+                errors.extend(report.errors().to_vec());
             }
         }
         RuntimeRealtimeFrameTypeV01::GraphCommand => {
